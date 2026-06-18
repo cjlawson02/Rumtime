@@ -2,16 +2,16 @@
 
 ## Open questions before buying full BOM
 
-1. Which exact pump model gives the best cost/reliability/flow tradeoff?
-2. What is the measured pump current under water, syrup, and startup/stall conditions?
-3. What tubing size is actually compatible with the chosen pump head?
-4. Are cheap quick disconnects acceptable, or are barbs/clamps better for v1?
+1. ~~Which exact pump model gives the best cost/reliability/flow tradeoff?~~ **Resolved for Phase 0:** Kamoer **KPHM100-HBB10** — bench-verify samples. See [`12-phase-0-decisions.md`](12-phase-0-decisions.md).
+2. What is the measured pump current under water, syrup, and startup/stall conditions? *(Rated 0.5 A; stall TBD on bench — use [`14-bench-test-protocol.md`](14-bench-test-protocol.md).)*
+3. ~~What tubing size is actually compatible with the chosen pump head?~~ **Resolved:** BPT B10, **3 mm ID × 5 mm OD**.
+4. ~~Are cheap quick disconnects acceptable, or are barbs/clamps better for v1?~~ **Resolved for Phase 0–1:** barbs + clamps; selective QD later.
 5. Does anti-drip reverse work without de-priming the line?
 6. Does the load cell remain stable with a glass plus ice during pump vibration?
 7. What enclosure dimensions are needed after real pump/cartridge measurements?
 8. How much residue remains after syrup/grenadine/citrus cleaning tests?
-9. Is 8 pumps enough for the desired drink menu, or should the enclosure start with 12 physical nozzle positions?
-10. How should pump/bottle labels be handled so setup is obvious?
+9. ~~Is 8 pumps enough for the desired drink menu, or should the enclosure start with 12 physical nozzle positions?~~ **Resolved:** Start with **8 installed pumps**; design enclosure and electronics for **16 pumps max** (four 4-pump module slots, four PCA9685 addresses on one I2C bus). Pre-plan physical space for 16 inlet barbs and nozzles; populate only 8 at first build.
+10. ~~How should pump/bottle labels be handled so setup is obvious?~~ **Resolved:** **Dual labels** — engraved/printed label above each **inlet barb** on the machine panel; matching label on each **bottle stopper** where the pickup tube enters. Tube color optional later.
 
 ## V2 ideas
 

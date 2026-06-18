@@ -107,6 +107,14 @@ Good options:
 
 The tray should be easy to remove without disturbing the load cell.
 
+## Inlet panel and labeling
+
+Each liquid line gets a **barbed inlet** on the machine panel with a **fixed label above the barb** (pump number + ingredient name).
+
+Pickup tubes terminate in **labeled bottle stoppers** that fit common bottle openings. The stopper label must match the inlet label so swapping bottles is obvious.
+
+Design the inlet panel for **up to 16 positions** even when only 8 are populated at first build.
+
 ## Bottle arrangement
 
 Bottles are separate from the machine.
@@ -118,7 +126,7 @@ V1 options:
 - Bottles in a side crate/rack.
 - Tubes bundled to an inlet panel.
 
-Use labels or color coding so pump-to-bottle routing is obvious.
+Use inlet-panel labels and matching bottle-stopper labels so pump-to-bottle routing is obvious.
 
 ## Tube management
 

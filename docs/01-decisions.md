@@ -16,27 +16,29 @@ Rationale: Rumtime is short, memorable, software-themed, and still clearly conne
 
 ## Pump count
 
-| Topic                     | Decision                     |
-| ------------------------- | ---------------------------- |
-| V1 pump count             | Build for 8 installed pumps. |
-| Acceptable starting range | 6-8 pumps.                   |
-| Expansion target          | 10-12 pumps.                 |
-| Recommended design limit  | 12 pumps total.              |
-| Expansion unit            | 4-pump module.               |
+| Topic                     | Decision                          |
+| ------------------------- | --------------------------------- |
+| V1 pump count             | Build for **8 installed pumps**.  |
+| Acceptable starting range | 6-8 pumps.                        |
+| Expansion target          | 10-12 pumps in near term.         |
+| **Design limit**          | **16 pumps** (4× 4-pump modules). |
+| Expansion unit            | 4-pump module.                    |
 
-Rationale: 8 pumps supports useful cocktails without making the first build too large. Designing around 4-pump modules allows a clean upgrade path to 12 pumps.
+Rationale: 8 pumps supports useful cocktails without making the first build too large. Designing around 4-pump modules allows expansion without changing controller architecture. **16 is the hard ceiling on one I2C bus** — each PCA9685 supports one of four addresses, so four modules max. Beyond 16 would require a bus redesign (mux, CAN, or second I2C bus).
 
 ## Pump strategy
 
-| Topic           | Decision                           |
-| --------------- | ---------------------------------- |
-| Pump type       | Peristaltic pump.                  |
-| Pump assignment | One pump per ingredient.           |
-| Reverse pumping | Required if reasonably affordable. |
-| Solenoids       | Avoid for v1.                      |
-| Shared manifold | Avoid.                             |
+| Topic           | Decision                                                     |
+| --------------- | ------------------------------------------------------------ |
+| Pump type       | Peristaltic pump.                                            |
+| Pump assignment | One pump per ingredient.                                     |
+| Reverse pumping | Required if reasonably affordable.                           |
+| Solenoids       | Avoid for v1.                                                |
+| Shared manifold | Avoid.                                                       |
+| Phase 0 model   | **Kamoer KPHM100-HB-B10** (12 V brushed, B10 3×5 mm tubing). |
+| Phase 0 qty     | 3 pumps (2 rig + 1 spare). Bench-verify before full BOM.     |
 
-Rationale: One pump per ingredient avoids solenoid complexity, cross-contamination, shared-path cleaning, and priming problems. Reversible pumps support anti-drip behavior, draining, and cleaning.
+Rationale: One pump per ingredient avoids solenoid complexity, cross-contamination, shared-path cleaning, and priming problems. Reversible pumps support anti-drip behavior, draining, and cleaning. KPHM100-HBB10 matches flow, cost, tubing, and TB6612 current targets; see [`12-phase-0-decisions.md`](12-phase-0-decisions.md).
 
 ## Measurement strategy
 
@@ -87,14 +89,14 @@ Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. M
 
 ## Bottles and storage
 
-| Topic                | Decision                                                             |
-| -------------------- | -------------------------------------------------------------------- |
-| Bottle location      | External to machine.                                                 |
-| Bottle size          | Flexible; support common 750 ml and 1 L bottles via configuration.   |
-| Pickup style         | Dropped-in pickup tubes are acceptable.                              |
-| Bottle caps/adapters | Preferred later for clean routing.                                   |
-| Fresh juices         | Connect only during use unless fridge integration is designed later. |
-| Mini fridge          | Defer. Do not drill/plumb in v1.                                     |
+| Topic                | Decision                                                                          |
+| -------------------- | --------------------------------------------------------------------------------- |
+| Bottle location      | External to machine.                                                              |
+| Bottle size          | Flexible; support common 750 ml and 1 L bottles via configuration.                |
+| Pickup style         | **Bottle stoppers** with labeled pickup tubes (not bare dropped-in tubes for v1). |
+| Bottle caps/adapters | **Labeled stoppers** per bottle; match machine inlet labels.                      |
+| Fresh juices         | Connect only during use unless fridge integration is designed later.              |
+| Mini fridge          | Defer. Do not drill/plumb in v1.                                                  |
 
 ## Cleaning
 
@@ -121,27 +123,30 @@ Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. M
 
 ## Electronics
 
-| Topic             | Decision                                                     |
-| ----------------- | ------------------------------------------------------------ |
-| Main controller   | ESP32, recommended ESP32-S3.                                 |
-| Network           | Wi-Fi only.                                                  |
-| Pump voltage      | 12 V recommended by default.                                 |
-| Pump control      | On/off acceptable; H-bridge allows reverse and optional PWM. |
-| Physical controls | Bare minimum.                                                |
-| Safety cutoff     | Include pump power cutoff/emergency stop.                    |
-| Custom PCB        | Expected and acceptable.                                     |
+| Topic               | Decision                                                     |
+| ------------------- | ------------------------------------------------------------ |
+| Main controller     | ESP32, recommended ESP32-S3.                                 |
+| Network             | Wi-Fi only.                                                  |
+| Pump voltage        | 12 V recommended by default.                                 |
+| Pump control        | On/off acceptable; H-bridge allows reverse and optional PWM. |
+| Physical controls   | Bare minimum.                                                |
+| Safety cutoff       | Include pump power cutoff/emergency stop.                    |
+| Custom PCB          | Expected and acceptable.                                     |
+| PCB toolchain       | **Altium Designer** for 4-pump module and future boards.     |
+| Phase 0 electronics | TB6612FNG breakout + ESP32-S3-DevKitC-1 on breadboard.       |
 
 ## Mechanical design
 
-| Topic             | Decision                                                                    |
-| ----------------- | --------------------------------------------------------------------------- |
-| Appearance        | More finished than a raw maker prototype.                                   |
-| Fabrication       | 3D printing available; woodworking preferred for visible enclosure.         |
-| Footprint         | No hard limit, excluding bottles.                                           |
-| Portability       | Not required.                                                               |
-| Bottle visibility | Bottles separate from machine.                                              |
-| Drip tray         | Required.                                                                   |
-| Nozzle style      | Individual clustered nozzles; removable funnel acceptable if easy to clean. |
+| Topic             | Decision                                                                          |
+| ----------------- | --------------------------------------------------------------------------------- |
+| Appearance        | More finished than a raw maker prototype.                                         |
+| Fabrication       | 3D printing available; woodworking preferred for visible enclosure.               |
+| Footprint         | No hard limit, excluding bottles.                                                 |
+| Portability       | Not required.                                                                     |
+| Bottle visibility | Bottles separate from machine.                                                    |
+| Labeling          | Label above each **inlet barb** on machine; matching label on **bottle stopper**. |
+| Drip tray         | Required.                                                                         |
+| Nozzle style      | Individual clustered nozzles; removable funnel acceptable if easy to clean.       |
 
 ## Budget
 

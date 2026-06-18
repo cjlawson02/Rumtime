@@ -70,3 +70,36 @@ Testing/
 
 # macOS
 .DS_Store
+
+# PlatformIO
+.pio/
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+
+# Altium Designer
+History/
+__Previews/
+Project Logs/
+Project Outputs/
+*.Zip
+*.SchDocPreview
+*.PcbDocPreview
+*.$$$
+*.rep
+*.dat
+*.drr
+*.LIX
+*.lis
+*.log
+*.ncd
+*.apr
+*.ExtRep
+*.OutJob
+*.Harness
+*.PCBDwf
+*.PCB3D
+*.PCB3DLib
+*.PcbLibPreview
+*.SchLibPreview
