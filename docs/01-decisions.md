@@ -1,0 +1,153 @@
+# Captured Design Decisions
+
+This file is the source of truth for current hardware decisions.
+
+## Project identity
+
+| Topic             | Decision                                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Project name      | Rumtime.                                                                                                                        |
+| Short description | A modular cocktail execution engine.                                                                                            |
+| Tagline           | Compile recipes. Execute cocktails.                                                                                             |
+| Repo name         | `rumtime`.                                                                                                                      |
+| Naming style      | Software-engineer humor is encouraged in docs and module names when it improves clarity, but hardware docs should stay precise. |
+
+Rationale: Rumtime is short, memorable, software-themed, and still clearly connected to drinks. It supports playful terminology without forcing unclear puns into safety-critical hardware documentation.
+
+## Pump count
+
+| Topic                     | Decision                     |
+| ------------------------- | ---------------------------- |
+| V1 pump count             | Build for 8 installed pumps. |
+| Acceptable starting range | 6-8 pumps.                   |
+| Expansion target          | 10-12 pumps.                 |
+| Recommended design limit  | 12 pumps total.              |
+| Expansion unit            | 4-pump module.               |
+
+Rationale: 8 pumps supports useful cocktails without making the first build too large. Designing around 4-pump modules allows a clean upgrade path to 12 pumps.
+
+## Pump strategy
+
+| Topic           | Decision                           |
+| --------------- | ---------------------------------- |
+| Pump type       | Peristaltic pump.                  |
+| Pump assignment | One pump per ingredient.           |
+| Reverse pumping | Required if reasonably affordable. |
+| Solenoids       | Avoid for v1.                      |
+| Shared manifold | Avoid.                             |
+
+Rationale: One pump per ingredient avoids solenoid complexity, cross-contamination, shared-path cleaning, and priming problems. Reversible pumps support anti-drip behavior, draining, and cleaning.
+
+## Measurement strategy
+
+| Topic               | Decision                                           |
+| ------------------- | -------------------------------------------------- |
+| Primary measurement | Timed dispensing based on calibrated flow rate.    |
+| Priming requirement | Lines should be primed before accurate dispensing. |
+| Flow sensors        | Avoid inline flow meters in v1.                    |
+| Load cell           | Optional but recommended.                          |
+| Accuracy target     | Good enough, not laboratory precise.               |
+
+Rationale: Timed dispensing is simple and cheap. A load cell can add value without adding wet parts to every liquid path.
+
+## Glass and dispense position
+
+| Topic              | Decision                                   |
+| ------------------ | ------------------------------------------ |
+| Glass location     | One fixed dispense location.               |
+| Ice before pour    | Yes, user may place ice in glass first.    |
+| Glass detection    | Nice to have if cheap.                     |
+| Recommended sensor | Load cell can serve as glass/ice detector. |
+
+## Ingredients
+
+| Ingredient type       | Decision                                       |
+| --------------------- | ---------------------------------------------- |
+| Spirits               | Support.                                       |
+| Liqueurs              | Support.                                       |
+| Simple syrup          | Support; flush after session.                  |
+| Grenadine             | Support; flush after session.                  |
+| Fresh citrus, no pulp | Session-only; flush after use.                 |
+| Non-pulpy juices      | Support as session-only or refrigerated later. |
+| Pulpy juices          | Skip in v1.                                    |
+| Cream/coconut/purées  | Skip in v1.                                    |
+| Carbonated mixers     | Manual top-off in v1.                          |
+
+Rationale: Sugary, acidic, and fresh ingredients are manageable if flushed. Pulp and thick dairy/coconut-style ingredients increase clogging and sanitation risk.
+
+## Carbonation
+
+| Topic                  | Decision                                                 |
+| ---------------------- | -------------------------------------------------------- |
+| Pump carbonated mixers | Not in v1.                                               |
+| UI behavior            | Recipe can say "top with soda/tonic/cola/etc."           |
+| Possible v2            | Dedicated chilled/carbonated line can be explored later. |
+
+Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. Manual top-off gives most of the value with little complexity.
+
+## Bottles and storage
+
+| Topic                | Decision                                                             |
+| -------------------- | -------------------------------------------------------------------- |
+| Bottle location      | External to machine.                                                 |
+| Bottle size          | Flexible; support common 750 ml and 1 L bottles via configuration.   |
+| Pickup style         | Dropped-in pickup tubes are acceptable.                              |
+| Bottle caps/adapters | Preferred later for clean routing.                                   |
+| Fresh juices         | Connect only during use unless fridge integration is designed later. |
+| Mini fridge          | Defer. Do not drill/plumb in v1.                                     |
+
+## Cleaning
+
+| Topic                    | Decision                                           |
+| ------------------------ | -------------------------------------------------- |
+| Cleaning effort          | Moderate is acceptable.                            |
+| Rinse/flush              | Required.                                          |
+| Sanitizer                | Star San or similar session sanitizer may be used. |
+| Permanent sanitizer tank | Not recommended in v1.                             |
+| Tubing                   | Replaceable consumable.                            |
+| Quick disconnects        | Preferred where budget allows.                     |
+| Session-only ingredients | Acceptable.                                        |
+
+## Modular hardware
+
+| Topic        | Decision                                          |
+| ------------ | ------------------------------------------------- |
+| Module style | 4-pump expansion boards.                          |
+| Module cases | 3D printed clean cartridges/cases preferred.      |
+| Distance     | Under 3 ft from main controller.                  |
+| Hot-swap     | Mechanically swappable, but not powered hot-swap. |
+| Connectors   | Cheap/easy is acceptable if rigid and reliable.   |
+| Design style | Cheap and practical, visually clean.              |
+
+## Electronics
+
+| Topic             | Decision                                                     |
+| ----------------- | ------------------------------------------------------------ |
+| Main controller   | ESP32, recommended ESP32-S3.                                 |
+| Network           | Wi-Fi only.                                                  |
+| Pump voltage      | 12 V recommended by default.                                 |
+| Pump control      | On/off acceptable; H-bridge allows reverse and optional PWM. |
+| Physical controls | Bare minimum.                                                |
+| Safety cutoff     | Include pump power cutoff/emergency stop.                    |
+| Custom PCB        | Expected and acceptable.                                     |
+
+## Mechanical design
+
+| Topic             | Decision                                                                    |
+| ----------------- | --------------------------------------------------------------------------- |
+| Appearance        | More finished than a raw maker prototype.                                   |
+| Fabrication       | 3D printing available; woodworking preferred for visible enclosure.         |
+| Footprint         | No hard limit, excluding bottles.                                           |
+| Portability       | Not required.                                                               |
+| Bottle visibility | Bottles separate from machine.                                              |
+| Drip tray         | Required.                                                                   |
+| Nozzle style      | Individual clustered nozzles; removable funnel acceptable if easy to clean. |
+
+## Budget
+
+| Topic            | Decision                                                                                                          |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| V1 budget target | About $500 max, excluding ingredients.                                                                            |
+| Pump quality     | Willing to pay more for reliability if value is clear.                                                            |
+| Sourcing         | Check McMaster for cheap/appropriate food-contact tubing/fittings, but avoid overbuying premium industrial parts. |
+| Priority         | Best bang for buck.                                                                                               |
