@@ -183,9 +183,9 @@ The software/hardware should support a prime mode per pump.
 Recommended workflow:
 
 1. Place pickup tube in ingredient bottle.
-2. Run pump forward until liquid reaches nozzle.
+2. Run pump forward until liquid reaches nozzle (timed over **drip tray**; fill level is variable).
 3. Mark line as primed in software.
-4. Dispense only after primed.
+4. Dispense only after primed, **or** use **flow-gated dispense** when pouring into a glass on the load cell (see [`06-flow-calibration-and-inventory.md`](06-flow-calibration-and-inventory.md)).
 
 Inventory tracking may optionally subtract a small priming volume.
 

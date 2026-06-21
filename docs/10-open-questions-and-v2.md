@@ -6,8 +6,11 @@
 2. What is the measured pump current under water, syrup, and startup/stall conditions? *(Rated 0.5 A; stall TBD on bench — use [`14-bench-test-protocol.md`](14-bench-test-protocol.md).)*
 3. ~~What tubing size is actually compatible with the chosen pump head?~~ **Resolved:** BPT B10, **3 mm ID × 5 mm OD**.
 4. ~~Are cheap quick disconnects acceptable, or are barbs/clamps better for v1?~~ **Resolved for Phase 0–1:** barbs + clamps; selective QD later.
-5. Does anti-drip reverse work without de-priming the line?
-6. Does the load cell remain stable with a glass plus ice during pump vibration?
+5. Does anti-drip reverse work without de-priming the line? *(Bench Tests 5, 4b, 9; flow-gated pour start mitigates under-pour when line fill varies.)*
+6. Does the load cell remain stable enough for **flow-gated dispense** with glass plus ice during pump vibration? *(Bench Tests 7.6, 9 — gates v1 default vs timed fallback.)*
+11. What `flow_threshold` and timeout work across water, syrup, and simultaneous 2-pump pours?
+12. Is **8-pump simultaneous** pour into one glass acceptable for splash/overflow? *(Not testable on 2-pump bench — Phase 4.)*
+13. Does **GST120** handle 8-pump inrush without sag that breaks calibration? *(Simulate on bench with measured currents.)*
 7. What enclosure dimensions are needed after real pump/cartridge measurements?
 8. How much residue remains after syrup/grenadine/citrus cleaning tests?
 9. ~~Is 8 pumps enough for the desired drink menu, or should the enclosure start with 12 physical nozzle positions?~~ **Resolved:** Start with **8 installed pumps**; design enclosure and electronics for **16 pumps max** (four 4-pump module slots, four PCA9685 addresses on one I2C bus). Pre-plan physical space for 16 inlet barbs and nozzles; populate only 8 at first build.
@@ -85,9 +88,9 @@ Concerns:
 
 Recommended path:
 
-1. Use load cell for calibration.
+1. Use load cell for calibration and **flow-gated timer start** (v1).
 2. Use load cell for final sanity check.
-3. Add sequential scale-assisted mode only if timed pours are not good enough.
+3. Add sequential scale-assisted **mass stop** per ingredient only if timed + flow-gate is not good enough.
 
 ### Better module network
 
@@ -119,15 +122,18 @@ V1 decision: use these selectively because cost multiplies quickly across 8-12 l
 
 ## Known risks
 
-| Risk                                | Mitigation                                                                |
-| ----------------------------------- | ------------------------------------------------------------------------- |
-| Cheap pumps vary in flow rate       | Calibrate each pump and keep spares.                                      |
-| Tubing wears and flow drifts        | Treat tubing as consumable; recalibrate periodically.                     |
-| Syrup dries in nozzles              | Use warm-water flush and removable nozzle plate.                          |
-| Citrus/juice sanitation issues      | Use session-only handling and clean after use.                            |
-| I2C noise with motors               | Keep cables short, use proper grounding, add decoupling, lower I2C speed. |
-| Pump startup current exceeds driver | Measure current before final PCB; choose driver accordingly.              |
-| Liquid leaks into electronics       | Separate wet/dry compartments; leak test with water.                      |
-| Reverse pump de-primes line         | Tune anti-drip reverse per pump/ingredient.                               |
-| Inventory estimate drifts           | Use low-volume reserve and manual refill confirmations.                   |
-| Project overcomplicates             | Follow AGENTS.md: simplicity first and goal-driven verification.          |
+| Risk                                  | Mitigation                                                                |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| Cheap pumps vary in flow rate         | Calibrate each pump and keep spares.                                      |
+| Tubing wears and flow drifts          | Treat tubing as consumable; recalibrate periodically.                     |
+| Syrup dries in nozzles                | Use warm-water flush and removable nozzle plate.                          |
+| Citrus/juice sanitation issues        | Use session-only handling and clean after use.                            |
+| I2C noise with motors                 | Keep cables short, use proper grounding, add decoupling, lower I2C speed. |
+| Pump startup current exceeds driver   | Measure current before final PCB; choose driver accordingly.              |
+| Liquid leaks into electronics         | Separate wet/dry compartments; leak test with water.                      |
+| Reverse pump de-primes line           | Tune anti-drip; **flow-gated dispense** for recipe pours.                 |
+| Variable line fill breaks timed pour  | Flow-gate on load cell; drip-tray prime stays timed + visual.             |
+| Bench GPIO ≠ production I2C path      | PCA9685 breakout Test 10 before Altium fab.                               |
+| 8-pump simultaneous untested on bench | Phase 4 recipe simulation; accept incremental risk at PCB fab.            |
+| Inventory estimate drifts             | Use low-volume reserve and manual refill confirmations.                   |
+| Project overcomplicates               | Follow AGENTS.md: simplicity first and goal-driven verification.          |

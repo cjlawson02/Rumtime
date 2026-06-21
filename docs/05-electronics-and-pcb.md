@@ -28,7 +28,7 @@ Hardware-level responsibilities:
 
 - Enable/disable pump power or pump commands.
 - Communicate with pump modules over I2C.
-- Read optional HX711/load cell.
+- Read HX711/load cell (required for v1).
 - Read physical buttons.
 - Drive status LEDs or small display if added.
 - Store or access pump calibration and inventory data through software.
@@ -149,21 +149,23 @@ If using an internal AC mains supply later, isolate it physically from the wet s
 
 ## Load cell electronics
 
-Recommended optional sensor:
+**Required for v1:**
 
-- 5 kg or 10 kg load cell.
+- 5 kg load cell (SparkFun SEN-14729 or equivalent).
 - HX711 amplifier.
-- Mounted under glass platform.
+- Mounted under glass platform with mechanical isolation.
 
 Use cases:
 
-- Glass presence detection.
+- Glass presence detection — block dispense without glass.
 - Tare after glass plus ice is placed.
+- **Flow-gated pour start** — begin ml timers when `d(weight)/dt` exceeds threshold (see [`06-flow-calibration-and-inventory.md`](06-flow-calibration-and-inventory.md)).
 - Calibration by weight.
-- Detect obvious no-flow if pump runs but weight does not increase.
-- Final mass sanity check.
+- Pre-gate no-flow abort and post-pour mass sanity check.
 
-Do not rely on the load cell to identify which pump is wrong if multiple pumps are running simultaneously.
+Do not rely on the load cell to identify which pump is wrong if multiple pumps are running simultaneously. Flow-gating uses one **global** onset signal.
+
+Bench must pass Tests 7–9 in [`14-bench-test-protocol.md`](14-bench-test-protocol.md) before locking flow-gate as default; timed fallback remains if vibration blocks reliable detection.
 
 ## Physical controls
 
@@ -233,11 +235,13 @@ Avoid Dupont jumpers in the final machine.
 
 Before ordering PCB revisions:
 
-1. Confirm pump current and driver margin.
+1. Confirm pump current and driver margin (dry **and** wet stall on bench).
 2. Confirm connector pinouts against wiring harness plan.
 3. Confirm tubing/pump physical dimensions against cartridge CAD.
 4. Run schematic ERC.
 5. Run PCB DRC.
 6. Verify mounting hole locations with printed paper or test plate.
-7. Confirm safe default states with schematic review.
+7. Confirm safe default states with schematic review (IN1/IN2 pulldowns, STBY, PCA9685 power-on outputs).
 8. Confirm main power cutoff removes pump power.
+9. **PCA9685 I2C bench validation** complete (Test 10 in [`14-bench-test-protocol.md`](14-bench-test-protocol.md)).
+10. Flow-gated dispense pass or documented fallback in `docs/bench-results/`.

@@ -23,27 +23,37 @@ Verify prices and sellers before ordering. Links are examples, not endorsements.
 |        1 | Protoboard         | Breadboard + jumpers                                 |     $8 | Amazon                                                                                                |
 |        2 | Test bottles       | Water + syrup/grenadine ingredients                  |    $10 | Grocery                                                                                               |
 |        1 | Graduated cylinder | 100 ml min.                                          |     $8 | Amazon                                                                                                |
+|        1 | Load cell          | SparkFun **SEN-14729** (5 kg TAL220B)                |    $16 | SparkFun                                                                                              |
+|        1 | HX711              | SparkFun **SEN-13879**                               |     $5 | SparkFun                                                                                              |
+|        1 | Terminal block     | **2-pin 5.08 mm** pluggable (GST60 pump bus)         |     $3 | Amazon / Mouser                                                                                       |
+|        1 | USB-C cable        | ESP32-S3-DevKitC-1 programming                       |     $5 | (often on hand)                                                                                       |
 
 ### Optional but recommended
 
-|  Qty | Item       | Part                                  | ~USD | Where    |
-| ---: | ---------- | ------------------------------------- | ---: | -------- |
-|    1 | Load cell  | SparkFun **SEN-14729** (5 kg TAL220B) |  $16 | SparkFun |
-|    1 | HX711      | SparkFun **SEN-13879**                |   $5 | SparkFun |
-|    1 | Logic buck | Pololu **D24V5F5** (12 V → 5 V)       |   $9 | Pololu   |
+|  Qty | Item            | Part                            | ~USD | Where             |
+| ---: | --------------- | ------------------------------- | ---: | ----------------- |
+|    1 | Logic buck      | Pololu **D24V5F5** (12 V → 5 V) |   $9 | Pololu            |
+|    1 | Driver fallback | Adafruit **DRV8871** breakout   |   $8 | Adafruit          |
+|    1 | Nozzle test tip | Short barb + restricted outlet  |   $5 | McMaster / Amazon |
 
 ## Phase 0 cost band
 
-| Tier                  |    Est. total |
-| --------------------- | ------------: |
-| Without load cell     | **~$136–164** |
-| With load cell + buck | **~$157–185** |
+| Tier                         |    Est. total |
+| ---------------------------- | ------------: |
+| Core (includes load cell)    | **~$157–175** |
+| With buck + DRV8871 + nozzle | **~$174–197** |
 
 ## Backup pump (if KPHM100 unavailable)
 
 |  Qty | Item             | Part                                      | ~USD | Where                                                                                                        |
 | ---: | ---------------- | ----------------------------------------- | ---: | ------------------------------------------------------------------------------------------------------------ |
 |    3 | Peristaltic pump | **Kamoer NKP-12V-S10B** (3×5 mm silicone) |  $30 | [Amazon B07GWJ78FN](https://www.amazon.com/Kamoer-Peristaltic-Hydroponics-Nutrient-Analytical/dp/B07GWJ78FN) |
+
+## Buy before Altium fab (not Phase 0 order)
+
+| Item             | Part                        | When                                           |
+| ---------------- | --------------------------- | ---------------------------------------------- |
+| PCA9685 breakout | Adafruit #815 or equivalent | After liquid tests; before PCB order (Test 10) |
 
 ## Buy for full v1 later
 
@@ -58,7 +68,7 @@ Verify prices and sellers before ordering. Links are examples, not endorsements.
 
 ## Defer until Phase 1+
 
-PCA9685 breakout, 3D cartridge/nozzle CAD, CPC quick disconnects, enclosure, internal mains PSU, DRV8871 (only if TB6612 fails stall test).
+3D cartridge/nozzle CAD, CPC quick disconnects, enclosure, internal mains PSU. DRV8871 only if bench stall test fails (order with Phase 0 if you want a fast swap).
 
 ## Receive checklist
 

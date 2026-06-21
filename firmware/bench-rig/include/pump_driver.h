@@ -2,9 +2,18 @@
 
 #include <Arduino.h>
 
+class ScaleDriver;
+
 enum class PumpId : uint8_t { kPump1 = 0, kPump2 = 1 };
 
 enum class PumpDirection { kStop, kForward, kReverse };
+
+struct GatedDispenseResult {
+  bool ok = false;
+  unsigned long gated_delay_ms = 0;
+  unsigned long timed_ms = 0;
+  float mass_delta_g = 0.0f;
+};
 
 class PumpDriver {
  public:
@@ -34,6 +43,9 @@ class BenchRig {
 
   void dispenseMl(PumpId pump, float ml, float mlPerSecond,
                   unsigned long antiDripMs);
+  GatedDispenseResult dispenseMlGated(PumpId pump, float ml, float mlPerSecond,
+                                      unsigned long antiDripMs,
+                                      ScaleDriver& scale);
   void prime(PumpId pump, unsigned long durationMs);
 
   bool busy() const { return busy_; }

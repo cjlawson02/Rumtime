@@ -42,24 +42,26 @@ Rationale: One pump per ingredient avoids solenoid complexity, cross-contaminati
 
 ## Measurement strategy
 
-| Topic               | Decision                                           |
-| ------------------- | -------------------------------------------------- |
-| Primary measurement | Timed dispensing based on calibrated flow rate.    |
-| Priming requirement | Lines should be primed before accurate dispensing. |
-| Flow sensors        | Avoid inline flow meters in v1.                    |
-| Load cell           | Optional but recommended.                          |
-| Accuracy target     | Good enough, not laboratory precise.               |
+| Topic               | Decision                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| Primary measurement | Timed dispensing based on calibrated `ml_per_second`.                                      |
+| Pour timing         | **Flow-gated start** when glass on load cell; timed-from-motor-on fallback on scale fault. |
+| Priming requirement | Session prime over drip tray; recipe pours tolerate variable line fill via flow-gating.    |
+| Flow sensors        | Avoid inline flow meters in v1.                                                            |
+| Load cell           | **Required** (5 kg + HX711 under glass).                                                   |
+| Accuracy target     | Good enough, not laboratory precise.                                                       |
+| Deferred            | Per-ingredient closed-loop mass stop during simultaneous 8-pump pours.                     |
 
-Rationale: Timed dispensing is simple and cheap. A load cell can add value without adding wet parts to every liquid path.
+Rationale: Timed dispensing is simple and cheap. Variable line fill after anti-drip makes motor-on timers wrong; flow-gating uses the load cell already required for glass/ice detection. Bench validates vibration stability before locking flow-gate as default — see [`14-bench-test-protocol.md`](14-bench-test-protocol.md) Test 9.
 
 ## Glass and dispense position
 
-| Topic              | Decision                                   |
-| ------------------ | ------------------------------------------ |
-| Glass location     | One fixed dispense location.               |
-| Ice before pour    | Yes, user may place ice in glass first.    |
-| Glass detection    | Nice to have if cheap.                     |
-| Recommended sensor | Load cell can serve as glass/ice detector. |
+| Topic              | Decision                                                    |
+| ------------------ | ----------------------------------------------------------- |
+| Glass location     | One fixed dispense location.                                |
+| Ice before pour    | Yes, user may place ice in glass first.                     |
+| Glass detection    | **Required** — load cell under glass platform.              |
+| Recommended sensor | Load cell serves glass, ice tare, flow-gate, sanity checks. |
 
 ## Ingredients
 

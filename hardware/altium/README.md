@@ -24,12 +24,13 @@ Do not commit Altium cache/history blobs — see root `.gitignore`.
 
 ## Design sequence
 
-| Phase | Board                      | Action                          |
-| ----- | -------------------------- | ------------------------------- |
-| 0–1   | None                       | TB6612 breakout on breadboard   |
-| 2     | 4-pump module              | First fab — one module, 4 pumps |
-| 4     | Second 4-pump module       | Duplicate validated design      |
-| 5     | Main controller (optional) | Dev board acceptable for v1     |
+| Phase | Board                      | Action                                              |
+| ----- | -------------------------- | --------------------------------------------------- |
+| 0–1   | None                       | TB6612 breakout on breadboard; HX711 + load cell    |
+| 1b    | None                       | PCA9685 breakout on I2C (Test 10) before module fab |
+| 2     | 4-pump module              | First fab — one module, 4 pumps                     |
+| 4     | Second 4-pump module       | Duplicate validated design                          |
+| 5     | Main controller (optional) | Dev board acceptable for v1                         |
 
 Main controller can remain **ESP32-S3 dev board on socket/headers** for v1. Integrate ESP32 on a main PCB only if enclosure warrants it.
 
@@ -49,4 +50,9 @@ Main controller can remain **ESP32-S3 dev board on socket/headers** for v1. Inte
 
 ## Gate before fabrication
 
-Do not order PCBs until Phase 0–1 exit criteria in [`docs/14-bench-test-protocol.md`](../../docs/14-bench-test-protocol.md) pass and measured pump current is recorded in `docs/bench-results/`.
+Do not order PCBs until:
+
+1. Phase 0–1 exit criteria in [`docs/14-bench-test-protocol.md`](../../docs/14-bench-test-protocol.md) pass.
+2. Measured pump current (dry and wet stall) recorded in `docs/bench-results/`.
+3. **Test 10** PCA9685 I2C path validated on bench ESP32.
+4. Load cell Tests 7–9 pass **or** flow-gate fallback is documented for v1 firmware.

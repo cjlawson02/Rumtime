@@ -26,7 +26,7 @@ Rumtime v1 should include:
 - Electrical and physical design expandable to **10-12 pumps**, with **12 pumps as the design limit**.
 - One reversible peristaltic pump per ingredient.
 - Timed dispensing after calibration.
-- Optional but recommended load cell under the glass.
+- Load cell under the glass (required for v1 — glass detection, flow-gated pour, sanity checks).
 - Bottle inventory tracking based on configured bottle size and dispensed usage.
 - Clustered individual nozzles over one fixed glass position.
 - Drip tray.

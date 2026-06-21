@@ -35,17 +35,22 @@ Build a temporary rig with 2-4 pumps.
    - Verify: pump can dispense and flush them without obvious clogging.
 6. Test warm-water flush.
    - Verify: visible residue clears from lines/nozzles.
-7. Test load cell if used.
-   - Verify: detects glass, glass plus ice, and obvious no-flow.
+7. Test load cell and flow-gating.
+   - Verify: detects glass, glass plus ice, flow-gated vs timed pour (Tests 7–9).
+8. Validate I2C pump path before PCB order.
+   - Verify: PCA9685 breakout drives pumps; bus stable under motor load (Test 10).
 
 Exit criteria:
 
 - At least two pumps pass repeatability tests.
 - Syrup/grenadine can be flushed acceptably.
-- Anti-drip reverse has a workable setting.
+- Anti-drip reverse has a workable setting; Test 4b trend documented.
+- Load cell Tests 7–9 pass or flow-gate fallback documented.
 - No critical issue requires changing the architecture.
 
 ## Phase 2: First 4-pump module PCB
+
+**Prerequisite:** Phase 0–1 exit including Test 10 (PCA9685 I2C path).
 
 Design and fabricate one 4-pump module PCB.
 
@@ -125,14 +130,15 @@ Exit criteria:
 
 For each pump:
 
-| Test          |   Target | Pass condition                                |
-| ------------- | -------: | --------------------------------------------- |
-| Small pour    |    15 ml | Good-enough repeatability.                    |
-| Standard pour |    30 ml | Good-enough repeatability.                    |
-| Large pour    |    60 ml | Good-enough repeatability.                    |
-| Anti-drip     | Per pump | No excessive dripping; line remains primed.   |
-| Flush         | Per pump | No visible residue after cleaning cycle.      |
-| Reverse       | Per pump | Pump reverses without leaks or tube collapse. |
+| Test          |     Target | Pass condition                                              |
+| ------------- | ---------: | ----------------------------------------------------------- |
+| Small pour    |      15 ml | Good-enough repeatability.                                  |
+| Standard pour |      30 ml | Good-enough repeatability.                                  |
+| Large pour    |      60 ml | Good-enough repeatability.                                  |
+| Anti-drip     |   Per pump | No excessive dripping; Test 4b without re-prime documented. |
+| Flow-gate     | Per recipe | Gated vs timed error on de-primed line (Test 9).            |
+| Flush         |   Per pump | No visible residue after cleaning cycle.                    |
+| Reverse       |   Per pump | Pump reverses without leaks or tube collapse.               |
 
 Define numeric tolerances after initial prototype results. Do not over-optimize before measuring real pump behavior.
 
@@ -161,9 +167,11 @@ Before using with ingredients:
    - Verify: pumps stop or remain off.
 3. Disconnect/reconnect logic with pump power off.
    - Verify: no unexpected pump activation after reconnect.
-4. Simulate no glass if load cell is installed.
+4. Simulate no glass (load cell required).
    - Verify: dispensing is blocked or warning is shown.
-5. Leak test with water.
+5. Flow-gated pour with de-primed line.
+   - Verify: gated pour within tolerance or fallback documented.
+6. Leak test with water.
    - Verify: leaks do not reach electronics.
 
 ## Do not skip
@@ -172,5 +180,7 @@ Before using with ingredients:
 - Tubing/fitting compatibility test.
 - Syrup/grenadine cleaning test.
 - Anti-drip reverse tuning.
+- Load cell flow-gate validation (or documented fallback).
+- PCA9685 I2C bench test before PCB fab.
 - Leak test with water before alcohol/sugar.
 - Hardware pump power cutoff.

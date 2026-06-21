@@ -16,7 +16,7 @@ External bottles/jars
 ESP32-S3 main controller
     -> I2C bus to pump modules
     -> pump power enable/cutoff path
-    -> optional HX711/load cell
+    -> HX711/load cell (required for v1)
     -> basic physical controls/status LEDs
 ```
 
@@ -128,12 +128,12 @@ No shared liquid manifold.
 
 ## Operating modes that affect hardware
 
-| Mode             | Hardware implication                                                       |
-| ---------------- | -------------------------------------------------------------------------- |
-| Prime            | Pumps must run forward until fluid reaches nozzle.                         |
-| Dispense         | Timed pump run; optionally simultaneous.                                   |
-| Anti-drip        | Pumps briefly reverse after dispensing.                                    |
-| Drain            | Pumps reverse longer to pull fluid back from outlet lines.                 |
-| Flush            | Pickup tubes placed in water/sanitizer and pumps run forward.              |
-| Calibrate        | Pump runs into measuring cup or glass on load cell.                        |
-| Inventory update | Software subtracts expected dispensed volume from remaining bottle volume. |
+| Mode             | Hardware implication                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| Prime            | Timed forward over drip tray until nozzle wet; optional flow detect if priming into glass. |
+| Dispense         | Timed ml pour; **flow-gated timer start** when glass on load cell; simultaneous optional.  |
+| Anti-drip        | Pumps briefly reverse after dispensing.                                                    |
+| Drain            | Pumps reverse longer to pull fluid back from outlet lines.                                 |
+| Flush            | Pickup tubes placed in water/sanitizer and pumps run forward.                              |
+| Calibrate        | Pump runs into measuring cup or glass on load cell.                                        |
+| Inventory update | Software subtracts expected dispensed volume from remaining bottle volume.                 |

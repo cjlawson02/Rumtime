@@ -15,7 +15,7 @@ Prices are rough planning estimates. Verify price, availability, food-contact su
 | Logic power    | 12 V to 5 V buck converter                  |                     1 |                   1 | Feeds ESP32 and logic as needed.                                   |
 | Safety         | Pump power cutoff / e-stop switch           |                     1 |                   1 | Cuts pump power, not necessarily controller power.                 |
 | Protection     | Main fuse + per-module fuses/polyfuses      |               several |             several | Protects wiring and modules.                                       |
-| Weight sensing | 5 kg or 10 kg load cell + HX711             |                     1 |                   1 | Recommended but optional.                                          |
+| Weight sensing | 5 kg load cell + HX711                      |                     1 |                   1 | Required — glass, flow-gate, sanity checks.                        |
 | Tubing         | Food-contact tubing matched to pump head    |              25-50 ft |              50+ ft | Tubing is a consumable.                                            |
 | Fittings       | Barbed fittings, bulkheads, clamps          |               8 lines |            12 lines | Use quick disconnects selectively to control cost.                 |
 | Nozzles        | Individual outlet nozzles                   |                     8 |                  12 | No shared manifold.                                                |

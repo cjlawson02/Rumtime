@@ -1,6 +1,7 @@
 #include "pump_driver.h"
 
 #include "config.h"
+#include "scale_driver.h"
 
 void PumpDriver::begin(int in1, int in2, int pwm_pin) {
   in1_ = in1;
@@ -89,6 +90,58 @@ void BenchRig::dispenseMl(PumpId pump, float ml, float mlPerSecond,
     runFor(pump, PumpDirection::kReverse, antiDripMs, kPumpPwmFull);
   }
   busy_ = false;
+}
+
+GatedDispenseResult BenchRig::dispenseMlGated(PumpId pump, float ml,
+                                              float mlPerSecond,
+                                              unsigned long antiDripMs,
+                                              ScaleDriver& scale) {
+  GatedDispenseResult result;
+  if (mlPerSecond <= 0.0f) {
+    return result;
+  }
+
+  busy_ = true;
+  const float massBefore = scale.readGrams();
+  const unsigned long pourMs =
+      static_cast<unsigned long>((ml / mlPerSecond) * 1000.0f);
+  result.timed_ms = pourMs;
+
+  scale.resetFlowDetect();
+  const unsigned long pumpStart = millis();
+  runPump(pump, PumpDirection::kForward, kPumpPwmFull);
+
+  bool flowOk = false;
+  while (millis() - pumpStart < scale.flowDetectTimeoutMs()) {
+    if (scale.isFlowDetected()) {
+      result.gated_delay_ms = millis() - pumpStart;
+      flowOk = true;
+      break;
+    }
+    delay(kFlowSampleIntervalMs);
+  }
+
+  if (!flowOk) {
+    stopPump(pump);
+    const float massAfter = scale.readGrams();
+    result.mass_delta_g = massAfter - massBefore;
+    result.gated_delay_ms = millis() - pumpStart;
+    busy_ = false;
+    return result;
+  }
+
+  delay(pourMs);
+  stopPump(pump);
+  delay(50);
+  if (antiDripMs > 0) {
+    runFor(pump, PumpDirection::kReverse, antiDripMs, kPumpPwmFull);
+  }
+
+  const float massAfter = scale.readGrams();
+  result.mass_delta_g = massAfter - massBefore;
+  result.ok = true;
+  busy_ = false;
+  return result;
 }
 
 void BenchRig::prime(PumpId pump, unsigned long durationMs) {

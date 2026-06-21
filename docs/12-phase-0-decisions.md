@@ -93,13 +93,14 @@ Size final fuse/cutoff after measured max current. Do not assume 0.5 A rated equ
 | Framework   | **PlatformIO + Arduino** for bench rig                           |
 | Phase 2     | Same ESP32-S3 family on main controller PCB or dev board socket  |
 
-## Optional sensing (Phase 0)
+## Load cell (required)
 
-| Item           | Decision                                                      |
-| -------------- | ------------------------------------------------------------- |
-| Load cell      | **SparkFun 5 kg TAL220B** (SEN-14729) + **HX711** (SEN-13879) |
-| Use in Phase 0 | Glass presence, calibration by weight, no-flow sanity check   |
-| Defer          | Closed-loop sequential pouring                                |
+| Item           | Decision                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------- |
+| Load cell      | **SparkFun 5 kg TAL220B** (SEN-14729) + **HX711** (SEN-13879)                               |
+| Use in Phase 0 | Glass/ice, flow-gated dispense validation (Test 9), calibration, no-flow, sanity check      |
+| v1 behavior    | Flow-gated pour start when glass present; timed fallback if scale fault or bench gate fails |
+| Defer          | Per-ingredient closed-loop mass stop during simultaneous 8-pump pours                       |
 
 ## Safety (Phase 0)
 
@@ -126,16 +127,19 @@ See `hardware/altium/README.md` for repo layout and schematic checklist.
 
 ## Open questions partially closed
 
-| #    | Question                                                     | Status after this doc                             |
-| ---- | ------------------------------------------------------------ | ------------------------------------------------- |
-| 1    | Pump model                                                   | **KPHM100-HB-B10** — verify sample units on bench |
-| 2    | Pump current                                                 | **0.5 A rated** — measure stall/syrup on bench    |
-| 3    | Tubing size                                                  | **3 mm × 5 mm BPT B10**                           |
-| 4    | Quick disconnects vs barbs                                   | **Barbs for Phase 0–1**                           |
-| 5–10 | Anti-drip, load cell, enclosure, cleaning, menu size, labels | **Still require bench/session tests**             |
+| #    | Question                                       | Status after this doc                                        |
+| ---- | ---------------------------------------------- | ------------------------------------------------------------ |
+| 1    | Pump model                                     | **KPHM100-HB-B10** — verify sample units on bench            |
+| 2    | Pump current                                   | **0.5 A rated** — measure stall/syrup on bench               |
+| 3    | Tubing size                                    | **3 mm × 5 mm BPT B10**                                      |
+| 4    | Quick disconnects vs barbs                     | **Barbs for Phase 0–1**                                      |
+| 5    | Anti-drip vs de-prime                          | **Bench Test 5 + 4b + 9** — flow-gating mitigates pour error |
+| 6    | Load cell stable under pump vibration          | **Bench Test 7.6 + 9** — gates flow-gate as v1 default       |
+| 7–10 | Enclosure, cleaning residue, menu size, labels | **Still require bench/session tests**                        |
 
 ## Decision log
 
-| Date       | Decision                                                                                                                                |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-06-17 | Lock KPHM100-HB-B10, NKP backup, Pololu TB6612 #713, GST60A12 Phase 0 PSU, ESP32-S3-N8R8, McMaster 1972T231 tubing, Altium Phase 2 PCB. |
+| Date       | Decision                                                                                                                                       |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-17 | Lock KPHM100-HB-B10, NKP backup, Pololu TB6612 #713, GST60A12 Phase 0 PSU, ESP32-S3-N8R8, McMaster 1972T231 tubing, Altium Phase 2 PCB.        |
+| 2026-06-18 | Load cell required for v1; flow-gated dispense as v1 default (bench-gated); PCA9685 I2C validation before Altium fab; expanded bench protocol. |

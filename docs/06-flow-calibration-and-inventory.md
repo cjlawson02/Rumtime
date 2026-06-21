@@ -4,7 +4,7 @@ This file describes measurement behavior. It is not a software implementation sp
 
 ## Measurement decision
 
-V1 uses timed dispensing based on per-pump calibration.
+V1 uses **timed dispensing** based on per-pump calibration (`ml_per_second`), with a **load cell under the glass** for guardrails and **flow-gated pour start** when a glass is present.
 
 Inline flow meters are intentionally skipped in v1 because they add cost, cleaning burden, extra wet parts, and possible problems with syrup, bubbles, and pulsed peristaltic flow.
 
@@ -58,7 +58,7 @@ For many cocktail ingredients, using 1 g approximately equal to 1 ml is good eno
 
 ## Priming state
 
-Timed dispensing assumes the line is primed.
+Timed dispensing from motor-on assumes the line is already full. In practice, fill level is **variable**: dry line, partially wet after anti-drip reverse, or full with a dry nozzle tip. Fixed-time “prime until nozzle wet” cannot know how much liquid is in the line without a sensor.
 
 Track per pump:
 
@@ -72,8 +72,9 @@ last_cleaned_at
 Possible behavior:
 
 - After cleaning or tube replacement, mark line unprimed.
-- After a successful prime cycle, mark line primed.
+- After a successful prime cycle (timed over drip tray, or flow detected at glass), mark line primed.
 - Do not run normal recipes with an unprimed line unless the user confirms.
+- **Flow-gated dispense** (below) reduces dependence on `primed` for recipe pours into a glass on the scale.
 
 ## Anti-drip reverse
 
@@ -119,35 +120,69 @@ Cons:
 - More software complexity.
 - Requires stable glass platform and tare.
 
-V1 recommendation: support timed simultaneous operation first. Use scale-assisted calibration and sanity checks before attempting fully closed-loop sequential pours.
+V1 recommendation:
+
+- **Default:** timed simultaneous pours with **flow-gated timer start** when glass is on the load cell.
+- **Fallback:** timed-from-motor-on if scale fault or no glass detected.
+- **Defer:** fully closed-loop sequential pouring (stop each ingredient by target mass).
+
+## Flow-gated simultaneous dispense
+
+When a glass is on the platform (tared after ice if needed), recipe pours should **not** start ml timers at motor-on. Instead:
+
+```text
+1. Start recipe pumps forward (simultaneous mode).
+2. Wait for d(weight)/dt > flow_threshold for N consecutive samples (global, one scale).
+3. Start per-pump ml timers from that moment.
+4. Run each pump for target_ml / ml_per_second.
+5. Apply per-pump anti_drip_reverse_ms.
+6. Compare total mass increase to expected; warn on large mismatch.
+```
+
+**Pre-gate timeout:** if no flow within `flow_detect_timeout_ms`, abort, mark suspect/unprimed, alert user.
+
+**Limits (important):**
+
+- One scale → **one global** flow-onset signal, not per-pump. If P1 is primed and P2 is dry, timers start when the first stream hits the glass; P2 may still under-pour until its line fills. Flow-gating fixes the common case (similar line state after anti-drip); it does not replace per-line priming for asymmetric failures.
+- Requires mechanical isolation of the glass platform from pump vibration — see [`08-mechanical-design.md`](08-mechanical-design.md).
+- Bench must validate thresholds before locking as v1 default — see Test 9 in [`14-bench-test-protocol.md`](14-bench-test-protocol.md). If vibration blocks reliable detection, fall back to timed dispense + post-pour sanity check; keep the load cell for glass/tare/no-flow.
+
+Drip-tray priming (no glass) remains **timed + visual** “nozzle wet.”
 
 ## Load cell uses
 
-The load cell is optional but recommended.
+The load cell is **required for v1** (HX711 + 5 kg cell under glass platform).
 
-Useful behaviors:
-
-| Behavior                 | Description                                              |
-| ------------------------ | -------------------------------------------------------- |
-| Glass present            | Detect weight above threshold.                           |
-| Ice handling             | Tare after user places glass plus ice.                   |
-| Calibration              | Measure dispensed mass during calibration.               |
-| No-flow detection        | Pump runs but weight does not increase enough.           |
-| Final sanity check       | Compare expected drink volume/mass to measured increase. |
-| Spill/overflow detection | Unexpected weight changes can stop operation.            |
+| Behavior                 | v1?  | Description                                            |
+| ------------------------ | ---- | ------------------------------------------------------ |
+| Glass present            | Yes  | Block dispense if weight below threshold.              |
+| Ice handling             | Yes  | Tare after user places glass plus ice.                 |
+| Flow-gated pour start    | Yes* | Start ml timers when liquid hits glass (*bench-gated). |
+| Calibration              | Yes  | Measure dispensed mass during calibration.             |
+| Pre-gate no-flow abort   | Yes  | Pump runs; no flow within timeout → error.             |
+| Final sanity check       | Yes  | Compare expected drink mass to measured increase.      |
+| Spill/overflow detection | Yes  | Unexpected weight changes can stop operation.          |
+| Per-ingredient mass stop | No   | Deferred — sequential closed-loop (v2 if needed).      |
 
 ## No-flow detection
 
-A simple v1 no-flow check:
+**During pour (pre-gate):**
 
 ```text
-if pump_has_run_for_minimum_time and scale_delta_is_too_small:
+if pumps_running and elapsed > flow_detect_timeout_ms and scale_delta_is_too_small:
     stop operation
-    mark pump as suspect/unprimed
+    mark pump(s) as suspect/unprimed
     alert user
 ```
 
-This works best during sequential calibration or when only one pump is running. During simultaneous pours, it can still detect total failure but cannot identify the specific failed pump.
+**After pour (sanity check):**
+
+```text
+if expected_mass_increase - measured_increase > sanity_threshold:
+    warn user (cannot identify which pump in simultaneous mode)
+```
+
+Single-pump calibration or prime can attribute no-flow to one line. During simultaneous pours, pre-gate and sanity checks detect **aggregate** failure only.
 
 ## Bottle inventory tracking
 

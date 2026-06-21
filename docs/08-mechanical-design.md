@@ -22,7 +22,7 @@ Pump cartridges and inlet tube routing
 Clustered nozzle plate
 
 [Bottom front]
-Glass platform, optional load cell, drip tray
+Glass platform, load cell (required), drip tray
 
 [Side or rear dry compartment]
 ESP32, power distribution, PCBs, wiring
@@ -87,12 +87,13 @@ Requirements:
 - Compatible with load cell if installed.
 - Protected from spills.
 
-If using a load cell:
+If using a load cell (required for v1):
 
-- Mechanically isolate the weighing platform from the enclosure.
+- **Mechanically isolate** the weighing platform from the enclosure and pump structure — required for flow-gated dispense, not optional tuning.
 - Prevent tubing or nozzle parts from touching the glass/platform during measurement.
 - Add overload protection if possible.
 - Make the top plate removable/washable.
+- Document isolation in bench results (photos, peak vibration noise from Test 7.6).
 
 ## Drip tray
 

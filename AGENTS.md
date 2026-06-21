@@ -74,6 +74,25 @@ For multi-step work, use this format:
 3. Step -> verify: check
 ```
 
+## Documentation and parts (Phase 0–1)
+
+Project docs (`docs/`, mini-BOM, sourcing notes) are **unvalidated prototypes**. They record intent and search starting points, not locked procurement.
+
+When helping with shopping, sourcing, or substitutions:
+
+- Prefer **functional specs** (voltage, current, tubing ID/OD, motor type, safety interlocks) over matching a named SKU or “the doc says buy X.”
+- Treat listed retailers, part numbers, and price bands as **examples** until bench results under `docs/14-bench-test-protocol.md` (and dated notes in `docs/bench-results/`) confirm them.
+- **Equivalent parts are fine** when they meet the same requirements and tradeoffs are stated (e.g. generic 5 kg bar + HX711 vs SparkFun; any honest 12 V 5 A PSU vs Mean Well GST60A12-P1J).
+- Do **not** reject a reasonable substitute solely because it is not the exact item in `docs/13-phase-0-mini-bom.md` or `docs/12-phase-0-decisions.md`.
+
+Still non-negotiable even while docs are provisional:
+
+- Safety and architecture guardrails below (food-contact intent, pump cutoff, no shared liquid manifold, etc.).
+- Wrong pump **motor/voltage/tubing** variants (e.g. stepper/24 V when the bench path assumes 12 V brushed).
+- Skipping fuse/cutoff or guessing beverage-wetted materials.
+
+After measured bench data, update decisions and BOM to reflect what was actually validated — that is when specific parts earn “default” status.
+
 ## Project-specific guardrails
 
 - Food-contact parts must be intentionally selected, not guessed.
