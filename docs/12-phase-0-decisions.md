@@ -59,6 +59,7 @@ Do **not** substitute a different Kamoer series (KDS, KP26, etc.) without re-che
 | Pump-head tubing | **BPT B10, 3 mm ID × 5 mm OD** (match KPHM100)                                                       |
 | Line tubing      | **McMaster 1972T231** or Quickun — NSF-51 food-grade silicone **3×5 mm**                             |
 | Phase 0 fittings | **1/8" PP barb unions** (≈3 mm) + **spring clamps** for 5 mm OD                                      |
+| Restricted outlet (bench) | Orifice **smaller than 3 mm line** at pour end — optional dedicated nozzle tip, or interim **1.8 mm ID** silicone coupler (mis-ship from barb-union order; on hand, return pending 2026-06-27). Distinct from barb unions. |
 | Driver fallback  | **2× Adafruit DRV8871** if measured stall exceeds TB6612 thermal comfort (~1 A/ch on Pololu carrier) |
 
 Red flag: cheap pump “includes food tubing” may not be beverage-safe. Buy explicit food-grade line tubing separately.

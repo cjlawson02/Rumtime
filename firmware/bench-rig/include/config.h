@@ -21,8 +21,11 @@ constexpr int kScaleSck = 2;
 
 }  // namespace pins
 
-// Default anti-drip reverse (ms) — tune per docs/14-bench-test-protocol.md Test 5.
-constexpr unsigned long kDefaultAntiDripMs = 400;
+// Default anti-drip reverse (ms) — bench-validated 2026-06-27 (Test 5; short lines).
+constexpr unsigned long kDefaultAntiDripMs = 100;
+
+// Default ml/s after bench cal — KPHM100 pair, short tubing; re-cal per line length.
+constexpr float kDefaultMlPerSecond = 1.75f;
 
 // PWM duty for full-speed bench runs (0–255).
 constexpr int kPumpPwmFull = 255;

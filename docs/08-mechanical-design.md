@@ -1,5 +1,12 @@
 # Mechanical Design
 
+## Builder tooling
+
+| Tool | Role |
+| ---- | ---- |
+| **Onshape** | Parametric CAD for cartridges, brackets, nozzle plate, drip-tray parts, and bench fixtures. Export STEP for review/edits and STL for FDM. |
+| **FDM 3D printer** | Iterate printed structure (pump mounts, clips, nozzles, cleaning dock). Not for direct beverage contact unless material/finish is explicitly chosen. |
+
 ## Overall form
 
 Rumtime should look more like a finished countertop appliance than a raw prototype, while staying affordable.

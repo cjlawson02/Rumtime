@@ -2,6 +2,8 @@
 
 This plan follows goal-driven execution: every step has a verification check.
 
+**Bench progress (2026-06-27):** [session 02](bench-results/2026-06-27-session-02.md) — P1+P2 @ 1.75 ml/s; dual **~0.4 A**; anti-drip 100 ms; Test 4b P2 50→~45 ml (anti-drip).
+
 ## Phase 0: Confirm critical parts
 
 1. Select candidate pump.
@@ -9,25 +11,26 @@ This plan follows goal-driven execution: every step has a verification check.
 2. Select tubing and fitting size.
    - Verify: tubing fits pump and fittings without leaks or kinks.
 3. Select motor driver.
-   - Verify: measured pump current is within driver limits with margin.
+   - Verify: measured pump current is within driver limits with margin. _(P1: I_run ~0.2 A dry/wet; I_stall_dry 0.9 A, I_stall_wet ~0.33 A — TB6612 OK.)_
 4. Select power supply strategy.
    - Verify: supply can run expected simultaneous pumps with margin.
 
 Exit criteria:
 
-- One pump can move water forward and backward under controller or bench control.
-- Tubing/fittings are physically compatible.
-- Pump current is known well enough for driver selection.
+- One pump can move water forward and backward under controller or bench control. _(P1 pass — prime, cal, timed dispense.)_
+- Tubing/fittings are physically compatible. _(3×5 mm tubing fits KPHM100 B10; caliper waived; barb-union order mis-shipped as 1.8 mm ID smooth couplers — return pending; barbed unions still to re-order.)_
+- Pump current is known well enough for driver selection. _(P1 dry + wet documented.)_
 
 ## Phase 1: 2-4 pump liquid prototype
 
 Build a temporary rig with 2-4 pumps.
 
 1. Wire pumps to driver breakout or temporary PCB.
-   - Verify: each pump runs forward, reverse, and stops reliably.
+   - Verify: each pump runs forward, reverse, and stops reliably. _(P1 + P2 pass.)_
 2. Prime lines from bottles/jars.
-   - Verify: each line primes without leaks or collapsing tubing.
+   - Verify: each line primes without leaks or collapsing tubing. _(P1 + P2 pass.)_
 3. Dispense by time.
+   - Verify: 15 ml, 30 ml, and 60 ml targets within tolerance after calibration. _(50 ml: P1 ~48, P2 ~50; 15/60 ml open.)_
    - Verify: 15 ml, 30 ml, and 60 ml test pours are repeatable enough.
 4. Test anti-drip reverse.
    - Verify: nozzle drip is reduced without losing prime.

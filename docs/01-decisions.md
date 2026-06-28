@@ -142,7 +142,8 @@ Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. M
 | Topic             | Decision                                                                          |
 | ----------------- | --------------------------------------------------------------------------------- |
 | Appearance        | More finished than a raw maker prototype.                                         |
-| Fabrication       | 3D printing available; woodworking preferred for visible enclosure.               |
+| CAD               | **Onshape** for mechanical models; export STEP/STL for print and bench fixtures.  |
+| Fabrication       | **FDM 3D printer** on hand; woodworking preferred for visible enclosure.         |
 | Footprint         | No hard limit, excluding bottles.                                                 |
 | Portability       | Not required.                                                                     |
 | Bottle visibility | Bottles separate from machine.                                                    |

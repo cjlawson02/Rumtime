@@ -4,6 +4,8 @@ Shopping list for the **2-pump bench rig** only. See [`12-phase-0-decisions.md`]
 
 Verify prices and sellers before ordering. Links are examples, not endorsements.
 
+**Bench inventory (2026-06-27):** Operator has **4× Pololu TB6612FNG** (1 on 2-pump rig, 3 spare) and **2× 5 m rolls** of 3×5 mm line tubing (**10 m** total). Mini-BOM qty below is minimum for Phase 0.
+
 ## Order now (Phase 0)
 
 |      Qty | Item               | Part / spec                                          |   ~USD | Where                                                                                                 |
@@ -34,7 +36,7 @@ Verify prices and sellers before ordering. Links are examples, not endorsements.
 | ---: | --------------- | ------------------------------- | ---: | ----------------- |
 |    1 | Logic buck      | Pololu **D24V5F5** (12 V → 5 V) |   $9 | Pololu            |
 |    1 | Driver fallback | Adafruit **DRV8871** breakout   |   $8 | Adafruit          |
-|    1 | Nozzle test tip | Short barb + restricted outlet  |   $5 | McMaster / Amazon |
+|    1 | Nozzle test tip | Short barb + restricted outlet  |   $5 | McMaster / Amazon — or interim while on hand: mis-shipped **1.8 mm ID** silicone coupler on outlet (see receive checklist §2) |
 
 ## Phase 0 cost band
 
@@ -72,7 +74,8 @@ Verify prices and sellers before ordering. Links are examples, not endorsements.
 
 ## Receive checklist
 
-1. Pump label: **12 V brushed (HB)**, not HE/ST/HA.
-2. Caliper-check tubing **3×5 mm**.
-3. Spin pump both directions from bench supply before ESP32 wiring.
-4. Log stall/run current in [`14-bench-test-protocol.md`](14-bench-test-protocol.md).
+1. Pump label: **12 V brushed (HB)**, not HE/ST/HA or **24 V** variants. _(Bench 2026-06-27: 2 of 4 shipment were 24 V — returned.)_
+2. Fittings: confirm **barbed** unions, not smooth silicone couplers. _(Bench 2026-06-27: Quickun B08L5DTRCK class shipped **smooth silicone couplers** — **not yet returned** (post office pending). Measured **1.8 mm ID** vs **3 mm** line. **Roles:** barb unions = inline tube joins + clamps; restricted outlet = smaller orifice at pour end. Coupler is **not** a barb union; on outlet (3 mm tube in one end, pour from other) it **does** restrict vs open 3 mm tube. Re-order **barbed** unions for mid-line joins. Re-run flow cal and anti-drip after any outlet restriction is added — sessions 01–02 numbers were on open outlet.)_
+3. Tubing **3×5 mm** — caliper optional if visual fit and prime/pour pass on bench. _(Operator: waived 2026-06-27.)_
+4. Spin pump both directions from bench supply before ESP32 wiring.
+5. Log stall/run current in [`14-bench-test-protocol.md`](14-bench-test-protocol.md).

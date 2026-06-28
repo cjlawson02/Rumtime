@@ -36,6 +36,7 @@ This repo holds Rumtime documentation, Phase 0 bench-rig firmware, and Altium PC
 | [`docs/12-phase-0-decisions.md`](docs/12-phase-0-decisions.md)                           | Research-backed Phase 0 part decisions (pump, PSU, Altium).                                    |
 | [`docs/13-phase-0-mini-bom.md`](docs/13-phase-0-mini-bom.md)                             | Phase 0 shopping list (~2-pump bench rig).                                                     |
 | [`docs/14-bench-test-protocol.md`](docs/14-bench-test-protocol.md)                       | Bench tests, pass criteria, and session log template.                                          |
+| [`docs/15-project-timeline.md`](docs/15-project-timeline.md)                             | Gantt chart, milestones, and procurement log (order/receive dates).                            |
 | [`firmware/bench-rig/`](firmware/bench-rig/)                                             | ESP32-S3 + TB6612 bring-up firmware (PlatformIO).                                              |
 | [`hardware/altium/`](hardware/altium/)                                                   | Altium project layout and 4-pump module schematic spec.                                        |
 
@@ -45,7 +46,9 @@ Build the simplest version of Rumtime that can make repeatable drinks, clean up 
 
 ## Current status
 
-**Next action:** Order the [Phase 0 mini-BOM](docs/13-phase-0-mini-bom.md), build the 2-pump bench rig, and run [`docs/14-bench-test-protocol.md`](docs/14-bench-test-protocol.md).
+**Next action:** Wire load cell + HX711 when scale kit arrives (ordered together 2026-06-23); then Tests 7–9. Meanwhile: P1 Test 4b; fuse + cutoff; V_sag under dual-pump load. See [`docs/bench-results/2026-06-27-session-02.md`](docs/bench-results/2026-06-27-session-02.md). Timeline: [`docs/15-project-timeline.md`](docs/15-project-timeline.md).
+
+**Done so far:** **P1 + P2** @ **1.75 ml/s**; dual-pump **~0.4 A**; anti-drip **100 ms**; P2 sequential 50 ml target → **~45 ml** (anti-drip); host CLI **`benchctl.py`** + proto=2 serial parser.
 
 Decisions are locked in [`docs/12-phase-0-decisions.md`](docs/12-phase-0-decisions.md) (KPHM100-HBB10 pump, TB6612 breakout, ESP32-S3-DevKitC-1, Altium for Phase 2 PCB).
 

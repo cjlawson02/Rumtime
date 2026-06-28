@@ -51,7 +51,9 @@ Rumtime v1 should not include:
 
 ## Assumptions
 
-- The builder can solder, use hot air, 3D print parts, and likely make custom PCBs.
+- The builder can solder, use hot air, and likely make custom PCBs.
+- The builder has an **FDM 3D printer** for cartridges, brackets, nozzle prototypes, and bench jigs.
+- The builder uses **Onshape** for mechanical CAD (parametric solids; export STEP/STL as needed).
 - The builder may have access to laser cutting or CNC, but woodworking is preferred for the visible enclosure.
 - Bottles are physically separate from the machine footprint.
 - Pump modules will be within about 3 ft of the main controller.

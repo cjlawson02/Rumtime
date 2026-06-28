@@ -1,6 +1,6 @@
 # Bench Rig Firmware
 
-Phase 0–1 firmware for **ESP32-S3-DevKitC-1** + **TB6612FNG** driving two Kamoer KPHM100-class pumps, plus **HX711** load cell for Tests 7–9.
+Phase 0–1 firmware for **ESP32-S3-DevKitC-1** (e.g. **N16R8**: 16 MB flash, 8 MB PSRAM) + **TB6612FNG** driving two Kamoer KPHM100-class pumps, plus **HX711** load cell for Tests 7–9.
 
 ## Wiring (default pins in `include/config.h`)
 
@@ -36,6 +36,41 @@ Wire per SparkFun hookup guide: **Red** E+, **Black** E−, **White** A−, **Gr
 
 GPIO **1** and **2** are free on the DevKitC-1 header and do not overlap pump pins (4–7, 15–17). Avoid strapping pins 0, 45, 46.
 
+## USB and serial monitor
+
+Firmware is built with **USB CDC on boot** — use the DevKit **native USB** port (shows as `/dev/cu.usbmodem*` on macOS).
+
+### Recommended: `benchctl.py` (host CLI)
+
+PlatformIO monitor and copy-paste can mangle commands (unicode, `\r` quirks). Use the Python CLI instead:
+
+```bash
+cd firmware/bench-rig
+pip install -r requirements.txt
+python3 scripts/benchctl.py              # interactive
+python3 scripts/benchctl.py status
+python3 scripts/benchctl.py run both fwd 5000
+python3 scripts/benchctl.py dispense 1 50
+```
+
+Responses use `err=...` for failures and `done` / `stopped` for success where applicable. Type `version` to confirm **proto=2** parser.
+
+### Fallback: PlatformIO monitor
+
+```bash
+pio device monitor -b 115200
+```
+
+1. Open the monitor **before** pressing RST (or unplug/replug USB).
+2. Press **RST** on the board to see the boot banner.
+3. Type commands manually (avoid pasting from chat).
+
+If you only see a blank screen, quit the monitor (Ctrl+C), reopen it, and press **RST** again.
+
+**N16R8 module:** Use the default `esp32-s3-devkitc-1` board profile (8 MB flash). A 16 MB flash / PSRAM PlatformIO profile caused a boot loop on bench (2026-06-27); extra flash is unused until a dedicated partition map is added.
+
+Automated serial scripts can put the S3 into USB download mode — use an open monitor + **RST** for interactive testing.
+
 ## Build and flash
 
 Requires [PlatformIO](https://platformio.org/).
@@ -54,13 +89,13 @@ Library: [bogde/HX711](https://github.com/bogde/HX711) (Arduino / ESP32).
 | Command          | Example                   | Description                            |
 | ---------------- | ------------------------- | -------------------------------------- |
 | `help`           |                           | List commands                          |
-| `run`            | `run 1 fwd 5000`          | Timed forward/reverse                  |
+| `run`            | `run 1 fwd 5000`          | Timed forward/reverse; **`run both fwd 10000`** = both pumps |
 | `prime`          | `prime 1 8000`            | Forward prime                          |
 | `cal run`        | `cal run 1 20`            | 20 s cal pour — measure ml             |
 | `cal`            | `cal 1 1.42`              | Store ml/s for pump 1                  |
 | `dispense`       | `dispense 1 30`           | Timed from motor-on + anti-drip        |
 | `dispense-gated` | `dispense-gated 1 30`     | Flow-gated pour (Test 9)               |
-| `antidrip`       | `antidrip 1 400`          | Reverse ms after pour                  |
+| `antidrip`       | `antidrip 1 100`          | Reverse ms after pour (default **100**) |
 | `tare`           |                           | Zero scale                             |
 | `weight`         |                           | Current filtered weight (g)            |
 | `weight-stream`  | `weight-stream 100 30000` | Log weight + ΔW; optional duration     |
@@ -90,7 +125,7 @@ Timed `dispense` keeps motor-on as t=0 for comparison in Test 9.
 2. Cal pour: `cal run 1 20` → measure ml in cylinder.
 3. Compute ml/s = ml / 20 → `cal 1 <ml_per_s>`.
 4. Verify: `dispense 1 30` three times; log in `docs/14-bench-test-protocol.md`.
-5. Tune: `antidrip 1 400` (or other ms per test protocol).
+5. Defaults in `config.h`: **1.75 ml/s**, **100 ms** anti-drip (bench 2026-06-27). Re-`cal` if line length changes.
 
 ### Load cell
 

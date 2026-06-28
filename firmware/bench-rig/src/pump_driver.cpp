@@ -1,5 +1,6 @@
 #include "pump_driver.h"
 
+#include "bench_serial.h"
 #include "config.h"
 #include "scale_driver.h"
 
@@ -70,7 +71,7 @@ void BenchRig::stopAll() {
 void BenchRig::runFor(PumpId pump, PumpDirection direction,
                       unsigned long durationMs, int pwm) {
   runPump(pump, direction, pwm);
-  delay(durationMs);
+  benchPollSerial(durationMs);
   stopPump(pump);
 }
 
@@ -85,7 +86,7 @@ void BenchRig::dispenseMl(PumpId pump, float ml, float mlPerSecond,
       static_cast<unsigned long>((ml / mlPerSecond) * 1000.0f);
 
   runFor(pump, PumpDirection::kForward, forwardMs, kPumpPwmFull);
-  delay(50);
+  benchPollSerial(50);
   if (antiDripMs > 0) {
     runFor(pump, PumpDirection::kReverse, antiDripMs, kPumpPwmFull);
   }
@@ -118,7 +119,7 @@ GatedDispenseResult BenchRig::dispenseMlGated(PumpId pump, float ml,
       flowOk = true;
       break;
     }
-    delay(kFlowSampleIntervalMs);
+    benchPollSerial(kFlowSampleIntervalMs);
   }
 
   if (!flowOk) {
@@ -130,9 +131,9 @@ GatedDispenseResult BenchRig::dispenseMlGated(PumpId pump, float ml,
     return result;
   }
 
-  delay(pourMs);
+  benchPollSerial(pourMs);
   stopPump(pump);
-  delay(50);
+  benchPollSerial(50);
   if (antiDripMs > 0) {
     runFor(pump, PumpDirection::kReverse, antiDripMs, kPumpPwmFull);
   }
