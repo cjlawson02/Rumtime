@@ -21,7 +21,7 @@ Phase 0–1 firmware for **ESP32-S3-DevKitC-1** (e.g. **N16R8**: 16 MB flash, 8 
 
 Pump motor terminals connect to A+/A− and B+/B−. **Use a hardware switch on the 12 V pump supply.**
 
-### HX711 breakout (SparkFun SEN-13879) → ESP32-S3
+### HX711 module → ESP32-S3
 
 | HX711 pin | ESP32-S3 GPIO | Notes                          |
 | --------- | ------------- | ------------------------------ |
@@ -30,9 +30,9 @@ Pump motor terminals connect to A+/A− and B+/B−. **Use a hardware switch on 
 | DT (DOUT) | 1             | Change in `config.h` if needed |
 | SCK       | 2             | Change in `config.h` if needed |
 
-### Load cell (SparkFun SEN-14729 TAL220B)
+### Load cell (Estardyn 5 kg bar, bundled with HX711)
 
-Wire per SparkFun hookup guide: **Red** E+, **Black** E−, **White** A−, **Green** A+ to HX711 screw terminals. Mount the cell under the glass platform with mechanical isolation from pump vibration (see `docs/08-mechanical-design.md`).
+Wire to HX711 screw terminals: **Red** E+, **Black** E−, **Green** A+, **White** A−. Mount the cell under the glass platform with mechanical isolation from pump vibration (see `docs/08-mechanical-design.md`).
 
 GPIO **1** and **2** are free on the DevKitC-1 header and do not overlap pump pins (4–7, 15–17). Avoid strapping pins 0, 45, 46.
 

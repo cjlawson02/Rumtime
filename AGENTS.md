@@ -103,3 +103,14 @@ After measured bench data, update decisions and BOM to reflect what was actually
 - Carbonated mixers are manual top-off in v1.
 - Inventory tracking is software-estimated unless and until bottle scales are added.
 - Hot-swappable means mechanically convenient, not safe to unplug while pump power is live.
+
+## Mechanical CAD (`hardware/cad/`)
+
+Locked workflow (2026-06-27). Full detail: [`hardware/cad/README.md`](hardware/cad/README.md). Implementation handoff: [`hardware/cad/HANDOFF.md`](hardware/cad/HANDOFF.md).
+
+- **Parametric source of truth:** **build123d** Python in `hardware/cad/src/`.
+- **Measured dimensions:** `hardware/cad/refs/*.md` — update refs before changing model constants.
+- **Onshape:** assembly review and STEP import only — not the agent’s editable parametric source.
+- **Do not** symmetrize the KPHM100 mount hole pattern; copy coordinates from `refs/kphm100-mount-plate.md`.
+- **Do not** use Onshape API/MCP or cloud generative CAD as the iteration loop; do not commit `hardware/cad/out/` artifacts to main.
+- **Export:** STL for FDM; STEP when mating into Onshape cartridge work.

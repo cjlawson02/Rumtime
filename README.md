@@ -39,6 +39,7 @@ This repo holds Rumtime documentation, Phase 0 bench-rig firmware, and Altium PC
 | [`docs/15-project-timeline.md`](docs/15-project-timeline.md)                             | Gantt chart, milestones, and procurement log (order/receive dates).                            |
 | [`firmware/bench-rig/`](firmware/bench-rig/)                                             | ESP32-S3 + TB6612 bring-up firmware (PlatformIO).                                              |
 | [`hardware/altium/`](hardware/altium/)                                                   | Altium project layout and 4-pump module schematic spec.                                        |
+| [`hardware/cad/`](hardware/cad/)                                                         | build123d parametric CAD (`src/`), dimension refs (`refs/`), export scripts; Onshape for assembly review only. |
 
 ## Design philosophy
 

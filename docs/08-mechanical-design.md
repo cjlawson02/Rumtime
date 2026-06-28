@@ -4,7 +4,8 @@
 
 | Tool | Role |
 | ---- | ---- |
-| **Onshape** | Parametric CAD for cartridges, brackets, nozzle plate, drip-tray parts, and bench fixtures. Export STEP for review/edits and STL for FDM. |
+| **Onshape** | Assembly review, cartridge layout, STEP import. **Bench brackets:** build123d in [`hardware/cad/src/`](../hardware/cad/) per locked workflow — not parametric source for those parts. |
+| **build123d** (`hardware/cad/src/`) | Parametric brackets, coupons, scale platform — git source of truth; export STL/STEP via `scripts/export.py`. |
 | **FDM 3D printer** | Iterate printed structure (pump mounts, clips, nozzles, cleaning dock). Not for direct beverage contact unless material/finish is explicitly chosen. |
 
 ## Overall form
@@ -55,7 +56,7 @@ The cartridge should be removable for service, but not unplugged while powered.
 
 Determine dimensions after selecting pumps. Before finalizing CAD:
 
-1. Buy or model the exact pump.
+1. Buy or model the exact pump — start with the measured **KPHM100 mount plate** in [`hardware/cad/refs/kphm100-mount-plate.md`](../hardware/cad/refs/kphm100-mount-plate.md).
 2. Measure pump body, mounting holes, tubing path, and connectors.
 3. Leave finger clearance for tube replacement.
 4. Leave clearance for wiring and strain relief.
@@ -93,6 +94,8 @@ Requirements:
 - Room for common cocktail glasses.
 - Compatible with load cell if installed.
 - Protected from spills.
+
+Load cell geometry and bench layout starting point: [`hardware/cad/refs/estardyn-load-cell.md`](../hardware/cad/refs/estardyn-load-cell.md) (**Estardyn 5 kg** + HX711, 611N-class bar).
 
 If using a load cell (required for v1):
 

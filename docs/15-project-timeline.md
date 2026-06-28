@@ -94,7 +94,7 @@ Fill **ordered** and **received** as you go. Sourced from [`13-phase-0-mini-bom.
 | PP barb unions (Quickun B08L5DTRCK class) | 1 set | 2026-06-27 | **Wrong SKU — return pending** | Shipped as **smooth silicone couplers** (slip join, not barbed). **Not yet returned** (post office pending). Operator measured **1.8 mm ID** bore vs **3 mm** line tubing. **Not** a barb union; on outlet (tube in one end, pour from other) narrows orifice vs open 3 mm tube. Food-contact rating not verified. Sessions 01–02 used **open ~3 mm outlet** (no restriction at tip). |
 | Spring clamps | 1 set | 2026-06-27 | OK | |
 | Inline fuse + 5 A + SPST cutoff | 1 | 2026-06-27 | OK | Not installed yet |
-| SparkFun load cell bar + HX711 | 1 set | — | **Pending** | Ordered **2026-06-23**; SEN-14729 + SEN-13879 **ship together** — not in hand as of 2026-06-27; blocks Tests 7–9 |
+| Estardyn 5 kg load cell bar + HX711 | 1 set | — | **Pending** | Ordered **2026-06-23**; bundled kit **ships together** — not in hand as of 2026-06-27; blocks Tests 7–9 |
 | Graduated cylinder (250 ml) | 1 | 2026-06-27 | OK | In use session 02 |
 | Breadboard + jumpers | 1 | 2026-06-27 | OK | |
 | PCA9685 breakout | 1 | — | — | Buy after liquid tests (Test 10) |

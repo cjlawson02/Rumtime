@@ -25,8 +25,7 @@ Verify prices and sellers before ordering. Links are examples, not endorsements.
 |        1 | Protoboard         | Breadboard + jumpers                                 |     $8 | Amazon                                                                                                |
 |        2 | Test bottles       | Water + syrup/grenadine ingredients                  |    $10 | Grocery                                                                                               |
 |        1 | Graduated cylinder | 100 ml min.                                          |     $8 | Amazon                                                                                                |
-|        1 | Load cell          | SparkFun **SEN-14729** (5 kg TAL220B)                |    $16 | SparkFun                                                                                              |
-|        1 | HX711              | SparkFun **SEN-13879**                               |     $5 | SparkFun                                                                                              |
+|        1 | Load cell + HX711  | **Estardyn 5 kg** bar + HX711 module (bundled kit)   |    ~$15 | Amazon / AliExpress class                                                                          |
 |        1 | Terminal block     | **2-pin 5.08 mm** pluggable (GST60 pump bus)         |     $3 | Amazon / Mouser                                                                                       |
 |        1 | USB-C cable        | ESP32-S3-DevKitC-1 programming                       |     $5 | (often on hand)                                                                                       |
 

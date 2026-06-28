@@ -98,7 +98,7 @@ Size final fuse/cutoff after measured max current. Do not assume 0.5 A rated equ
 
 | Item           | Decision                                                                                    |
 | -------------- | ------------------------------------------------------------------------------------------- |
-| Load cell      | **SparkFun 5 kg TAL220B** (SEN-14729) + **HX711** (SEN-13879)                               |
+| Load cell      | **Estardyn 5 kg** bar + **HX711** module (bundled kit; Red E+, Black E−, Green A+, White A−) |
 | Use in Phase 0 | Glass/ice, flow-gated dispense validation (Test 9), calibration, no-flow, sanity check      |
 | v1 behavior    | Flow-gated pour start when glass present; timed fallback if scale fault or bench gate fails |
 | Defer          | Per-ingredient closed-loop mass stop during simultaneous 8-pump pours                       |

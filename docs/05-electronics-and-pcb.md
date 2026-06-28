@@ -151,8 +151,7 @@ If using an internal AC mains supply later, isolate it physically from the wet s
 
 **Required for v1:**
 
-- 5 kg load cell (SparkFun SEN-14729 or equivalent).
-- HX711 amplifier.
+- 5 kg load cell + HX711 module (Estardyn 5 kg bar + HX711 kit, or equivalent).
 - Mounted under glass platform with mechanical isolation.
 
 Use cases:

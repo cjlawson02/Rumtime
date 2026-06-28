@@ -78,6 +78,15 @@ Testing/
 .vscode/launch.json
 .vscode/ipch
 
+# Mechanical CAD (build123d export artifacts)
+hardware/cad/out/
+hardware/cad/.venv/
+hardware/cad/**/*.egg-info/
+
+# Python bytecode / caches
+__pycache__/
+*.pyc
+
 # Altium Designer
 History/
 __Previews/

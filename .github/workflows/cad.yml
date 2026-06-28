@@ -1,0 +1,60 @@
+# Export build123d parts to STL for FDM review.
+# build123d installs OCCT via Python wheels (~hundreds of MB). Job uses
+# continue-on-error so a wheel/platform mismatch does not block firmware CI.
+
+name: CAD export
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "hardware/cad/src/**"
+      - "hardware/cad/scripts/**"
+      - "hardware/cad/pyproject.toml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "hardware/cad/src/**"
+      - "hardware/cad/scripts/**"
+      - "hardware/cad/pyproject.toml"
+
+concurrency:
+  group: cad-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  export-stl:
+    name: Export build123d STLs
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: hardware/cad
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build123d
+        run: |
+          if [ -f pyproject.toml ]; then
+            pip install -e .
+          else
+            pip install "build123d>=0.11"
+          fi
+
+      - name: Export all parts
+        run: python scripts/export.py --all
+
+      - name: Upload STL artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: cad-stl-${{ github.sha }}
+          path: hardware/cad/out/*.stl
+          if-no-files-found: warn
+          retention-days: 14
