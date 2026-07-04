@@ -2,8 +2,10 @@
 
 #include <Arduino.h>
 #include <HX711.h>
+#include <Preferences.h>
 
 #include "config.h"
+#include "config_store.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "gpio_ops.h"
@@ -68,6 +70,34 @@ const ScaleOps kHx711Ops = {
     hx711ReadRaw, hx711SetScale,  hx711SetOffset,
 };
 
+// NVS-backed config store seam (Preferences). Sole NVS I/O site on the ESP32
+// path. putBytes performs the flash write, so it only runs from ConfigStore::
+// commit() (idle hook below), never during a pour.
+Preferences g_prefs;
+
+bool prefsBegin(const char* ns) {
+  return g_prefs.begin(ns, /*readOnly=*/false);
+}
+bool prefsGetBlob(const char* key, void* out, std::size_t len) {
+  if (g_prefs.getBytesLength(key) != len) {
+    return false;  // absent or a differently-sized (stale) record -> treat as missing
+  }
+  return g_prefs.getBytes(key, out, len) == len;
+}
+bool prefsSetBlob(const char* key, const void* data, std::size_t len) {
+  return g_prefs.putBytes(key, data, len) == len;
+}
+bool prefsCommit() {
+  return true;  // Preferences::putBytes already persists to NVS
+}
+
+const NvsOps kPrefsOps = {
+    prefsBegin,
+    prefsGetBlob,
+    prefsSetBlob,
+    prefsCommit,
+};
+
 }  // namespace
 
 void ControlTask::begin() {
@@ -75,12 +105,13 @@ void ControlTask::begin() {
   inputs_.begin();
   pumps_.begin(inputs_, kArduinoGpioOps);
   scale_.begin(kHx711Ops);
+  config_.begin(kPrefsOps);  // per-pump calibration + bindings from NVS (or seed defaults)
   if (!queue_.begin()) {
     fatalRestart("command queue alloc failed; restarting");
   }
-  coordinator_.begin(pumps_, scale_);
+  coordinator_.begin(pumps_, scale_, config_);
   status_.begin();
-  serial_.begin(queue_, status_);
+  serial_.begin(queue_, status_, config_);
 }
 
 void ControlTask::start() {
@@ -150,12 +181,43 @@ void ControlTask::tick() {
                        (!coordinator_.busy() && coordinator_.lastReject() != JobReject::kNone);
   snapshot.job_phase = static_cast<uint8_t>(coordinator_.phase());
   snapshot.job_reject = coordinator_.lastReject();
+  snapshot.config_dirty = config_.dirty();
+  snapshot.config_persist_error = config_persist_error_;
   status_.publish(snapshot);
 
   if (prev_job_busy_ && !snapshot.job_busy) {
     serial_.emitJobEvent(snapshot.job_ok, snapshot.job_reject);
   }
   prev_job_busy_ = snapshot.job_busy;
+
+  // Idle-only NVS commit (docs/16: never flash-write on the motion path). Feed
+  // TWDT around the blocking flash write. On failure, retry with backoff and
+  // surface // config:error once per failure episode.
+  if (!snapshot.job_busy && config_.dirty()) {
+    if ((now - last_config_commit_attempt_ms_) >= kConfigCommitRetryMs) {
+      last_config_commit_attempt_ms_ = now;
+      if (esp_task_wdt_reset() != ESP_OK) {
+        fatalRestart("TWDT reset failed; restarting");
+      }
+      if (config_.commit()) {
+        config_persist_error_ = false;
+      } else {
+        if (!config_persist_error_) {
+          serial_.emitConfigPersistError();
+        }
+        config_persist_error_ = true;
+      }
+      if (esp_task_wdt_reset() != ESP_OK) {
+        fatalRestart("TWDT reset failed; restarting");
+      }
+      snapshot.config_dirty = config_.dirty();
+      snapshot.config_persist_error = config_persist_error_;
+      status_.publish(snapshot);
+    }
+  } else if (config_persist_error_ && !config_.dirty()) {
+    // A successful commit elsewhere cleared dirty; clear the fault latch too.
+    config_persist_error_ = false;
+  }
 
   if (esp_task_wdt_reset() != ESP_OK) {
     fatalRestart("TWDT reset failed; restarting");

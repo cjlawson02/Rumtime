@@ -4,12 +4,14 @@
 
 #include "command_validate.h"
 #include "config.h"
+#include "config_store.h"
 #include "pump_bus.h"
 #include "scale_platform.h"
 
-void Coordinator::begin(PumpBus& pumps, ScalePlatform& scale) {
+void Coordinator::begin(PumpBus& pumps, ScalePlatform& scale, ConfigStore& config) {
   pumps_ = &pumps;
   scale_ = &scale;
+  config_ = &config;
   state_ = JobState::kIdle;
   phase_ = Phase::kIdle;
   result_ = JobResult::kNone;
@@ -17,7 +19,7 @@ void Coordinator::begin(PumpBus& pumps, ScalePlatform& scale) {
 }
 
 bool Coordinator::startDispense(const DispenseCommand& command, unsigned long now_ms) {
-  if (pumps_ == nullptr || scale_ == nullptr) {
+  if (pumps_ == nullptr || scale_ == nullptr || config_ == nullptr) {
     return false;
   }
   // Reject when busy so a duplicate dispense does not disturb the running job.
@@ -41,22 +43,32 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
     result_ = JobResult::kError;
     return false;
   }
-  const float pour_ms_f = (command.ml / kDefaultMlPerSecond) * 1000.0f;
-  if (!std::isfinite(pour_ms_f) || pour_ms_f > static_cast<float>(kMaxPourDurationMs)) {
+  // Per-pump calibration (docs/16): ml/s + anti-drip come from NVS, not constants.
+  const float ml_per_s = config_->mlPerSecond(command.channel);
+  const float pour_ms_f = (command.ml / ml_per_s) * 1000.0f;
+  if (!std::isfinite(pour_ms_f) || pour_ms_f <= 0.0f) {
+    last_reject_ = JobReject::kSubResolutionMl;
+    result_ = JobResult::kError;
+    return false;
+  }
+  if (pour_ms_f > static_cast<float>(kMaxPourDurationMs)) {
     last_reject_ = JobReject::kPourTooLong;
     result_ = JobResult::kError;
     return false;
   }
-
-  channel_ = command.channel;
-  pour_ms_ = static_cast<unsigned long>(pour_ms_f);
-  if (pour_ms_ == 0) {
+  const unsigned long pour_ms = static_cast<unsigned long>(pour_ms_f);
+  if (pour_ms == 0) {
     // Sub-resolution volume: a 0 ms pour would jump straight to anti-drip and
     // only suck back. Reject instead of dispensing a net-negative pour.
     last_reject_ = JobReject::kSubResolutionMl;
     result_ = JobResult::kError;
     return false;
   }
+
+  channel_ = command.channel;
+  pour_ms_ = pour_ms;
+  // Capture anti-drip for this job so mid-pour config edits do not change it.
+  anti_drip_ms_ = config_->antiDripMs(command.channel);
   result_ = JobResult::kNone;
   last_reject_ = JobReject::kNone;
 
@@ -125,7 +137,7 @@ void Coordinator::tick(unsigned long now_ms) {
       break;
 
     case Phase::kAntiDrip:
-      if ((now_ms - anti_drip_start_ms_) >= kDefaultAntiDripMs) {
+      if ((now_ms - anti_drip_start_ms_) >= anti_drip_ms_) {
         finish(JobResult::kOk);
       }
       break;
@@ -142,7 +154,7 @@ void Coordinator::beginPour(unsigned long now_ms) {
 }
 
 void Coordinator::beginAntiDrip(unsigned long now_ms) {
-  if (kDefaultAntiDripMs == 0) {
+  if (anti_drip_ms_ == 0) {
     finish(JobResult::kOk);
     return;
   }

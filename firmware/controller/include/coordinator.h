@@ -3,10 +3,12 @@
 #include <cstdint>
 
 #include "command_queue.h"
+#include "config.h"
 #include "status_snapshot.h"
 
 class PumpBus;
 class ScalePlatform;
+class ConfigStore;
 
 // Activity coordinator (docs/16 Layer 2). At most one job at a time; drives a
 // single-pump gated timed dispense as a non-blocking sub-FSM advanced in tick().
@@ -28,7 +30,7 @@ class Coordinator {
 
   enum class JobResult : uint8_t { kNone, kOk, kError };
 
-  void begin(PumpBus& pumps, ScalePlatform& scale);
+  void begin(PumpBus& pumps, ScalePlatform& scale, ConfigStore& config);
 
   // Start a single-pump dispense. Returns false (and does not start motion) when
   // busy, cutoff open, channel invalid, or ml <= 0. now_ms is the ControlTask
@@ -68,6 +70,7 @@ class Coordinator {
 
   PumpBus* pumps_ = nullptr;
   ScalePlatform* scale_ = nullptr;
+  ConfigStore* config_ = nullptr;
 
   JobState state_ = JobState::kIdle;
   Phase phase_ = Phase::kIdle;
@@ -76,6 +79,9 @@ class Coordinator {
 
   uint8_t channel_ = 0;
   unsigned long pour_ms_ = 0;  // computed pour duration for this job
+  // Per-pump calibration captured at startDispense() from ConfigStore, so the job
+  // is unaffected if config is edited mid-pour.
+  unsigned long anti_drip_ms_ = static_cast<unsigned long>(kDefaultAntiDripMs);
   // Deadlines use elapsed-subtraction (now - start >= duration) so they are
   // millis() rollover-safe, matching ScalePlatform's flow-timeout idiom.
   unsigned long pour_start_ms_ = 0;

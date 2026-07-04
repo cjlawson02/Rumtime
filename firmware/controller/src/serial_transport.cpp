@@ -6,12 +6,14 @@
 
 #include "command_queue.h"
 #include "command_validate.h"
+#include "config_store.h"
 #include "pump_bus.h"
 #include "status_snapshot.h"
 
-void SerialTransport::begin(CommandQueue& queue, StatusPublisher& status) {
+void SerialTransport::begin(CommandQueue& queue, StatusPublisher& status, ConfigStore& config) {
   queue_ = &queue;
   status_ = &status;
+  config_ = &config;
   Serial.begin(115200);
   len_ = 0;
   overflow_ = false;
@@ -44,7 +46,8 @@ void SerialTransport::poll() {
 
 void SerialTransport::handleLine(char* line) {
   const CommandParseResult parsed =
-      parseCommandLine(line, status_->read(), PumpBus::kNumChannels, cancel_pending_this_poll_);
+      parseCommandLine(line, status_->read(), PumpBus::kNumChannels, *config_,
+                       cancel_pending_this_poll_);
 
   if (parsed.is_cancel) {
     queue_->enqueueCancel();
@@ -60,6 +63,11 @@ void SerialTransport::handleLine(char* line) {
 
   if (parsed.reject != CommandReject::kNone) {
     Serial.println(commandRejectText(parsed.reject));
+    return;
+  }
+
+  if (parsed.config_op.type != ConfigOpType::kNone) {
+    applyConfigOp(parsed.config_op);
     return;
   }
 
@@ -81,6 +89,56 @@ void SerialTransport::emitJobEvent(bool ok, JobReject reject) {
   }
   Serial.print("// job:error reject=");
   Serial.println(jobRejectText(reject));
+}
+
+void SerialTransport::emitConfigPersistError() {
+  Serial.println("// config:error persist failed");
+}
+
+void SerialTransport::applyConfigOp(const ConfigOp& op) {
+  bool ok = false;
+  switch (op.type) {
+    case ConfigOpType::kDump:
+      printConfig();
+      return;
+    case ConfigOpType::kSetCalibration: {
+      // Keep the existing anti-drip when the operator omitted it (cal <pump> <ml/s>).
+      const uint32_t anti_drip =
+          op.has_anti_drip ? op.anti_drip_ms : config_->antiDripMs(op.channel);
+      ok = config_->setCalibration(op.channel, op.ml_per_s, anti_drip);
+      Serial.println(ok ? "ok" : commandRejectText(CommandReject::kBadCalibration));
+      return;
+    }
+    case ConfigOpType::kSetBinding:
+      ok = config_->setBinding(op.channel, op.ingredient_id);
+      Serial.println(ok ? "ok" : commandRejectText(CommandReject::kBadIngredient));
+      return;
+    case ConfigOpType::kClearBinding:
+      config_->clearBinding(op.channel);
+      Serial.println("ok");
+      return;
+    case ConfigOpType::kNone:
+    default:
+      return;
+  }
+}
+
+void SerialTransport::printConfig() {
+  // Only the physically controllable channels; the NVS record is sized larger
+  // (kMaxPumps) for future I2C modules but the coordinator addresses these.
+  for (uint8_t ch = 0; ch < PumpBus::kNumChannels; ++ch) {
+    Serial.print("config pump=");
+    Serial.print(ch + 1);  // 1-based on the wire
+    Serial.print(" ml_per_s=");
+    Serial.print(config_->mlPerSecond(ch), 3);
+    Serial.print(" anti_drip_ms=");
+    Serial.print(config_->antiDripMs(ch));
+    Serial.print(" bound=");
+    Serial.print(config_->bound(ch) ? 1 : 0);
+    Serial.print(" ingredient=");
+    const char* ingredient = config_->ingredient(ch);
+    Serial.println(ingredient[0] == '\0' ? "-" : ingredient);
+  }
 }
 
 void SerialTransport::printStatus() {
@@ -106,5 +164,9 @@ void SerialTransport::printStatus() {
   Serial.print(" job_phase=");
   Serial.print(s.job_phase);
   Serial.print(" job_reject=");
-  Serial.println(jobRejectText(s.job_reject));
+  Serial.print(jobRejectText(s.job_reject));
+  Serial.print(" config_dirty=");
+  Serial.print(s.config_dirty ? 1 : 0);
+  Serial.print(" config_persist_error=");
+  Serial.println(s.config_persist_error ? 1 : 0);
 }

@@ -35,6 +35,11 @@ struct StatusSnapshot {
   bool job_error = false;
   uint8_t job_phase = 0;
   JobReject job_reject = JobReject::kNone;
+
+  // ConfigStore persist status (NVS subsystem). config_dirty: RAM edits not yet
+  // on flash. config_persist_error: last idle commit failed (retry with backoff).
+  bool config_dirty = false;
+  bool config_persist_error = false;
 };
 
 class StatusPublisher {

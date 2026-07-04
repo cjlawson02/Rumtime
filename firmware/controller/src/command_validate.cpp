@@ -5,18 +5,22 @@
 #include <cstring>
 
 #include "config.h"
+#include "config_store.h"
 
 namespace {
 
-CommandReject validateDispenseParams(const DispenseCommand& cmd, uint8_t num_pumps) {
+CommandReject validateDispenseParams(const DispenseCommand& cmd, uint8_t num_pumps, float ml_per_s) {
   if (cmd.channel >= num_pumps) {
     return CommandReject::kBadPump;
   }
   if (!std::isfinite(cmd.ml) || cmd.ml <= 0.0f || cmd.ml > kMaxDispenseMl) {
     return CommandReject::kBadMl;
   }
-  const float pour_ms_f = (cmd.ml / kDefaultMlPerSecond) * 1000.0f;
-  if (!std::isfinite(pour_ms_f) || pour_ms_f > static_cast<float>(kMaxPourDurationMs)) {
+  const float pour_ms_f = (cmd.ml / ml_per_s) * 1000.0f;
+  if (!std::isfinite(pour_ms_f) || pour_ms_f <= 0.0f) {
+    return CommandReject::kSubResolutionMl;
+  }
+  if (pour_ms_f > static_cast<float>(kMaxPourDurationMs)) {
     return CommandReject::kPourTooLong;
   }
   if (static_cast<unsigned long>(pour_ms_f) == 0) {
@@ -51,6 +55,10 @@ const char* commandRejectText(CommandReject reject) {
       return "busy";
     case CommandReject::kLineTooLong:
       return "Error:line too long";
+    case CommandReject::kBadCalibration:
+      return "Error:bad calibration";
+    case CommandReject::kBadIngredient:
+      return "Error:bad ingredient";
   }
   return "Error:unknown";
 }
@@ -94,11 +102,13 @@ bool validateDispenseCommand(const DispenseCommand& cmd, uint8_t num_pumps, floa
 }
 
 CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusSnapshot& status,
-                                       uint8_t num_pumps, bool cancel_pending_this_poll) {
+                                       uint8_t num_pumps, const ConfigStore& config,
+                                       bool cancel_pending_this_poll) {
   if (status.cutoff_open) {
     return CommandReject::kCutoffOpen;
   }
-  const CommandReject params = validateDispenseParams(cmd, num_pumps);
+  const float ml_per_s = config.mlPerSecond(cmd.channel);
+  const CommandReject params = validateDispenseParams(cmd, num_pumps, ml_per_s);
   if (params != CommandReject::kNone) {
     return params;
   }
@@ -109,7 +119,7 @@ CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusS
 }
 
 CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, uint8_t num_pumps,
-                                    bool cancel_pending_this_poll) {
+                                    const ConfigStore& config, bool cancel_pending_this_poll) {
   CommandParseResult result;
 
   char* verb = strtok(line, " \t");
@@ -180,13 +190,110 @@ CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, ui
     cmd.ml = ml;
     cmd.flow_gate = flow_gate;
 
-    result.reject = preflightDispenseEnqueue(cmd, status, num_pumps, cancel_pending_this_poll);
+    result.reject = preflightDispenseEnqueue(cmd, status, num_pumps, config, cancel_pending_this_poll);
     if (result.reject != CommandReject::kNone) {
       return result;
     }
 
     result.command.type = CommandType::kDispensePump;
     result.command.dispense = cmd;
+    return result;
+  }
+
+  if (strcmp(verb, "config") == 0) {
+    if (strtok(nullptr, " \t") != nullptr) {
+      result.reject = CommandReject::kBadArgs;
+      return result;
+    }
+    result.config_op.type = ConfigOpType::kDump;
+    return result;
+  }
+
+  if (strcmp(verb, "cal") == 0 || strcmp(verb, "bind") == 0 || strcmp(verb, "unbind") == 0) {
+    char* pump_tok = strtok(nullptr, " \t");
+    if (pump_tok == nullptr) {
+      result.reject = CommandReject::kUsage;
+      return result;
+    }
+    char* pump_end = nullptr;
+    const long pump = strtol(pump_tok, &pump_end, 10);
+    if (pump_end == pump_tok || *pump_end != '\0') {
+      result.reject = CommandReject::kBadArgs;
+      return result;
+    }
+    if (pump < 1 || pump > num_pumps) {
+      result.reject = CommandReject::kBadPump;
+      return result;
+    }
+    const uint8_t channel = static_cast<uint8_t>(pump - 1);
+    result.config_op.channel = channel;
+
+    if (strcmp(verb, "unbind") == 0) {
+      if (strtok(nullptr, " \t") != nullptr) {
+        result.reject = CommandReject::kBadArgs;
+        return result;
+      }
+      result.config_op.type = ConfigOpType::kClearBinding;
+      return result;
+    }
+
+    if (strcmp(verb, "bind") == 0) {
+      char* ingredient = strtok(nullptr, " \t");
+      if (ingredient == nullptr) {
+        result.reject = CommandReject::kUsage;
+        return result;
+      }
+      if (strtok(nullptr, " \t") != nullptr) {
+        result.reject = CommandReject::kBadArgs;
+        return result;
+      }
+      const std::size_t len = strlen(ingredient);
+      if (len == 0 || len >= kIngredientIdMax) {
+        result.reject = CommandReject::kBadIngredient;
+        return result;
+      }
+      result.config_op.type = ConfigOpType::kSetBinding;
+      memcpy(result.config_op.ingredient_id, ingredient, len);  // array is zero-initialized
+      return result;
+    }
+
+    // cal <pump> <ml_per_s> [anti_drip_ms]
+    char* rate_tok = strtok(nullptr, " \t");
+    if (rate_tok == nullptr) {
+      result.reject = CommandReject::kUsage;
+      return result;
+    }
+    char* drip_tok = strtok(nullptr, " \t");
+    if (strtok(nullptr, " \t") != nullptr) {
+      result.reject = CommandReject::kBadArgs;
+      return result;
+    }
+    char* rate_end = nullptr;
+    const float rate = strtof(rate_tok, &rate_end);
+    if (rate_end == rate_tok || *rate_end != '\0') {
+      result.reject = CommandReject::kBadArgs;
+      return result;
+    }
+    if (!std::isfinite(rate) || rate < kMinMlPerSecond || rate > kMaxMlPerSecond) {
+      result.reject = CommandReject::kBadCalibration;
+      return result;
+    }
+    result.config_op.type = ConfigOpType::kSetCalibration;
+    result.config_op.ml_per_s = rate;
+    if (drip_tok != nullptr) {
+      char* drip_end = nullptr;
+      const unsigned long drip = strtoul(drip_tok, &drip_end, 10);
+      if (drip_end == drip_tok || *drip_end != '\0') {
+        result.reject = CommandReject::kBadArgs;
+        return result;
+      }
+      if (drip > kMaxAntiDripMs) {
+        result.reject = CommandReject::kBadCalibration;
+        return result;
+      }
+      result.config_op.anti_drip_ms = static_cast<uint32_t>(drip);
+      result.config_op.has_anti_drip = true;
+    }
     return result;
   }
 

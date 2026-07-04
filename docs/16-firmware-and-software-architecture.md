@@ -281,11 +281,13 @@ Preserve validated behavior: flow-gate timing, anti-drip duration, ml/s calibrat
 
 ## Phased implementation
 
-1. **ControlTask skeleton** — FreeRTOS task, 5 ms period, non-blocking scale FSM + pump state machine on bench GPIO hardware.
-2. **Command queue** — serial or stub enqueue; cancel + busy rejection.
-3. **NVS config** — bindings + calibration load/save via PersistTask / idle hook.
+Implementation lives in [`firmware/controller/`](../firmware/controller/README.md) (product) and [`firmware/bench-rig/`](../firmware/bench-rig/) (Phase 0 bring-up reference). Status as of 2026-07-04:
+
+1. ~~**ControlTask skeleton**~~ — done: 5 ms FreeRTOS task on Core 1, non-blocking scale FSM, pump bus, TWDT, tick order per this doc.
+2. ~~**Command queue**~~ — done: depth-1 queue, cancel-first drain, busy on duplicate dispense; serial enqueue path bench-verified.
+3. ~~**NVS config**~~ — done in controller: `ConfigStore` with per-pump `ml_per_s` / `anti_drip_ms` + ingredient bindings; idle-commit hook (not a separate `PersistTask`); load-time sanitization; `cal`/`bind`/`unbind`/`config` serial edits. **Still deferred within this phase:** inventory fields (`remaining_ml`, etc.), recipe ingredient → pump resolution, schema forward-migration (v1 uses reset-on-version-bump).
 4. **Sequence runner** — sequential + parallel dispense steps; manual pour as single-step job.
-5. **Wi-Fi HTTP** — enqueue only; status snapshot poll. **Prerequisites before a Core-0 producer reads/writes shared state:** (a) `CommandQueue` cancel flag must be `std::atomic<bool>` with `exchange()` (the current `volatile bool` can drop a cancel across cores — a dropped stop is a spill); (b) `StatusPublisher` must be tear-free (seqlock / double-buffer) per implementation rule 4; (c) lock the reject/ack wire contract (`409 busy` vs. reporting downstream rejection). These are deferred *with* HTTP, not independently.
+5. **Wi-Fi HTTP** — enqueue only; status snapshot poll. **Prerequisites before a Core-0 producer reads/writes shared state:** (a) `CommandQueue` cancel flag must be `std::atomic<bool>` with `exchange()` (the current `volatile bool` can drop a cancel across cores — a dropped stop is a spill); (b) `StatusPublisher` must be tear-free (seqlock / double-buffer) per implementation rule 4; (c) lock the reject/ack wire contract (`409 busy` vs. reporting downstream rejection); (d) route config mutations through ControlTask (or mutex `Preferences`) — serial applies them directly today. These are deferred *with* HTTP, not independently.
 6. **Cleaning sequences** — compose existing step types.
 7. **I2C pump modules** — replace GPIO bench driver with `PumpModule` HAL.
 
@@ -299,7 +301,7 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 | ControlTask on **Core 1**, HTTP/Wi-Fi on **Core 0** | Common ESP32 Arduino layout; not bench-measured on this hardware yet |
 | Priority **~10–12** for ControlTask, **~3–5** for HTTP | Typical starting point; needs profiling under real Wi-Fi load |
 | Command queue **depth 1** + **409 busy** on duplicate dispense | Matches one-coordinator-job model; kiosk debounce not specified |
-| **PersistTask** (or idle hook) for NVS — not inline in ControlTask | Reviewer consensus; could be same task with idle-state commit instead |
+| **PersistTask** (or idle hook) for NVS — not inline in ControlTask | Reviewer consensus; **controller uses idle hook** in `ControlTask::tick()` (1 s retry backoff on commit failure); dedicated `PersistTask` still deferred |
 | **PsychicHttp** or similar named as HTTP direction | Example only; library not chosen |
 | Glass-present check on dispense is **optional** per operation | Doc says "optional glass-present check"; you did not lock always-on vs manual-pour bypass |
 | **Flow-gated** pour remains v1 default; timed fallback on scale fault | From existing docs 06/12; bench Tests 7–9 still gating |
@@ -326,7 +328,7 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 | Glass-present required for all recipe pours? | Software open |
 | HTTP library choice | Implementation open |
 | Core pinning and priorities | Implementation open until profiled |
-| Whether `loop()` or ControlTask feeds TWDT | Implementation open |
+| Whether `loop()` or ControlTask feeds TWDT | **ControlTask feeds TWDT** in controller firmware (including before/after idle NVS commit) |
 | Display on ESP32 (local OLED vs kiosk-only status) | Mentioned optional in system context; not decided |
 
 ## Deferred
@@ -346,4 +348,5 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 - [`02-system-architecture.md`](02-system-architecture.md) — hardware block diagrams
 - [`06-flow-calibration-and-inventory.md`](06-flow-calibration-and-inventory.md) — pour timing and inventory fields
 - [`07-cleaning-and-food-safety.md`](07-cleaning-and-food-safety.md) — cleaning workflows
-- [`firmware/bench-rig/`](firmware/bench-rig/) — Phase 0 bring-up (blocking model)
+- [`firmware/controller/`](../firmware/controller/) — product firmware (ControlTask, coordinator, NVS `ConfigStore`, serial transport)
+- [`firmware/bench-rig/`](../firmware/bench-rig/) — Phase 0 bring-up (blocking model)

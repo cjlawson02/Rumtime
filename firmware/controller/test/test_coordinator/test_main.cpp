@@ -7,6 +7,7 @@
 
 #include "command_queue.h"
 #include "config.h"
+#include "config_store.h"
 #include "coordinator.h"
 #include "gpio_ops.h"
 #include "machine_inputs.h"
@@ -128,6 +129,25 @@ ScaleOps makeScaleOps() {
                   scaleReadRaw, scaleSetScale,  scaleSetOffset};
 }
 
+// --- Fake NVS: no stored record -> ConfigStore seeds config.h defaults, so the
+// coordinator's per-pump ml/s + anti-drip equal the constants these tests assume.
+
+bool nvsBegin(const char*) {
+  return true;
+}
+bool nvsGetBlob(const char*, void*, std::size_t) {
+  return false;  // nothing persisted
+}
+bool nvsSetBlob(const char*, const void*, std::size_t) {
+  return true;
+}
+bool nvsCommit() {
+  return true;
+}
+NvsOps makeNvsOps() {
+  return NvsOps{nvsBegin, nvsGetBlob, nvsSetBlob, nvsCommit};
+}
+
 // --- Test harness bundling the real subsystems the coordinator drives ---
 
 struct Harness {
@@ -136,18 +156,22 @@ struct Harness {
   MachineInputs inputs;
   PumpBus pumps;
   ScalePlatform scale;
+  ConfigStore config;
   Coordinator coordinator;
   GpioOps gpio_ops;
   ScaleOps scale_ops;
+  NvsOps nvs_ops;
 
   void begin() {
     g_gpio = &gpio;
     g_scale = &scale_fake;
     gpio_ops = makeGpioOps();
     scale_ops = makeScaleOps();
+    nvs_ops = makeNvsOps();
     pumps.begin(inputs, gpio_ops);
     scale.begin(scale_ops);
-    coordinator.begin(pumps, scale);
+    config.begin(nvs_ops);
+    coordinator.begin(pumps, scale, config);
     gpio.reset();  // drop safe-boot writes; keep only job-driven writes
   }
 
@@ -499,6 +523,56 @@ void test_cutoff_open_mid_pour_aborts() {
   TEST_ASSERT_TRUE(pumpStopped(h.gpio));
 }
 
+void test_custom_ml_per_s_extends_pour_duration() {
+  Harness h;
+  h.begin();
+  TEST_ASSERT_TRUE(h.config.setCalibration(0, 3.5f, static_cast<uint32_t>(kDefaultAntiDripMs)));
+
+  constexpr float kPourMl = 3.5f;  // 3.5 ml @ 3.5 ml/s -> 1000 ms pour
+  TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kPourMl, false), 0));
+  h.step(999);
+  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPour),
+                    static_cast<int>(h.coordinator.phase()));
+  h.step(1000);
+  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kAntiDrip),
+                    static_cast<int>(h.coordinator.phase()));
+  h.step(1000 + kDefaultAntiDripMs);
+  TEST_ASSERT_TRUE(h.coordinator.ok());
+}
+
+void test_custom_anti_drip_ms() {
+  Harness h;
+  h.begin();
+  constexpr uint32_t kCustomAntiDrip = 200;
+  TEST_ASSERT_TRUE(h.config.setCalibration(0, kDefaultMlPerSecond, kCustomAntiDrip));
+
+  TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, false), 0));
+  h.step(1000);
+  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kAntiDrip),
+                    static_cast<int>(h.coordinator.phase()));
+  h.step(1000 + kCustomAntiDrip - 1);
+  TEST_ASSERT_TRUE(h.coordinator.busy());
+  h.step(1000 + kCustomAntiDrip);
+  TEST_ASSERT_TRUE(h.coordinator.ok());
+}
+
+void test_mid_pour_cal_does_not_change_running_job() {
+  Harness h;
+  h.begin();
+
+  TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, false), 0));
+  h.step(500);
+  // Double the pour rate mid-job — the running pour must keep the captured duration.
+  TEST_ASSERT_TRUE(h.config.setCalibration(0, 3.5f, 100));
+
+  h.step(999);
+  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPour),
+                    static_cast<int>(h.coordinator.phase()));
+  h.step(1000);
+  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kAntiDrip),
+                    static_cast<int>(h.coordinator.phase()));
+}
+
 }  // namespace
 
 void setUp() {
@@ -529,5 +603,8 @@ int main() {
   RUN_TEST(test_cutoff_open_during_flow_wait_aborts);
   RUN_TEST(test_cancel_when_idle_is_noop);
   RUN_TEST(test_cutoff_open_mid_pour_aborts);
+  RUN_TEST(test_custom_ml_per_s_extends_pour_duration);
+  RUN_TEST(test_custom_anti_drip_ms);
+  RUN_TEST(test_mid_pour_cal_does_not_change_running_job);
   return UNITY_END();
 }

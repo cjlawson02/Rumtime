@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "command_queue.h"
+#include "config_store.h"
 #include "coordinator.h"
 #include "machine_inputs.h"
 #include "pump_bus.h"
@@ -26,10 +27,13 @@ class ControlTask {
   MachineInputs inputs_;
   PumpBus pumps_;
   ScalePlatform scale_;
+  ConfigStore config_;
   CommandQueue queue_;
   Coordinator coordinator_;
   StatusPublisher status_;
   SerialTransport serial_;
   TaskHandle_t handle_ = nullptr;
   bool prev_job_busy_ = false;
+  bool config_persist_error_ = false;
+  unsigned long last_config_commit_attempt_ms_ = 0;
 };

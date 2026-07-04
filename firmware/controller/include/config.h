@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 // ESP32-S3-DevKitC-1 pin map — copied from firmware/bench-rig/include/config.h.
@@ -32,14 +33,37 @@ constexpr int kPumpPwmFull = 255;
 
 // Dispense defaults — copied from firmware/bench-rig/include/config.h (bench-validated
 // 2026-06-27). Open-loop ml/s calibration model and anti-drip reverse; re-cal per line.
+// These are the SEED values ConfigStore writes into a fresh (or reset) NVS record;
+// per-pump calibration in NVS overrides them at runtime (see config_store.h).
 constexpr float kDefaultMlPerSecond = 1.75f;
 constexpr unsigned long kDefaultAntiDripMs = 100;
+
+// Machine config / NVS (docs/16 "Machine config (NVS)"). RAM is session-authoritative
+// during pours; ConfigStore::commit() flushes to flash only when idle (never on the
+// motion path). The persisted record is sized to the documented pump_id domain (1..16)
+// so adding I2C pump modules (docs/16 phase 7) does not force a schema reset.
+constexpr uint8_t kMaxPumps = 16;
+constexpr std::size_t kIngredientIdMax = 24;  // includes the NUL terminator
+
+// Blob is guarded by magic + schema version; a mismatch resets to seed defaults
+// (docs/16: "Version the schema; migrate or reset on breaking changes.").
+constexpr uint32_t kConfigMagic = 0x524D4331;  // 'RMC1'
+constexpr uint16_t kConfigSchemaVersion = 1;
+constexpr const char* kNvsNamespace = "rumtime";
+constexpr const char* kConfigBlobKey = "cfg";
+
+// Calibration sanity bounds — ConfigStore rejects out-of-range writes so a garbage
+// value can never reach the coordinator's pour math. anti-drip reverse is bounded
+// because an unbounded reverse purge is a spill risk (AGENTS.md safety guardrails).
+constexpr float kMinMlPerSecond = 0.01f;
+constexpr float kMaxMlPerSecond = 100.0f;
+constexpr uint32_t kMaxAntiDripMs = 5000;
 
 // Dispense safety ceilings. Open-loop timed mode trusts (ml * calibration), so a
 // malformed / mis-calibrated request could otherwise run a pump unbounded. The
 // coordinator REJECTS (does not silently clamp) any job exceeding either limit,
-// so the operator never gets a wrong volume without notice. The effective max is
-// min(kMaxDispenseMl, kDefaultMlPerSecond * kMaxPourDurationMs / 1000).
+// so the operator never gets a wrong volume without notice. The effective max
+// volume at a given pump rate is min(kMaxDispenseMl, ml_per_s * kMaxPourDurationMs / 1000).
 constexpr float kMaxDispenseMl = 500.0f;
 constexpr unsigned long kMaxPourDurationMs = 120000;  // 120 s hard pump-on ceiling
 
@@ -52,6 +76,9 @@ constexpr unsigned int kControlTaskPriority = 10;
 // ESP-IDF xTaskCreatePinnedToCore expects stack depth in bytes.
 constexpr unsigned int kControlTaskStackBytes = 4096;
 constexpr unsigned int kControlTaskWdtTimeoutMs = 2000;
+
+// Idle NVS commit retry interval when a prior commit failed (avoid hammering flash).
+constexpr unsigned long kConfigCommitRetryMs = 1000;
 
 // Scale (HX711) — copied from firmware/bench-rig/include/config.h.
 // HX711 calibration factor — tune on bench with known mass.
