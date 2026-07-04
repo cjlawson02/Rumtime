@@ -186,7 +186,9 @@ Single-pump calibration or prime can attribute no-flow to one line. During simul
 
 ## Bottle inventory tracking
 
-Software-only tracking is acceptable.
+Software-only tracking is acceptable. **ESP32 NVS is authoritative** for `remaining_ml` and related fields; the kiosk reads machine state for display. Cloud KV may mirror for analytics later but must not be the pour-time source of truth.
+
+Pump ↔ ingredient bindings also live on the ESP32 (not in recipe documents). See [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md).
 
 Suggested fields:
 

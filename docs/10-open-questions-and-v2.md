@@ -1,5 +1,11 @@
 # Open Questions and V2 Ideas
 
+## Open questions — software and firmware
+
+1. HTTP/API contract shape (`/dispense`, `/config`, status transport) — deferred until firmware layers are stable; see [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md).
+2. Offline pour when internet is down but LAN works — deferred; options are kiosk recipe cache or ESP32 favorites snapshot.
+3. LAN authentication (PIN, pairing) — deferred; home-trusted LAN assumed for v1.
+
 ## Open questions before buying full BOM
 
 1. ~~Which exact pump model gives the best cost/reliability/flow tradeoff?~~ **Resolved for Phase 0:** Kamoer **KPHM100-HBB10** — bench-verify samples. See [`12-phase-0-decisions.md`](12-phase-0-decisions.md).

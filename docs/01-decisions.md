@@ -159,3 +159,41 @@ Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. M
 | Pump quality     | Willing to pay more for reliability if value is clear.                                                            |
 | Sourcing         | Check McMaster for cheap/appropriate food-contact tubing/fittings, but avoid overbuying premium industrial parts. |
 | Priority         | Best bang for buck.                                                                                               |
+
+## Software stack
+
+| Topic              | Decision                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| Kiosk UI           | Static web app on **Cloudflare Pages**; recipes/menu in **KV** via Worker.                      |
+| Kiosk device       | **Kindle Fire** (browser).                                                                      |
+| Real-time control  | **ESP32-S3** product firmware on LAN.                                                           |
+| Kiosk ↔ ESP32 link | **Wi-Fi HTTP** (JSON). BLE deferred.                                                          |
+| Pour path          | Kiosk → ESP32 directly; **not** through Cloudflare.                                           |
+| Recipe content     | Cloud KV; recipes reference **ingredient IDs**, not pump numbers.                               |
+| Pump ↔ ingredient  | **ESP32 NVS** (machine owns what is plumbed).                                                   |
+| Inventory          | **ESP32 authoritative**; subtract on dispense; persists in NVS.                               |
+| Offline operation  | **Deferred**; optional later ESP32 recipe snapshot or kiosk cache.                              |
+| API contract       | **Deferred** until firmware internal design is stable — see [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md). |
+
+Rationale: Physical reality (bindings, calibration, inventory) must survive reboot and match plumbed lines. Creative content (recipes) can update in the cloud without reflashing. LAN HTTP matches a browser kiosk and keeps dispense latency off the public internet.
+
+## Firmware architecture
+
+| Topic                 | Decision                                                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------------------- |
+| Framework             | **PlatformIO + Arduino** on ESP32-S3 (continue from bench-rig).                                       |
+| Runtime model         | Explicit FreeRTOS — `ControlTask` + command queue + status snapshot.                                  |
+| Control pattern       | Periodic **ControlTask** tick + thin **sequence runner** (FRC-inspired, not WPILib).                     |
+| WPILib on ESP32       | No — port the pattern only.                                                                           |
+| Blocking dispense     | Not in product firmware — bench rig blocking model is bring-up only.                                  |
+| Control period        | **5 ms default** (1–10 ms); HX711 non-blocking FSM inside `ScalePlatform`.                          |
+| Concurrency           | **0 mutexes on motion path**; queue + snapshot at HTTP boundary.                                      |
+| Software mode enum    | **Not required v1** — hardware cutoff is disable.                                                       |
+| Manual pours          | **Always available in software**; no rear-panel test jumper.                                          |
+| Job concurrency       | One coordinator job; command queue depth 1; **409 busy** on duplicate dispense.                         |
+| Pump exclusivity      | Coordinator policy; `PumpChannel` refuses run when cutoff open.                                        |
+| Pump safety (hardware) | Rocker on pump VM + TB6612 **STBY**; safe GPIO at boot. **No bus MOSFET v1.**                          |
+| Pump safety (software) | **Distributed** in pumps, scale, coordinator, steps — no central safety pipeline.                        |
+| JSON on device        | ArduinoJson v7 (when implemented).                                                                    |
+
+Full layer diagram and migration notes: [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md).

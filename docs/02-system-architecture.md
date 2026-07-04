@@ -136,4 +136,22 @@ No shared liquid manifold.
 | Drain            | Pumps reverse longer to pull fluid back from outlet lines.                                 |
 | Flush            | Pickup tubes placed in water/sanitizer and pumps run forward.                              |
 | Calibrate        | Pump runs into measuring cup or glass on load cell.                                        |
-| Inventory update | Software subtracts expected dispensed volume from remaining bottle volume.                 |
+| Inventory update | Firmware subtracts expected dispensed volume from remaining bottle volume (NVS).          |
+
+## Software architecture
+
+```text
+Cloudflare Pages + Worker + KV
+    recipe catalog, menu metadata (ingredient IDs)
+
+Kindle Fire kiosk (browser, home LAN)
+    Wi-Fi HTTP → ESP32 (dispense, config, status)
+    (pour commands do not route through Cloudflare)
+
+ESP32-S3 firmware
+    NVS: pump↔ingredient bindings, calibration, inventory
+    sequence runner: recipe steps, cleaning, manual pour
+    HAL: pumps (I2C modules), scale (HX711), rocker on pump VM + STBY
+```
+
+Captured decisions and firmware layer detail: [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md).
