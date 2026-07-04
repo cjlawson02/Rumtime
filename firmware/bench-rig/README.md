@@ -2,6 +2,8 @@
 
 Phase 0–1 firmware for **ESP32-S3-DevKitC-1** (e.g. **N16R8**: 16 MB flash, 8 MB PSRAM) + **TB6612FNG** driving two Kamoer KPHM100-class pumps, plus **HX711** load cell for Tests 7–9.
 
+Product firmware architecture (`ControlTask` + command queue + status snapshot on FreeRTOS) is documented in [`docs/16-firmware-and-software-architecture.md`](../../docs/16-firmware-and-software-architecture.md). This bench rig intentionally uses **blocking** serial handlers for bring-up; migrate behaviors, not that structure.
+
 ## Wiring (default pins in `include/config.h`)
 
 ### TB6612 → ESP32-S3
