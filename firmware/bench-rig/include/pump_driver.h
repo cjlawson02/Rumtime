@@ -22,8 +22,12 @@ class PumpDriver {
   void setDirection(PumpDirection direction);
   void setPwm(int duty);  // 0–255
 
-  PumpDirection direction() const { return direction_; }
-  int pwm() const { return pwm_duty_; }
+  PumpDirection direction() const {
+    return direction_;
+  }
+  int pwm() const {
+    return pwm_duty_;
+  }
 
  private:
   int in1_ = -1;
@@ -41,20 +45,19 @@ class BenchRig {
   void stopPump(PumpId pump);
   void stopAll();
 
-  void dispenseMl(PumpId pump, float ml, float mlPerSecond,
-                  unsigned long antiDripMs);
+  void dispenseMl(PumpId pump, float ml, float mlPerSecond, unsigned long antiDripMs);
   GatedDispenseResult dispenseMlGated(PumpId pump, float ml, float mlPerSecond,
-                                      unsigned long antiDripMs,
-                                      ScaleDriver& scale);
+                                      unsigned long antiDripMs, ScaleDriver& scale);
   void prime(PumpId pump, unsigned long durationMs);
 
-  bool busy() const { return busy_; }
+  bool busy() const {
+    return busy_;
+  }
 
  private:
   PumpDriver pumps_[2];
   bool busy_ = false;
 
   PumpDriver& driver(PumpId pump);
-  void runFor(PumpId pump, PumpDirection direction, unsigned long durationMs,
-              int pwm = 255);
+  void runFor(PumpId pump, PumpDirection direction, unsigned long durationMs, int pwm = 255);
 };

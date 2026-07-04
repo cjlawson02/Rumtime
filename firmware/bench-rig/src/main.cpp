@@ -414,8 +414,7 @@ void handleCommand(const char* rawLine) {
         inHandler = false;
         return;
       }
-      const unsigned long ms =
-          static_cast<unsigned long>(strtof(cmd.tokens[3], nullptr) * 1000.0f);
+      const unsigned long ms = static_cast<unsigned long>(strtof(cmd.tokens[3], nullptr) * 1000.0f);
       rig.runPump(pump, PumpDirection::kForward, kPumpPwmFull);
       delayWithSerial(ms);
       rig.stopPump(pump);
@@ -465,7 +464,9 @@ void handleCommand(const char* rawLine) {
 
 }  // namespace
 
-void benchPollSerial(unsigned long ms) { delayWithSerial(ms); }
+void benchPollSerial(unsigned long ms) {
+  delayWithSerial(ms);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -484,4 +485,6 @@ void setup() {
   printHelp();
 }
 
-void loop() { serviceSerial(); }
+void loop() {
+  serviceSerial();
+}

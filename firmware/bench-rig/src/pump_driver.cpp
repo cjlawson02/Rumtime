@@ -68,22 +68,19 @@ void BenchRig::stopAll() {
   busy_ = false;
 }
 
-void BenchRig::runFor(PumpId pump, PumpDirection direction,
-                      unsigned long durationMs, int pwm) {
+void BenchRig::runFor(PumpId pump, PumpDirection direction, unsigned long durationMs, int pwm) {
   runPump(pump, direction, pwm);
   benchPollSerial(durationMs);
   stopPump(pump);
 }
 
-void BenchRig::dispenseMl(PumpId pump, float ml, float mlPerSecond,
-                          unsigned long antiDripMs) {
+void BenchRig::dispenseMl(PumpId pump, float ml, float mlPerSecond, unsigned long antiDripMs) {
   if (mlPerSecond <= 0.0f) {
     return;
   }
 
   busy_ = true;
-  const unsigned long forwardMs =
-      static_cast<unsigned long>((ml / mlPerSecond) * 1000.0f);
+  const unsigned long forwardMs = static_cast<unsigned long>((ml / mlPerSecond) * 1000.0f);
 
   runFor(pump, PumpDirection::kForward, forwardMs, kPumpPwmFull);
   benchPollSerial(50);
@@ -93,10 +90,8 @@ void BenchRig::dispenseMl(PumpId pump, float ml, float mlPerSecond,
   busy_ = false;
 }
 
-GatedDispenseResult BenchRig::dispenseMlGated(PumpId pump, float ml,
-                                              float mlPerSecond,
-                                              unsigned long antiDripMs,
-                                              ScaleDriver& scale) {
+GatedDispenseResult BenchRig::dispenseMlGated(PumpId pump, float ml, float mlPerSecond,
+                                              unsigned long antiDripMs, ScaleDriver& scale) {
   GatedDispenseResult result;
   if (mlPerSecond <= 0.0f) {
     return result;
@@ -104,8 +99,7 @@ GatedDispenseResult BenchRig::dispenseMlGated(PumpId pump, float ml,
 
   busy_ = true;
   const float massBefore = scale.readGrams();
-  const unsigned long pourMs =
-      static_cast<unsigned long>((ml / mlPerSecond) * 1000.0f);
+  const unsigned long pourMs = static_cast<unsigned long>((ml / mlPerSecond) * 1000.0f);
   result.timed_ms = pourMs;
 
   scale.resetFlowDetect();

@@ -11,12 +11,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  firmware:
-    name: Build bench-rig firmware
+  firmware-format:
+    name: Check firmware formatting
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: firmware/bench-rig
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Check clang-format
+        run: pip install pre-commit && pre-commit run clang-format --all-files
+
+  firmware:
+    name: Build ${{ matrix.dir }} firmware
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [bench-rig, controller]
 
     steps:
       - name: Checkout
@@ -28,8 +45,9 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.platformio/.cache
-          key: ${{ runner.os }}-pio-${{ hashFiles('firmware/bench-rig/platformio.ini') }}
+          key: ${{ runner.os }}-pio-${{ matrix.dir }}-${{ hashFiles(format('firmware/{0}/platformio.ini', matrix.dir)) }}
           restore-keys: |
+            ${{ runner.os }}-pio-${{ matrix.dir }}-
             ${{ runner.os }}-pio-
 
       - name: Set up Python
@@ -38,17 +56,23 @@ jobs:
           python-version: "3.14"
 
       - name: Install PlatformIO Core
-        run: pip install --upgrade platformio
+        run: pip install platformio==6.1.19
 
       - name: Build firmware
-        run: pio run
+        working-directory: firmware/${{ matrix.dir }}
+        run: pio run -e esp32-s3-devkitc-1
+
+      - name: Run native unit tests
+        if: matrix.dir == 'controller'
+        working-directory: firmware/controller
+        run: pio test -e native
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v7
         with:
-          name: bench-rig-firmware-${{ github.sha }}
+          name: ${{ matrix.dir }}-firmware-${{ github.sha }}
           path: |
-            firmware/bench-rig/.pio/build/esp32-s3-devkitc-1/firmware.bin
-            firmware/bench-rig/.pio/build/esp32-s3-devkitc-1/firmware.elf
+            firmware/${{ matrix.dir }}/.pio/build/esp32-s3-devkitc-1/firmware.bin
+            firmware/${{ matrix.dir }}/.pio/build/esp32-s3-devkitc-1/firmware.elf
           if-no-files-found: error
           retention-days: 14

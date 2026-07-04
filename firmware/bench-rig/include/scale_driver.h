@@ -22,20 +22,29 @@ class ScaleDriver {
   bool waitForFlow(unsigned long* outDelayMs);
 
   void setCalibrationFactor(float factor);
-  float calibrationFactor() const { return calibrationFactor_; }
+  float calibrationFactor() const {
+    return calibrationFactor_;
+  }
 
-  void setFlowConfig(float thresholdG, int consecutive,
-                     unsigned long timeoutMs);
-  float flowThresholdG() const { return flowThresholdG_; }
-  int flowDetectConsecutive() const { return flowDetectConsecutive_; }
+  void setFlowConfig(float thresholdG, int consecutive, unsigned long timeoutMs);
+  float flowThresholdG() const {
+    return flowThresholdG_;
+  }
+  int flowDetectConsecutive() const {
+    return flowDetectConsecutive_;
+  }
   unsigned long flowDetectTimeoutMs() const {
     return flowDetectTimeoutMs_;
   }
 
   // Last sample delta (g) — useful for weight-stream / vibration floor (Test 7.6).
-  float lastDeltaG() const { return lastDeltaG_; }
+  float lastDeltaG() const {
+    return lastDeltaG_;
+  }
 
-  bool ready() const { return ready_; }
+  bool ready() const {
+    return ready_;
+  }
 
  private:
   bool readOnceWithTimeout(float* outGrams);

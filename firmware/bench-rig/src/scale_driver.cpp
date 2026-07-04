@@ -1,8 +1,8 @@
 #include "scale_driver.h"
 
-#include "config.h"
-
 #include <HX711.h>
+
+#include "config.h"
 
 namespace {
 
@@ -64,8 +64,7 @@ void ScaleDriver::setCalibrationFactor(float factor) {
   scale.set_scale(calibrationFactor_);
 }
 
-void ScaleDriver::setFlowConfig(float thresholdG, int consecutive,
-                                unsigned long timeoutMs) {
+void ScaleDriver::setFlowConfig(float thresholdG, int consecutive, unsigned long timeoutMs) {
   flowThresholdG_ = thresholdG;
   flowDetectConsecutive_ = consecutive;
   flowDetectTimeoutMs_ = timeoutMs;
