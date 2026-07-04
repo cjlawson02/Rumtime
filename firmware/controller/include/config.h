@@ -18,8 +18,9 @@ constexpr int kPump2Pwm = 16;
 
 constexpr int kStandby = 17;
 
-// Optional cutoff sense (DPDT aux pole or VM divider). -1 = not wired.
-// See docs/16 "MachineInputs" — software coherence only; rocker on VM is the real disable.
+// Optional electrical sense of the SAME hardware rocker (aux pole). -1 = not used
+// (v1 default). The rocker on pump VM is the real disable; this GPIO only lets
+// firmware know rocker position — not a second operator switch.
 constexpr int kCutoffSense = -1;
 
 // HX711 — reserved for subsystem 2 (scale); avoid pump GPIO and strapping pins (0, 45, 46).
@@ -48,7 +49,7 @@ constexpr std::size_t kIngredientIdMax = 24;  // includes the NUL terminator
 // Blob is guarded by magic + schema version; a mismatch resets to seed defaults
 // (docs/16: "Version the schema; migrate or reset on breaking changes.").
 constexpr uint32_t kConfigMagic = 0x524D4331;  // 'RMC1'
-constexpr uint16_t kConfigSchemaVersion = 1;
+constexpr uint16_t kConfigSchemaVersion = 2;
 constexpr const char* kNvsNamespace = "rumtime";
 constexpr const char* kConfigBlobKey = "cfg";
 

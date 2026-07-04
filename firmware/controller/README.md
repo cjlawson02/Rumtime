@@ -12,11 +12,11 @@ The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated t
 | `PumpBus` | `pump_bus.{h,cpp}` | **Implemented** — owns STBY + 2 channels; `run`/`stop`/`stopAll`; refuses `run()` and forces `stopAll()` when cutoff open; fails UNSAFE when uninitialized; configures direction/PWM before raising STBY; clamps duty |
 | `ScalePlatform` | `scale_platform.{h,cpp}` | **Implemented** — non-blocking HX711 FSM; one conversion per `tick()`, multi-tick tare, rolling filter, flow-gate + no-flow timeout flags; injected `ScaleOps` seam enables host-side unit tests |
 | `ControlTask` | `control_task.{h,cpp}` | **Skeleton** — 5 ms `vTaskDelayUntil` loop, tick order per doc 16; input→pump→scale path live; idle-only NVS commit with 1 s retry backoff + TWDT feed around flash write; feeds TWDT each tick; restarts on `xTaskCreate` failure |
-| `MachineInputs` | `machine_inputs.{h,cpp}` | **Stub** — fail-safe contract: real GPIO wired active-low + pull-up so a broken sense line reads cutoff-open; `setCutoffOpen(bool)` sim hook for native tests |
+| `MachineInputs` | `machine_inputs.{h,cpp}` | **Deferred for v1** — optional GPIO tap of the same VM rocker (`kCutoffSense = -1`). One hardware rocker is enough; firmware does not need a sense line on the bench |
 | `Coordinator` | `coordinator.{h,cpp}` | **Implemented** — one job at a time; non-blocking single-pump gated timed dispense sub-FSM advanced in `tick(now_ms)`; drives `PumpBus` + `ScalePlatform` only (no direct GPIO). No multi-pump / sequence runner yet |
-| `CommandQueue` | `command_queue.{h,cpp}` | **Implemented (bench-verified, not host-tested)** — depth-1 FreeRTOS command queue + cancel flag; `begin()` fails fatal on alloc failure; `drainCancel()` runs before `drainCommand()`. `cancel_pending_` is `volatile` and must become `std::atomic` before the HTTP task lands (see prerequisites). Only `SerialTransport` enqueues for now |
-| `StatusPublisher` | `status_snapshot.{h,cpp}` | **Stub** — `read()`/`publish()` not tear-free yet (single-writer placeholder; HTTP prerequisite); carries job status (`job_busy` / `job_ok` / `job_error` / `job_phase`) and config persist status (`config_dirty` / `config_persist_error`) |
-| `SerialTransport` | `serial_transport.{h,cpp}` | **Implemented (bench-verified, not host-tested)** — non-blocking line parser polled from `ControlTask::tick()`; strict arg parsing + per-pump pour preflight via `ConfigStore`; rejects with `busy` when a job is running; **enqueue-only for dispense** + one-shot `status`/`config`; applies `cal`/`bind`/`unbind` config edits to `ConfigStore` RAM directly (not via dispense queue); never touches pumps/scale |
+| `CommandQueue` | `command_queue.{h,cpp}` + `queue_ops.h` | **Implemented (host-tested)** — depth-1 queue policy + `QueueOps` seam (FreeRTOS on ESP32, in-memory fake on host); `std::atomic` cancel; `markDispenseAfterCancel()` preserves `cancel`→`dispense` in one burst |
+| `StatusPublisher` | `status_snapshot.{h,cpp}` | **Implemented (host-tested)** — seqlock publish/read; carries `command_pending`, `job_cancelled`, config persist status |
+| `SerialTransport` | `serial_transport.{h,cpp}` | **Implemented (bench-verified)** — capped bytes/poll; captures pour calibration at enqueue; rejects config edits when queue pending; `// job:cancelled` wire line |
 | `ConfigStore` | `config_store.{h,cpp}` | **Implemented** — RAM-authoritative per-pump calibration (`ml_per_s`, `anti_drip_ms`) + ingredient bindings, persisted as one versioned/magic-guarded NVS blob (`static_assert` layout lock); loads at boot with per-field sanitization or seeds `config.h` defaults; duplicate ingredient binds rejected; mutators set `dirty()`, `commit()` is the sole flash write (idle-only, 1 s retry backoff on failure). Injected `NvsOps` seam enables host-side unit tests; ESP32 build wires Arduino `Preferences` |
 
 Not present yet: sequence runner, multi-pump parallel dispense, Wi-Fi/HTTP, I2C/PCA9685, cleaning, inventory, recipes.
@@ -43,7 +43,7 @@ Not present yet: sequence runner, multi-pump parallel dispense, Wi-Fi/HTTP, I2C/
 | VM | 12 V pump bus | Through hardware cutoff switch |
 | VCC / GND | 3.3 V / GND | Logic / common ground |
 
-Cutoff sense (`pins::kCutoffSense`) is `-1` (not wired). HX711 uses GPIO 1 (`kScaleDout`) and GPIO 2 (`kScaleSck`).
+Cutoff: one **hardware rocker on pump VM** is the real disable. Optional `pins::kCutoffSense` GPIO (aux pole of the same switch) is **not used on v1 bench** — leave at `-1`. HX711 uses GPIO 1 (`kScaleDout`) and GPIO 2 (`kScaleSck`).
 
 ## Build and flash
 
@@ -64,11 +64,7 @@ cd firmware/controller
 pio test -e native   # or plain `pio test` (ESP32 env skips host-only suites)
 ```
 
-Runs host-side Unity tests with no hardware (**109 cases** total). Note the scope: the
-native build compiles `PumpChannel` / `PumpBus` / `ScalePlatform` / `Coordinator` /
-`command_validate` / `ConfigStore` only. `CommandQueue`, `SerialTransport`, `StatusPublisher`, and `ControlTask` are
-**not host-tested** (FreeRTOS / Arduino `Serial` dependencies) — they are
-bench-verified on hardware. Dispense preflight (per-pump pour ceiling), config-op parse, and `ConfigStore` round-trips are host-tested; queue flush-on-cancel is bench-verified.
+Runs host-side Unity tests with no hardware (**118 cases** total). Native build includes `CommandQueue` and `StatusPublisher`; `SerialTransport` and `ControlTask` remain bench-verified (Arduino `Serial` / FreeRTOS task).
 
 - **`test_pump_bus`** (10 tests): channel-bounds rejection, run-before-begin refusal, fail-unsafe cutoff, cutoff refusal + STBY behavior, STBY lifecycle across multi-channel run/stop, direction truth table, safe-boot ordering, and duty clamping. Enabled by the `GpioOps` seam injected into `PumpChannel::begin()` and `PumpBus::begin()`.
 - **`test_scale_platform`** (16 tests): rolling filter average, flow-gate consecutive threshold, sub-threshold no-detect, flow timeout elapsed (non-blocking, scripted `now_ms`), tare FSM completing over multiple `tick()` calls, `ready()=false` when the backend fails to initialize, skipping conversions when the backend is not ready, flow timeout firing with no successful conversion at all, mutual exclusion between `flowDetected()`/`flowTimedOut()` (whichever latches first blocks the other), rolling-filter eviction of the oldest sample once the ring is full, stale/liveness `ready()` going false after `kScaleStaleTimeoutMs` and recovering on the tick after reads resume, `setFlowConfig` clamping a negative threshold and a sub-1 consecutive count so flat weights never spuriously trigger flow, `setCalibrationFactor` forwarding to the backend, and null/missing `ScaleOps` members leaving `ready()==false` without crashing. Enabled by the `ScaleOps` seam injected into `ScalePlatform::begin()`.
@@ -105,7 +101,7 @@ Dispense sub-FSM (advanced in `Coordinator::tick(now_ms)`):
 
 ```text
 startDispense -> preconditions (cutoff closed, valid channel, ml > 0)
-             -> flow_gate && scale.ready() ? FlowWait : Pour (timed from motor-on)
+             -> flow_gate ? FlowWait (scale must be ready at start) : Pour (timed from motor-on)
 FlowWait -> flowDetected()  -> Pour (pour timer starts at flow onset)
          -> flowTimedOut() OR scale not ready -> abort (error), stopAll
 Pour     -> now >= deadline (ml / ml_per_s) -> AntiDrip (reverse)
@@ -132,8 +128,8 @@ operator never gets a wrong volume without notice):
 
 ### Documented v1 defaults / policy
 
-- **Cancel aborts immediately** — `stopAll()`, no anti-drip reverse, result is neither ok nor error.
-- **Scale not ready at start** → timed-from-motor-on (no flow gate), even when `flow_gate` was requested.
+- **Cancel aborts immediately** — `stopAll()`, no anti-drip reverse, emits `// job:cancelled` (not ok or error).
+- **Scale not ready at start** → `dispense` (flow-gated) is rejected with `Error:scale not ready`. Use `dispense open` for timed pour without the scale.
 - **Scale goes not-ready during flow wait** → abort the pour (before the no-flow timeout can fire).
 - **No glass-present check** — mass/glass heuristics are still open (docs/16); the coordinator does not gate on a glass.
 - **`ml_per_s` / `anti_drip_ms` per pump from NVS** (`ConfigStore`); the `config.h` values are seed defaults only.
@@ -150,12 +146,13 @@ operator never gets a wrong volume without notice):
 | `Error:...` | Parse or preflight reject |
 | `// job:ok` | Pour finished successfully (async) |
 | `// job:error reject=<code>` | Pour failed or rejected at drain (async) |
+| `// job:cancelled` | Pour aborted by operator cancel (async) |
 | `// config:error persist failed` | Idle NVS commit failed (async; retry with 1 s backoff) |
 
 | Command | Effect |
 | ------- | ------ |
-| `dispense <pump> <ml>` | Flow-gated dispense (falls back to timed if scale not ready) |
-| `dispense open <pump> <ml>` | Timed-from-motor-on dispense (no flow gate) |
+| `dispense <pump> <ml>` | Flow-gated dispense (requires scale ready) |
+| `dispense open <pump> <ml>` | Timed-from-motor-on dispense (no scale / flow gate) |
 | `cancel` / `stop` | Abort current job; **flushes** a pending queued dispense |
 | `status` | Print latest snapshot (`job_reject=`, `config_dirty=`, `config_persist_error=`) |
 | `cal <pump> <ml_per_s> [anti_drip_ms]` | Set per-pump calibration in NVS (anti-drip kept if omitted) |

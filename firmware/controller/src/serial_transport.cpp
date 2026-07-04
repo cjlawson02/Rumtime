@@ -20,17 +20,19 @@ void SerialTransport::begin(CommandQueue& queue, StatusPublisher& status, Config
   cancel_pending_this_poll_ = false;
 }
 
-void SerialTransport::poll() {
+void SerialTransport::poll(const StatusSnapshot* status_override) {
   cancel_pending_this_poll_ = false;
-  // Non-blocking: consume only the bytes already buffered this tick.
-  while (Serial.available() > 0) {
+  size_t bytes_read = 0;
+  // Non-blocking: cap work per tick so a serial flood cannot starve motion.
+  while (Serial.available() > 0 && bytes_read < kMaxBytesPerPoll) {
     const char c = static_cast<char>(Serial.read());
+    ++bytes_read;
     if (c == '\n' || c == '\r') {
       if (overflow_) {
         Serial.println(commandRejectText(CommandReject::kLineTooLong));
       } else if (len_ > 0) {
         line_[len_] = '\0';
-        handleLine(line_);
+        handleLine(line_, status_override);
       }
       len_ = 0;
       overflow_ = false;
@@ -44,9 +46,12 @@ void SerialTransport::poll() {
   }
 }
 
-void SerialTransport::handleLine(char* line) {
+void SerialTransport::handleLine(char* line, const StatusSnapshot* status_override) {
+  const StatusSnapshot status =
+      status_override != nullptr ? *status_override : status_->read();
+
   const CommandParseResult parsed =
-      parseCommandLine(line, status_->read(), PumpBus::kNumChannels, *config_,
+      parseCommandLine(line, status, PumpBus::kNumChannels, *config_,
                        cancel_pending_this_poll_);
 
   if (parsed.is_cancel) {
@@ -67,6 +72,10 @@ void SerialTransport::handleLine(char* line) {
   }
 
   if (parsed.config_op.type != ConfigOpType::kNone) {
+    if (queue_->hasPending()) {
+      Serial.println(commandRejectText(CommandReject::kBusy));
+      return;
+    }
     applyConfigOp(parsed.config_op);
     return;
   }
@@ -75,7 +84,14 @@ void SerialTransport::handleLine(char* line) {
     return;
   }
 
-  if (queue_->enqueueDispense(parsed.command.dispense)) {
+  DispenseCommand cmd = parsed.command.dispense;
+  cmd.ml_per_s = config_->mlPerSecond(cmd.channel);
+  cmd.anti_drip_ms = config_->antiDripMs(cmd.channel);
+
+  if (queue_->enqueueDispense(cmd)) {
+    if (cancel_pending_this_poll_) {
+      queue_->markDispenseAfterCancel();
+    }
     Serial.println("ok");
   } else {
     Serial.println("busy");  // depth-1 slot full: a job is already pending
@@ -89,6 +105,10 @@ void SerialTransport::emitJobEvent(bool ok, JobReject reject) {
   }
   Serial.print("// job:error reject=");
   Serial.println(jobRejectText(reject));
+}
+
+void SerialTransport::emitJobCancelled() {
+  Serial.println("// job:cancelled");
 }
 
 void SerialTransport::emitConfigPersistError() {
@@ -157,10 +177,14 @@ void SerialTransport::printStatus() {
   Serial.print(s.flow_timed_out ? 1 : 0);
   Serial.print(" job_busy=");
   Serial.print(s.job_busy ? 1 : 0);
+  Serial.print(" command_pending=");
+  Serial.print(s.command_pending ? 1 : 0);
   Serial.print(" job_ok=");
   Serial.print(s.job_ok ? 1 : 0);
   Serial.print(" job_error=");
   Serial.print(s.job_error ? 1 : 0);
+  Serial.print(" job_cancelled=");
+  Serial.print(s.job_cancelled ? 1 : 0);
   Serial.print(" job_phase=");
   Serial.print(s.job_phase);
   Serial.print(" job_reject=");

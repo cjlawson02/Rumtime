@@ -9,6 +9,7 @@
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "gpio_ops.h"
+#include "queue_ops.h"
 #include "scale_ops.h"
 
 namespace {
@@ -98,6 +99,43 @@ const NvsOps kPrefsOps = {
     prefsCommit,
 };
 
+void* freertosQueueCreate(std::size_t item_size) {
+  return xQueueCreate(1, item_size);
+}
+
+void freertosQueueDestroy(void* handle) {
+  if (handle != nullptr) {
+    vQueueDelete(static_cast<QueueHandle_t>(handle));
+  }
+}
+
+bool freertosQueueSend(void* handle, const void* item, std::size_t item_size) {
+  (void)item_size;
+  return xQueueSend(static_cast<QueueHandle_t>(handle), item, 0) == pdTRUE;
+}
+
+bool freertosQueueReceive(void* handle, void* out, std::size_t item_size) {
+  (void)item_size;
+  return xQueueReceive(static_cast<QueueHandle_t>(handle), out, 0) == pdTRUE;
+}
+
+void freertosQueueReset(void* handle) {
+  xQueueReset(static_cast<QueueHandle_t>(handle));
+}
+
+unsigned freertosQueuePending(void* handle) {
+  return static_cast<unsigned>(uxQueueMessagesWaiting(static_cast<QueueHandle_t>(handle)));
+}
+
+const QueueOps kFreeRtosQueueOps = {
+    freertosQueueCreate,
+    freertosQueueDestroy,
+    freertosQueueSend,
+    freertosQueueReceive,
+    freertosQueueReset,
+    freertosQueuePending,
+};
+
 }  // namespace
 
 void ControlTask::begin() {
@@ -106,7 +144,7 @@ void ControlTask::begin() {
   pumps_.begin(inputs_, kArduinoGpioOps);
   scale_.begin(kHx711Ops);
   config_.begin(kPrefsOps);  // per-pump calibration + bindings from NVS (or seed defaults)
-  if (!queue_.begin()) {
+  if (!queue_.begin(kFreeRtosQueueOps)) {
     fatalRestart("command queue alloc failed; restarting");
   }
   coordinator_.begin(pumps_, scale_, config_);
@@ -129,7 +167,12 @@ void ControlTask::taskEntry(void* arg) {
 
 void ControlTask::run() {
   const uint32_t timeout_s = (kControlTaskWdtTimeoutMs + 999U) / 1000U;
-  if (esp_task_wdt_init(timeout_s, true) != ESP_OK) {
+  esp_err_t wdt_err = esp_task_wdt_init(timeout_s, true);
+  if (wdt_err == ESP_ERR_INVALID_STATE) {
+    // Arduino core may have initialized TWDT already — subscribe this task only.
+    wdt_err = ESP_OK;
+  }
+  if (wdt_err != ESP_OK) {
     fatalRestart("TWDT init/reconfigure failed; restarting");
   }
   if (esp_task_wdt_add(nullptr) != ESP_OK) {
@@ -145,17 +188,18 @@ void ControlTask::run() {
 }
 
 void ControlTask::tick() {
-  // Tick order per docs/16. Transports enqueue first (Layer 3), then the motion
-  // pipeline drains cancel before command, advances the coordinator, and
-  // publishes the snapshot. No blocking anywhere on this path.
+  // Tick order per docs/16. Read inputs first so serial preflight sees live cutoff.
   const unsigned long now = millis();
 
-  serial_.poll();  // enqueue-only, non-blocking; never touches pumps/scale
+  inputs_.tick();
+  StatusSnapshot preflight_status = status_.read();
+  preflight_status.cutoff_open = inputs_.cutoffOpen();
+
+  serial_.poll(&preflight_status);  // enqueue-only, non-blocking; never touches pumps/scale
 
   if (queue_.drainCancel()) {
     coordinator_.cancel();
   }
-  inputs_.tick();
   pumps_.tick();     // stopAll() if cutoff open; sole motor output path
   scale_.tick(now);  // non-blocking HX711 FSM
 
@@ -176,9 +220,10 @@ void ControlTask::tick() {
   snapshot.flow_timed_out = scale_.flowTimedOut();
   snapshot.last_delta_g = scale_.lastDeltaG();
   snapshot.job_busy = coordinator_.busy();
+  snapshot.command_pending = queue_.hasPending();
   snapshot.job_ok = coordinator_.ok();
-  snapshot.job_error = coordinator_.error() ||
-                       (!coordinator_.busy() && coordinator_.lastReject() != JobReject::kNone);
+  snapshot.job_error = coordinator_.error();
+  snapshot.job_cancelled = coordinator_.cancelled();
   snapshot.job_phase = static_cast<uint8_t>(coordinator_.phase());
   snapshot.job_reject = coordinator_.lastReject();
   snapshot.config_dirty = config_.dirty();
@@ -186,7 +231,11 @@ void ControlTask::tick() {
   status_.publish(snapshot);
 
   if (prev_job_busy_ && !snapshot.job_busy) {
-    serial_.emitJobEvent(snapshot.job_ok, snapshot.job_reject);
+    if (snapshot.job_cancelled) {
+      serial_.emitJobCancelled();
+    } else if (snapshot.job_ok || snapshot.job_error) {
+      serial_.emitJobEvent(snapshot.job_ok, snapshot.job_reject);
+    }
   }
   prev_job_busy_ = snapshot.job_busy;
 
@@ -199,7 +248,11 @@ void ControlTask::tick() {
       if (esp_task_wdt_reset() != ESP_OK) {
         fatalRestart("TWDT reset failed; restarting");
       }
-      if (config_.commit()) {
+      if (config_.commit([]() {
+            if (esp_task_wdt_reset() != ESP_OK) {
+              fatalRestart("TWDT reset failed; restarting");
+            }
+          })) {
         config_persist_error_ = false;
       } else {
         if (!config_persist_error_) {

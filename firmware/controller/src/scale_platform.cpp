@@ -100,18 +100,21 @@ void ScalePlatform::resetFlowDetect(unsigned long now_ms) {
 }
 
 void ScalePlatform::tick(unsigned long now_ms) {
-  // Wall-clock flow timeout runs with no conversion so a dead HX711 still aborts.
-  if (flow_active_ && !flow_detected_ && (now_ms - flow_reset_ms_) >= flowDetectTimeoutMs_) {
-    flow_timed_out_ = true;
-    flow_active_ = false;
-  }
   stale_ = initialized_ && ((now_ms - last_conv_ms_) > kScaleStaleTimeoutMs);
 
   if (ops_ == nullptr || !initialized_) {
+    if (flow_active_ && !flow_detected_ && (now_ms - flow_reset_ms_) >= flowDetectTimeoutMs_) {
+      flow_timed_out_ = true;
+      flow_active_ = false;
+    }
     return;
   }
   // At most one conversion attempt per tick; skip silently when not ready.
   if (!ops_->isReady()) {
+    if (flow_active_ && !flow_detected_ && (now_ms - flow_reset_ms_) >= flowDetectTimeoutMs_) {
+      flow_timed_out_ = true;
+      flow_active_ = false;
+    }
     return;
   }
 
@@ -155,5 +158,11 @@ void ScalePlatform::tick(unsigned long now_ms) {
       flow_detected_ = true;
       flow_active_ = false;
     }
+  }
+
+  // Wall-clock flow timeout after detection attempt on this tick.
+  if (flow_active_ && !flow_detected_ && (now_ms - flow_reset_ms_) >= flowDetectTimeoutMs_) {
+    flow_timed_out_ = true;
+    flow_active_ = false;
   }
 }

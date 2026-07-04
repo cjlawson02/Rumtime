@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 
 // Post-dequeue / runtime job reject reason (uint8_t for serial printing).
@@ -14,6 +15,7 @@ enum class JobReject : uint8_t {
   kPumpRefused,
   kFlowTimeout,
   kScaleFault,
+  kScaleNotReady,
   kCutoffMidJob,
 };
 
@@ -31,8 +33,10 @@ struct StatusSnapshot {
   // Coordinator job status (subsystem 3). job_ok / job_error hold the result of
   // the last completed job; job_phase mirrors Coordinator::Phase (0 = idle).
   bool job_busy = false;
+  bool command_pending = false;
   bool job_ok = false;
   bool job_error = false;
+  bool job_cancelled = false;
   uint8_t job_phase = 0;
   JobReject job_reject = JobReject::kNone;
 
@@ -53,5 +57,6 @@ class StatusPublisher {
   StatusSnapshot read() const;
 
  private:
+  std::atomic<uint32_t> seq_{0};
   StatusSnapshot latest_;
 };

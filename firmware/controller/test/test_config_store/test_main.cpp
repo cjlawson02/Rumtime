@@ -55,6 +55,27 @@ NvsOps makeNvsOps() {
 
 FakeNvs g_backing;
 
+uint32_t testRecordCrc(const ConfigRecord& record) {
+  ConfigRecord copy = record;
+  copy.crc32 = 0;
+  uint32_t crc = ~0U;
+  const auto* bytes = reinterpret_cast<const uint8_t*>(&copy);
+  for (std::size_t i = 0; i < sizeof(copy); ++i) {
+    crc ^= bytes[i];
+    for (int bit = 0; bit < 8; ++bit) {
+      const uint32_t mask = -(crc & 1U);
+      crc = (crc >> 1) ^ (0xEDB88320U & mask);
+    }
+  }
+  return ~crc;
+}
+
+ConfigRecord makeValidRecord() {
+  ConfigRecord record{};
+  record.crc32 = testRecordCrc(record);
+  return record;
+}
+
 void resetBacking() {
   g_backing = FakeNvs{};
   g_nvs = &g_backing;
@@ -221,6 +242,20 @@ void test_wrong_size_blob_treated_as_absent() {
   TEST_ASSERT_TRUE(store.dirty());
 }
 
+void test_crc_mismatch_resets_to_defaults() {
+  resetBacking();
+  ConfigRecord bad = makeValidRecord();
+  bad.pumps[0].ml_per_s = 9.9f;
+  bad.crc32 = 0x12345678U;  // wrong CRC for the payload
+  g_backing.storeRecord(bad);
+
+  ConfigStore store;
+  NvsOps ops = makeNvsOps();
+  store.begin(ops);
+  TEST_ASSERT_EQUAL_FLOAT(kDefaultMlPerSecond, store.mlPerSecond(0));
+  TEST_ASSERT_TRUE(store.dirty());
+}
+
 void test_null_ops_falls_back_to_defaults() {
   resetBacking();
   ConfigStore store;
@@ -246,8 +281,9 @@ void test_begin_open_failure_falls_back_to_defaults() {
 
 void test_load_sanitizes_negative_ml_per_s() {
   resetBacking();
-  ConfigRecord corrupt;
+  ConfigRecord corrupt = makeValidRecord();
   corrupt.pumps[0].ml_per_s = -1.0f;
+  corrupt.crc32 = testRecordCrc(corrupt);
   g_backing.storeRecord(corrupt);
 
   ConfigStore store;
@@ -259,8 +295,9 @@ void test_load_sanitizes_negative_ml_per_s() {
 
 void test_load_sanitizes_huge_anti_drip() {
   resetBacking();
-  ConfigRecord corrupt;
+  ConfigRecord corrupt = makeValidRecord();
   corrupt.pumps[0].anti_drip_ms = UINT32_MAX;
+  corrupt.crc32 = testRecordCrc(corrupt);
   g_backing.storeRecord(corrupt);
 
   ConfigStore store;
@@ -318,6 +355,7 @@ int main() {
   RUN_TEST(test_magic_mismatch_resets_to_defaults);
   RUN_TEST(test_num_pumps_mismatch_resets_to_defaults);
   RUN_TEST(test_wrong_size_blob_treated_as_absent);
+  RUN_TEST(test_crc_mismatch_resets_to_defaults);
   RUN_TEST(test_null_ops_falls_back_to_defaults);
   RUN_TEST(test_begin_open_failure_falls_back_to_defaults);
   RUN_TEST(test_load_sanitizes_negative_ml_per_s);

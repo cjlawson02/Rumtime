@@ -294,24 +294,31 @@ void test_flow_gate_timeout_aborts() {
   TEST_ASSERT_TRUE(pumpStopped(h.gpio));
 }
 
-void test_flow_gate_scale_not_ready_falls_back_to_timed() {
+void test_flow_gate_scale_not_ready_rejects() {
   Harness h;
   h.scale_fake = FakeScale{};
   h.scale_fake.wait_ready_result = false;  // scale never initializes -> not ready
   h.begin();
 
   TEST_ASSERT_FALSE(h.scale.ready());
-  TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, true), 0));
-  // Not ready at start -> timed-from-motor-on, no flow wait.
+  TEST_ASSERT_FALSE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, true), 0));
+  TEST_ASSERT_FALSE(h.coordinator.busy());
+  TEST_ASSERT_TRUE(h.coordinator.error());
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kScaleNotReady),
+                    static_cast<int>(h.coordinator.lastReject()));
+}
+
+void test_dispense_open_works_without_scale() {
+  Harness h;
+  h.scale_fake = FakeScale{};
+  h.scale_fake.wait_ready_result = false;
+  h.begin();
+
+  TEST_ASSERT_FALSE(h.scale.ready());
+  TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, false), 0));
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPour),
                     static_cast<int>(h.coordinator.phase()));
   TEST_ASSERT_TRUE(pumpForward(h.gpio));
-
-  h.step(1000);
-  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kAntiDrip),
-                    static_cast<int>(h.coordinator.phase()));
-  h.step(1000 + kDefaultAntiDripMs);
-  TEST_ASSERT_TRUE(h.coordinator.ok());
 }
 
 void test_scale_not_ready_during_flow_wait_aborts() {
@@ -346,7 +353,8 @@ void test_cancel_aborts_immediately_without_anti_drip() {
   h.coordinator.cancel();
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_FALSE(h.coordinator.ok());
-  TEST_ASSERT_FALSE(h.coordinator.error());  // no success flag, not an error
+  TEST_ASSERT_FALSE(h.coordinator.error());
+  TEST_ASSERT_TRUE(h.coordinator.cancelled());
   TEST_ASSERT_TRUE(pumpStopped(h.gpio));
   // Cancel skips anti-drip: pump 1 was never driven in reverse.
   TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pins::kPump1In2, kGpioLevelHigh));
@@ -586,7 +594,8 @@ int main() {
   RUN_TEST(test_timed_dispense_runs_then_anti_drip_then_ok);
   RUN_TEST(test_flow_gate_detect_then_pour_from_flow_onset);
   RUN_TEST(test_flow_gate_timeout_aborts);
-  RUN_TEST(test_flow_gate_scale_not_ready_falls_back_to_timed);
+  RUN_TEST(test_flow_gate_scale_not_ready_rejects);
+  RUN_TEST(test_dispense_open_works_without_scale);
   RUN_TEST(test_scale_not_ready_during_flow_wait_aborts);
   RUN_TEST(test_cancel_aborts_immediately_without_anti_drip);
   RUN_TEST(test_reject_when_busy);

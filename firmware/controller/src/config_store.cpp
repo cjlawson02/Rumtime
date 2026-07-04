@@ -5,6 +5,24 @@
 
 namespace {
 
+uint32_t crc32Update(uint32_t crc, const uint8_t* data, std::size_t len) {
+  crc = ~crc;
+  for (std::size_t i = 0; i < len; ++i) {
+    crc ^= data[i];
+    for (int bit = 0; bit < 8; ++bit) {
+      const uint32_t mask = -(crc & 1U);
+      crc = (crc >> 1) ^ (0xEDB88320U & mask);
+    }
+  }
+  return ~crc;
+}
+
+uint32_t recordCrc(const ConfigRecord& record) {
+  ConfigRecord copy = record;
+  copy.crc32 = 0;
+  return crc32Update(0, reinterpret_cast<const uint8_t*>(&copy), sizeof(copy));
+}
+
 bool calibrationValid(float ml_per_s, uint32_t anti_drip_ms) {
   return std::isfinite(ml_per_s) && ml_per_s >= kMinMlPerSecond && ml_per_s <= kMaxMlPerSecond &&
          anti_drip_ms <= kMaxAntiDripMs;
@@ -45,10 +63,11 @@ uint32_t clampAntiDripMs(uint32_t anti_drip_ms) {
 }  // namespace
 
 static_assert(sizeof(PumpConfig) == 36, "PumpConfig layout changed — bump kConfigSchemaVersion");
-static_assert(sizeof(ConfigRecord) == 584, "ConfigRecord layout changed — bump kConfigSchemaVersion");
+static_assert(sizeof(ConfigRecord) == 588, "ConfigRecord layout changed — bump kConfigSchemaVersion");
 
 void ConfigStore::loadDefaults() {
   record_ = ConfigRecord{};  // magic/version/num_pumps + per-pump seed defaults
+  record_.crc32 = recordCrc(record_);
   // A freshly reset record has not been persisted yet; mark dirty so the next
   // idle commit writes it (so a corrupt/foreign blob is repaired on flash too).
   dirty_ = true;
@@ -75,6 +94,10 @@ void ConfigStore::begin(const NvsOps& ops) {
   // Guard against a stale / foreign / resized record (docs/16: reset on breaking change).
   if (record_.magic != kConfigMagic || record_.version != kConfigSchemaVersion ||
       record_.num_pumps != kMaxPumps) {
+    loadDefaults();
+    return;
+  }
+  if (record_.crc32 != recordCrc(record_)) {
     loadDefaults();
     return;
   }
@@ -168,12 +191,19 @@ bool ConfigStore::clearBinding(uint8_t channel) {
   return true;
 }
 
-bool ConfigStore::commit() {
+bool ConfigStore::commit(void (*feed_wdt)()) {
   if (ops_ == nullptr || ops_->setBlob == nullptr || ops_->commit == nullptr) {
     return false;
   }
+  record_.crc32 = recordCrc(record_);
+  if (feed_wdt != nullptr) {
+    feed_wdt();
+  }
   if (!ops_->setBlob(kConfigBlobKey, &record_, sizeof(record_))) {
     return false;
+  }
+  if (feed_wdt != nullptr) {
+    feed_wdt();
   }
   if (!ops_->commit()) {
     return false;

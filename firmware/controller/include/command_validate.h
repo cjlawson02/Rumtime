@@ -19,6 +19,7 @@ enum class CommandReject : uint8_t {
   kPourTooLong,
   kSubResolutionMl,
   kCutoffOpen,
+  kScaleNotReady,
   kBusy,
   kLineTooLong,
   kBadCalibration,
@@ -56,6 +57,15 @@ const char* jobRejectText(JobReject reject);
 
 // Shared bounds: channel in [0, num_pumps), ml finite/positive/max.
 bool validateDispenseCommand(const DispenseCommand& cmd, uint8_t num_pumps, float max_ml);
+
+// Shared pour-duration math for preflight and coordinator drain. On success writes
+// rounded pour_ms (> 0). On failure optionally sets reject_out.
+bool computePourDurationMs(const DispenseCommand& cmd, uint8_t num_pumps, float ml_per_s,
+                             unsigned long* pour_ms_out,
+                             CommandReject* reject_out = nullptr);
+
+// Map parse-time reject to runtime job reject (shared validation paths).
+JobReject commandRejectToJobReject(CommandReject reject);
 
 // Enqueue preflight: bounds + pour ceiling + sub-resolution + snapshot gates.
 // cancel_pending_this_poll: same serial poll() already queued cancel — treat as

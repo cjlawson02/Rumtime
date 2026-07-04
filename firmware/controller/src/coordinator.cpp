@@ -25,6 +25,7 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
   // Reject when busy so a duplicate dispense does not disturb the running job.
   if (state_ != JobState::kIdle) {
     last_reject_ = JobReject::kBusy;
+    result_ = JobResult::kNone;
     return false;
   }
   // Preconditions: cutoff closed and valid channel.
@@ -43,38 +44,37 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
     result_ = JobResult::kError;
     return false;
   }
-  // Per-pump calibration (docs/16): ml/s + anti-drip come from NVS, not constants.
-  const float ml_per_s = config_->mlPerSecond(command.channel);
-  const float pour_ms_f = (command.ml / ml_per_s) * 1000.0f;
-  if (!std::isfinite(pour_ms_f) || pour_ms_f <= 0.0f) {
-    last_reject_ = JobReject::kSubResolutionMl;
+
+  const float ml_per_s =
+      (command.ml_per_s > 0.0f && std::isfinite(command.ml_per_s))
+          ? command.ml_per_s
+          : config_->mlPerSecond(command.channel);
+  unsigned long pour_ms = 0;
+  CommandReject reject = CommandReject::kNone;
+  if (!computePourDurationMs(command, PumpBus::kNumChannels, ml_per_s, &pour_ms, &reject)) {
+    last_reject_ = commandRejectToJobReject(reject);
     result_ = JobResult::kError;
     return false;
   }
-  if (pour_ms_f > static_cast<float>(kMaxPourDurationMs)) {
-    last_reject_ = JobReject::kPourTooLong;
-    result_ = JobResult::kError;
-    return false;
-  }
-  const unsigned long pour_ms = static_cast<unsigned long>(pour_ms_f);
-  if (pour_ms == 0) {
-    // Sub-resolution volume: a 0 ms pour would jump straight to anti-drip and
-    // only suck back. Reject instead of dispensing a net-negative pour.
-    last_reject_ = JobReject::kSubResolutionMl;
+  if (command.flow_gate && !scale_->ready()) {
+    last_reject_ = JobReject::kScaleNotReady;
     result_ = JobResult::kError;
     return false;
   }
 
   channel_ = command.channel;
   pour_ms_ = pour_ms;
-  // Capture anti-drip for this job so mid-pour config edits do not change it.
-  anti_drip_ms_ = config_->antiDripMs(command.channel);
+  anti_drip_ms_ = (command.ml_per_s > 0.0f && std::isfinite(command.ml_per_s))
+                      ? command.anti_drip_ms
+                      : config_->antiDripMs(command.channel);
   result_ = JobResult::kNone;
   last_reject_ = JobReject::kNone;
 
-  // Flow-gate path only when requested AND the scale is ready; otherwise fall
-  // back to a timed pour from motor-on (docs/16 dispense step fallback).
-  const bool gated = command.flow_gate && scale_->ready();
+  const bool gated = command.flow_gate;
+
+  if (gated) {
+    scale_->resetFlowDetect(now_ms);
+  }
 
   if (!pumps_->run(channel_, PumpDirection::kForward)) {
     // Cutoff opened between the check and run(), or bus refused for safety.
@@ -85,7 +85,6 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
 
   state_ = JobState::kDispensing;
   if (gated) {
-    scale_->resetFlowDetect(now_ms);
     phase_ = Phase::kFlowWait;
   } else {
     beginPour(now_ms);
@@ -103,7 +102,7 @@ void Coordinator::cancel() {
   }
   state_ = JobState::kIdle;
   phase_ = Phase::kIdle;
-  result_ = JobResult::kNone;
+  result_ = JobResult::kCancelled;
   last_reject_ = JobReject::kNone;
 }
 

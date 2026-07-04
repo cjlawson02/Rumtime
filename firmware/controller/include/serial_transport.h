@@ -20,8 +20,8 @@ class ConfigStore;
 //   // job:ok | // job:error    async pour completion (poll status too)
 //
 // Commands:
-//   dispense <pump> <ml>        flow-gated (falls back to timed if scale not ready)
-//   dispense open <pump> <ml>   timed from motor-on (no flow gate)
+//   dispense <pump> <ml>        flow-gated (requires scale ready)
+//   dispense open <pump> <ml>   timed from motor-on (scale not required)
 //   cancel | stop               abort current job; flushes pending queue slot
 //   status                      print latest snapshot once
 //   cal <pump> <ml_per_s> [anti_drip_ms]   set per-pump calibration (NVS)
@@ -37,16 +37,18 @@ class ConfigStore;
 class SerialTransport {
  public:
   void begin(CommandQueue& queue, StatusPublisher& status, ConfigStore& config);
-  void poll();  // non-blocking parse -> enqueue / RAM config edit only
+  void poll(const StatusSnapshot* status_override = nullptr);  // non-blocking parse -> enqueue / RAM config edit only
   // Called from ControlTask when a job transitions busy -> idle.
   void emitJobEvent(bool ok, JobReject reject);
+  void emitJobCancelled();
   // Called when an idle NVS commit fails (once per failure episode).
   void emitConfigPersistError();
 
  private:
   static constexpr size_t kLineMax = 64;
+  static constexpr size_t kMaxBytesPerPoll = 64;
 
-  void handleLine(char* line);
+  void handleLine(char* line, const StatusSnapshot* status_override = nullptr);
   void printStatus();
   void applyConfigOp(const ConfigOp& op);
   void printConfig();

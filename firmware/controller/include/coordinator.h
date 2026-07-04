@@ -28,7 +28,7 @@ class Coordinator {
     kAntiDrip,  // pump reverse, anti-drip purge
   };
 
-  enum class JobResult : uint8_t { kNone, kOk, kError };
+  enum class JobResult : uint8_t { kNone, kOk, kError, kCancelled };
 
   void begin(PumpBus& pumps, ScalePlatform& scale, ConfigStore& config);
 
@@ -58,6 +58,9 @@ class Coordinator {
   }
   bool error() const {
     return result_ == JobResult::kError;
+  }
+  bool cancelled() const {
+    return result_ == JobResult::kCancelled;
   }
   JobReject lastReject() const {
     return last_reject_;

@@ -42,6 +42,7 @@ struct ConfigRecord {
   uint32_t magic = kConfigMagic;
   uint16_t version = kConfigSchemaVersion;
   uint16_t num_pumps = kMaxPumps;
+  uint32_t crc32 = 0;
   PumpConfig pumps[kMaxPumps];
 };
 
@@ -80,8 +81,9 @@ class ConfigStore {
 
   // Serialize the RAM record to NVS (the flash write). Call ONLY when idle — this
   // can block for a flash cycle and must never run during a pour (docs/16 rule 8).
+  // feed_wdt may be called around the blocking write (ESP32 TWDT safety).
   // Clears dirty on success. Returns false if not begun or the NVS write failed.
-  bool commit();
+  bool commit(void (*feed_wdt)() = nullptr);
 
  private:
   bool valid(uint8_t channel) const {

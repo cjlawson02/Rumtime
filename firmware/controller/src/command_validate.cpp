@@ -10,21 +10,10 @@
 namespace {
 
 CommandReject validateDispenseParams(const DispenseCommand& cmd, uint8_t num_pumps, float ml_per_s) {
-  if (cmd.channel >= num_pumps) {
-    return CommandReject::kBadPump;
-  }
-  if (!std::isfinite(cmd.ml) || cmd.ml <= 0.0f || cmd.ml > kMaxDispenseMl) {
-    return CommandReject::kBadMl;
-  }
-  const float pour_ms_f = (cmd.ml / ml_per_s) * 1000.0f;
-  if (!std::isfinite(pour_ms_f) || pour_ms_f <= 0.0f) {
-    return CommandReject::kSubResolutionMl;
-  }
-  if (pour_ms_f > static_cast<float>(kMaxPourDurationMs)) {
-    return CommandReject::kPourTooLong;
-  }
-  if (static_cast<unsigned long>(pour_ms_f) == 0) {
-    return CommandReject::kSubResolutionMl;
+  unsigned long pour_ms = 0;
+  CommandReject reject = CommandReject::kNone;
+  if (!computePourDurationMs(cmd, num_pumps, ml_per_s, &pour_ms, &reject)) {
+    return reject;
   }
   return CommandReject::kNone;
 }
@@ -51,6 +40,8 @@ const char* commandRejectText(CommandReject reject) {
       return "Error:sub-resolution ml";
     case CommandReject::kCutoffOpen:
       return "Error:cutoff open";
+    case CommandReject::kScaleNotReady:
+      return "Error:scale not ready";
     case CommandReject::kBusy:
       return "busy";
     case CommandReject::kLineTooLong:
@@ -85,6 +76,8 @@ const char* jobRejectText(JobReject reject) {
       return "flow-timeout";
     case JobReject::kScaleFault:
       return "scale-fault";
+    case JobReject::kScaleNotReady:
+      return "scale-not-ready";
     case JobReject::kCutoffMidJob:
       return "cutoff-mid-job";
   }
@@ -101,18 +94,80 @@ bool validateDispenseCommand(const DispenseCommand& cmd, uint8_t num_pumps, floa
   return true;
 }
 
+bool computePourDurationMs(const DispenseCommand& cmd, uint8_t num_pumps, float ml_per_s,
+                             unsigned long* pour_ms_out, CommandReject* reject_out) {
+  auto fail = [&](CommandReject reject) {
+    if (reject_out != nullptr) {
+      *reject_out = reject;
+    }
+    return false;
+  };
+  if (pour_ms_out == nullptr) {
+    return fail(CommandReject::kBadArgs);
+  }
+  if (cmd.channel >= num_pumps) {
+    return fail(CommandReject::kBadPump);
+  }
+  if (!std::isfinite(cmd.ml) || cmd.ml <= 0.0f || cmd.ml > kMaxDispenseMl) {
+    return fail(CommandReject::kBadMl);
+  }
+  if (!std::isfinite(ml_per_s) || ml_per_s <= 0.0f) {
+    return fail(CommandReject::kBadCalibration);
+  }
+  const float pour_ms_f = (cmd.ml / ml_per_s) * 1000.0f;
+  if (!std::isfinite(pour_ms_f) || pour_ms_f <= 0.0f) {
+    return fail(CommandReject::kSubResolutionMl);
+  }
+  if (pour_ms_f > static_cast<float>(kMaxPourDurationMs)) {
+    return fail(CommandReject::kPourTooLong);
+  }
+  const unsigned long pour_ms = static_cast<unsigned long>(pour_ms_f + 0.5f);
+  if (pour_ms == 0) {
+    return fail(CommandReject::kSubResolutionMl);
+  }
+  *pour_ms_out = pour_ms;
+  if (reject_out != nullptr) {
+    *reject_out = CommandReject::kNone;
+  }
+  return true;
+}
+
+JobReject commandRejectToJobReject(CommandReject reject) {
+  switch (reject) {
+    case CommandReject::kBadPump:
+      return JobReject::kBadChannel;
+    case CommandReject::kBadMl:
+      return JobReject::kBadMl;
+    case CommandReject::kPourTooLong:
+      return JobReject::kPourTooLong;
+    case CommandReject::kSubResolutionMl:
+      return JobReject::kSubResolutionMl;
+    case CommandReject::kCutoffOpen:
+      return JobReject::kCutoffOpen;
+    case CommandReject::kScaleNotReady:
+      return JobReject::kScaleNotReady;
+    case CommandReject::kBusy:
+      return JobReject::kBusy;
+    default:
+      return JobReject::kNone;
+  }
+}
+
 CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusSnapshot& status,
                                        uint8_t num_pumps, const ConfigStore& config,
                                        bool cancel_pending_this_poll) {
   if (status.cutoff_open) {
     return CommandReject::kCutoffOpen;
   }
+  if (cmd.flow_gate && !status.scale_ready) {
+    return CommandReject::kScaleNotReady;
+  }
   const float ml_per_s = config.mlPerSecond(cmd.channel);
   const CommandReject params = validateDispenseParams(cmd, num_pumps, ml_per_s);
   if (params != CommandReject::kNone) {
     return params;
   }
-  if (status.job_busy && !cancel_pending_this_poll) {
+  if ((status.job_busy || status.command_pending) && !cancel_pending_this_poll) {
     return CommandReject::kBusy;
   }
   return CommandReject::kNone;

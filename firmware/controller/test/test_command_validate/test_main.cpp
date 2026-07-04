@@ -35,12 +35,15 @@ void resetConfig() {
 }
 
 StatusSnapshot idleStatus() {
-  return StatusSnapshot{};
+  StatusSnapshot s;
+  s.scale_ready = true;
+  return s;
 }
 
 StatusSnapshot busyStatus() {
   StatusSnapshot s;
   s.job_busy = true;
+  s.scale_ready = true;
   return s;
 }
 
@@ -132,6 +135,27 @@ void test_cancel_then_dispense_same_poll() {
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
 }
 
+void test_reject_busy_when_command_pending() {
+  StatusSnapshot s = idleStatus();
+  s.command_pending = true;
+  const CommandParseResult r = parseCopy("dispense 1 30", s);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBusy), static_cast<int>(r.reject));
+}
+
+void test_reject_scale_not_ready() {
+  StatusSnapshot s = idleStatus();
+  s.scale_ready = false;
+  const CommandParseResult r = parseCopy("dispense 1 30", s);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kScaleNotReady), static_cast<int>(r.reject));
+}
+
+void test_dispense_open_ok_when_scale_not_ready() {
+  StatusSnapshot s = idleStatus();
+  s.scale_ready = false;
+  const CommandParseResult r = parseCopy("dispense open 1 30", s);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
+}
+
 void test_status_trailing_rejects() {
   const CommandParseResult r = parseCopy("status extra", idleStatus());
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadArgs), static_cast<int>(r.reject));
@@ -218,8 +242,8 @@ void test_command_reject_text() {
   TEST_ASSERT_EQUAL_STRING("Error:line too long", commandRejectText(CommandReject::kLineTooLong));
   TEST_ASSERT_EQUAL_STRING("Error:bad calibration",
                            commandRejectText(CommandReject::kBadCalibration));
-  TEST_ASSERT_EQUAL_STRING("Error:bad ingredient",
-                           commandRejectText(CommandReject::kBadIngredient));
+  TEST_ASSERT_EQUAL_STRING("Error:scale not ready",
+                           commandRejectText(CommandReject::kScaleNotReady));
 }
 
 void test_cal_with_anti_drip() {
@@ -314,6 +338,7 @@ void test_config_trailing_rejects() {
 void test_job_reject_text() {
   TEST_ASSERT_EQUAL_STRING("flow-timeout", jobRejectText(JobReject::kFlowTimeout));
   TEST_ASSERT_EQUAL_STRING("cutoff-open", jobRejectText(JobReject::kCutoffOpen));
+  TEST_ASSERT_EQUAL_STRING("scale-not-ready", jobRejectText(JobReject::kScaleNotReady));
   TEST_ASSERT_EQUAL_STRING("none", jobRejectText(JobReject::kNone));
 }
 
@@ -356,6 +381,9 @@ int main() {
   RUN_TEST(test_reject_sub_resolution_ml);
   RUN_TEST(test_reject_cutoff_open);
   RUN_TEST(test_cancel_then_dispense_same_poll);
+  RUN_TEST(test_reject_busy_when_command_pending);
+  RUN_TEST(test_reject_scale_not_ready);
+  RUN_TEST(test_dispense_open_ok_when_scale_not_ready);
   RUN_TEST(test_status_trailing_rejects);
   RUN_TEST(test_whitespace_line_rejects);
   RUN_TEST(test_bad_args_non_numeric_pump);
