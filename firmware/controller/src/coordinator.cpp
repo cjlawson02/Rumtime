@@ -92,6 +92,50 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
   return true;
 }
 
+bool Coordinator::startPrime(uint8_t channel, unsigned long now_ms) {
+  if (pumps_ == nullptr || config_ == nullptr) {
+    return false;
+  }
+  if (state_ != JobState::kIdle) {
+    last_reject_ = JobReject::kBusy;
+    result_ = JobResult::kNone;
+    return false;
+  }
+  if (pumps_->cutoffOpen()) {
+    last_reject_ = JobReject::kCutoffOpen;
+    result_ = JobResult::kError;
+    return false;
+  }
+  if (channel >= PumpBus::kNumChannels) {
+    last_reject_ = JobReject::kBadChannel;
+    result_ = JobResult::kError;
+    return false;
+  }
+
+  channel_ = channel;
+  result_ = JobResult::kNone;
+  last_reject_ = JobReject::kNone;
+  prime_start_ms_ = now_ms;
+
+  if (!pumps_->run(channel_, PumpDirection::kForward)) {
+    last_reject_ = JobReject::kPumpRefused;
+    finish(JobResult::kError);
+    return false;
+  }
+
+  state_ = JobState::kPriming;
+  phase_ = Phase::kPrime;
+  return true;
+}
+
+void Coordinator::stopPrime() {
+  if (state_ != JobState::kPriming || phase_ != Phase::kPrime) {
+    return;
+  }
+  // Operator success: stop forward run, no anti-drip reverse.
+  finish(JobResult::kOk);
+}
+
 void Coordinator::cancel() {
   if (state_ == JobState::kIdle) {
     return;
@@ -115,6 +159,15 @@ void Coordinator::tick(unsigned long now_ms) {
   if (pumps_ == nullptr || scale_ == nullptr || pumps_->cutoffOpen()) {
     last_reject_ = JobReject::kCutoffMidJob;
     finish(JobResult::kError);
+    return;
+  }
+
+  if (state_ == JobState::kPriming) {
+    if (phase_ == Phase::kPrime &&
+        (now_ms - prime_start_ms_) >= kMaxPrimeDurationMs) {
+      last_reject_ = JobReject::kPrimeTimeout;
+      finish(JobResult::kError);
+    }
     return;
   }
 

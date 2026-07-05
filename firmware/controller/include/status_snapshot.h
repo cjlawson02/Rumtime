@@ -17,6 +17,7 @@ enum class JobReject : uint8_t {
   kScaleFault,
   kScaleNotReady,
   kCutoffMidJob,
+  kPrimeTimeout,
 };
 
 // Status snapshot (docs/16). Single writer (ControlTask), tear-free read for

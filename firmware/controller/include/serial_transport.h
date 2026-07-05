@@ -22,6 +22,8 @@ class ConfigStore;
 // Commands:
 //   dispense <pump> <ml>        flow-gated (requires scale ready)
 //   dispense open <pump> <ml>   timed from motor-on (scale not required)
+//   prime <pump>                continuous forward prime (no scale, no anti-drip on stop)
+//   prime stop                  operator stop during prime — job ok, no reverse purge
 //   cancel | stop               abort current job; flushes pending queue slot
 //   status                      print latest snapshot once
 //   cal <pump> <ml_per_s> [anti_drip_ms]   set per-pump calibration (NVS)

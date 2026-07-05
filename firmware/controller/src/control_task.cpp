@@ -204,9 +204,24 @@ void ControlTask::tick() {
   scale_.tick(now);  // non-blocking HX711 FSM
 
   Command command;
-  if (queue_.drainCommand(command) && command.type == CommandType::kDispensePump) {
-    if (!coordinator_.startDispense(command.dispense, now)) {
-      serial_.emitJobEvent(false, coordinator_.lastReject());
+  if (queue_.drainCommand(command)) {
+    switch (command.type) {
+      case CommandType::kDispensePump:
+        if (!coordinator_.startDispense(command.dispense, now)) {
+          serial_.emitJobEvent(false, coordinator_.lastReject());
+        }
+        break;
+      case CommandType::kPrimePump:
+        if (!coordinator_.startPrime(command.prime.channel, now)) {
+          serial_.emitJobEvent(false, coordinator_.lastReject());
+        }
+        break;
+      case CommandType::kPrimeStop:
+        coordinator_.stopPrime();
+        break;
+      case CommandType::kNone:
+      default:
+        break;
     }
   }
   coordinator_.tick(now);

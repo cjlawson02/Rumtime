@@ -30,6 +30,25 @@ bool CommandQueue::enqueueDispense(const DispenseCommand& command) {
   return ops_->send(handle_, &cmd, sizeof(cmd));
 }
 
+bool CommandQueue::enqueuePrime(const PrimeCommand& command) {
+  if (ops_ == nullptr || handle_ == nullptr || ops_->send == nullptr) {
+    return false;
+  }
+  Command cmd;
+  cmd.type = CommandType::kPrimePump;
+  cmd.prime = command;
+  return ops_->send(handle_, &cmd, sizeof(cmd));
+}
+
+bool CommandQueue::enqueuePrimeStop() {
+  if (ops_ == nullptr || handle_ == nullptr || ops_->send == nullptr) {
+    return false;
+  }
+  Command cmd;
+  cmd.type = CommandType::kPrimeStop;
+  return ops_->send(handle_, &cmd, sizeof(cmd));
+}
+
 void CommandQueue::enqueueCancel() {
   cancel_pending_.store(true, std::memory_order_release);
 }

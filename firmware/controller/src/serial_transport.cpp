@@ -80,6 +80,27 @@ void SerialTransport::handleLine(char* line, const StatusSnapshot* status_overri
     return;
   }
 
+  if (parsed.command.type == CommandType::kPrimeStop) {
+    if (queue_->enqueuePrimeStop()) {
+      Serial.println("ok");
+    } else {
+      Serial.println("busy");
+    }
+    return;
+  }
+
+  if (parsed.command.type == CommandType::kPrimePump) {
+    if (queue_->enqueuePrime(parsed.command.prime)) {
+      if (cancel_pending_this_poll_) {
+        queue_->markDispenseAfterCancel();
+      }
+      Serial.println("ok");
+    } else {
+      Serial.println("busy");
+    }
+    return;
+  }
+
   if (parsed.command.type != CommandType::kDispensePump) {
     return;
   }

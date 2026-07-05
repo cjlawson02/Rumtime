@@ -581,6 +581,97 @@ void test_mid_pour_cal_does_not_change_running_job() {
                     static_cast<int>(h.coordinator.phase()));
 }
 
+void test_prime_runs_forward_continuously() {
+  Harness h;
+  h.begin();
+
+  TEST_ASSERT_TRUE(h.coordinator.startPrime(0, 0));
+  TEST_ASSERT_TRUE(h.coordinator.busy());
+  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPrime),
+                    static_cast<int>(h.coordinator.phase()));
+  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+
+  h.step(5000);
+  TEST_ASSERT_TRUE(h.coordinator.busy());
+  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPrime),
+                    static_cast<int>(h.coordinator.phase()));
+  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+}
+
+void test_prime_stop_completes_ok_without_anti_drip() {
+  Harness h;
+  h.begin();
+
+  TEST_ASSERT_TRUE(h.coordinator.startPrime(0, 0));
+  h.step(3000);
+  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+
+  h.coordinator.stopPrime();
+  TEST_ASSERT_FALSE(h.coordinator.busy());
+  TEST_ASSERT_TRUE(h.coordinator.ok());
+  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
+  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pins::kPump1In2, kGpioLevelHigh));
+}
+
+void test_prime_timeout_errors_without_anti_drip() {
+  Harness h;
+  h.begin();
+
+  TEST_ASSERT_TRUE(h.coordinator.startPrime(0, 0));
+  h.step(kMaxPrimeDurationMs);
+  TEST_ASSERT_FALSE(h.coordinator.busy());
+  TEST_ASSERT_TRUE(h.coordinator.error());
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kPrimeTimeout),
+                    static_cast<int>(h.coordinator.lastReject()));
+  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
+  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pins::kPump1In2, kGpioLevelHigh));
+}
+
+void test_cancel_during_prime_aborts_without_anti_drip() {
+  Harness h;
+  h.begin();
+
+  TEST_ASSERT_TRUE(h.coordinator.startPrime(0, 0));
+  h.step(2000);
+  h.coordinator.cancel();
+  TEST_ASSERT_FALSE(h.coordinator.busy());
+  TEST_ASSERT_TRUE(h.coordinator.cancelled());
+  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
+  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pins::kPump1In2, kGpioLevelHigh));
+}
+
+void test_reject_prime_when_busy() {
+  Harness h;
+  h.begin();
+
+  TEST_ASSERT_TRUE(h.coordinator.startPrime(0, 0));
+  TEST_ASSERT_FALSE(h.coordinator.startPrime(1, 100));
+  TEST_ASSERT_TRUE(h.coordinator.busy());
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kBusy),
+                    static_cast<int>(h.coordinator.lastReject()));
+}
+
+void test_reject_prime_cutoff_open() {
+  Harness h;
+  h.begin();
+  h.inputs.setCutoffOpen(true);
+
+  TEST_ASSERT_FALSE(h.coordinator.startPrime(0, 0));
+  TEST_ASSERT_FALSE(h.coordinator.busy());
+  TEST_ASSERT_TRUE(h.coordinator.error());
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kCutoffOpen),
+                    static_cast<int>(h.coordinator.lastReject()));
+}
+
+void test_stop_prime_when_idle_is_noop() {
+  Harness h;
+  h.begin();
+
+  h.coordinator.stopPrime();
+  TEST_ASSERT_FALSE(h.coordinator.busy());
+  TEST_ASSERT_FALSE(h.coordinator.ok());
+}
+
 }  // namespace
 
 void setUp() {
@@ -615,5 +706,12 @@ int main() {
   RUN_TEST(test_custom_ml_per_s_extends_pour_duration);
   RUN_TEST(test_custom_anti_drip_ms);
   RUN_TEST(test_mid_pour_cal_does_not_change_running_job);
+  RUN_TEST(test_prime_runs_forward_continuously);
+  RUN_TEST(test_prime_stop_completes_ok_without_anti_drip);
+  RUN_TEST(test_prime_timeout_errors_without_anti_drip);
+  RUN_TEST(test_cancel_during_prime_aborts_without_anti_drip);
+  RUN_TEST(test_reject_prime_when_busy);
+  RUN_TEST(test_reject_prime_cutoff_open);
+  RUN_TEST(test_stop_prime_when_idle_is_noop);
   return UNITY_END();
 }

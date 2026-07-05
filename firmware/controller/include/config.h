@@ -67,6 +67,7 @@ constexpr uint32_t kMaxAntiDripMs = 5000;
 // volume at a given pump rate is min(kMaxDispenseMl, ml_per_s * kMaxPourDurationMs / 1000).
 constexpr float kMaxDispenseMl = 500.0f;
 constexpr unsigned long kMaxPourDurationMs = 120000;  // 120 s hard pump-on ceiling
+constexpr unsigned long kMaxPrimeDurationMs = 60000;  // 60 s continuous-prime safety cutoff
 
 // ControlTask period — docs/16 default 5 ms (1–10 ms acceptable).
 constexpr unsigned long kControlTaskPeriodMs = 5;

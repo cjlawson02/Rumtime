@@ -24,6 +24,7 @@ enum class CommandReject : uint8_t {
   kLineTooLong,
   kBadCalibration,
   kBadIngredient,
+  kPrimeUsage,
 };
 
 // Machine-config edits parsed off the wire (docs/16 "Machine config (NVS)").
@@ -73,6 +74,13 @@ JobReject commandRejectToJobReject(CommandReject reject);
 CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusSnapshot& status,
                                        uint8_t num_pumps, const ConfigStore& config,
                                        bool cancel_pending_this_poll = false);
+
+// Enqueue preflight for continuous prime: cutoff + channel + busy gates.
+CommandReject preflightPrimeEnqueue(uint8_t channel, const StatusSnapshot& status, uint8_t num_pumps,
+                                    bool cancel_pending_this_poll = false);
+
+// Enqueue preflight for operator prime stop: busy only when a non-prime job runs.
+CommandReject preflightPrimeStopEnqueue(const StatusSnapshot& status);
 
 // Mutates line with strtok (caller owns buffer). Rejects trailing tokens.
 // Pump numbers on the wire are 1-based; DispenseCommand.channel is 0-based.

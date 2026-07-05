@@ -11,7 +11,7 @@
 // Framework-agnostic: queue I/O lives behind QueueOps (FreeRTOS on ESP32,
 // in-memory fake in host tests) — same pattern as GpioOps / ScaleOps / NvsOps.
 
-enum class CommandType : uint8_t { kNone, kDispensePump };
+enum class CommandType : uint8_t { kNone, kDispensePump, kPrimePump, kPrimeStop };
 
 // DispensePump {channel, ml, flow_gate}. channel is 0-based (pump N -> N-1).
 // flow_gate true requires a ready scale (flow gate). flow_gate false is the
@@ -25,9 +25,16 @@ struct DispenseCommand {
   uint32_t anti_drip_ms = 0;
 };
 
+// PrimePump {channel}. channel is 0-based (pump N -> N-1). Continuous forward run
+// until operator prime stop or safety timeout — no scale, no anti-drip on stop.
+struct PrimeCommand {
+  uint8_t channel = 0;
+};
+
 struct Command {
   CommandType type = CommandType::kNone;
   DispenseCommand dispense;
+  PrimeCommand prime;
 };
 
 class CommandQueue {
@@ -38,6 +45,8 @@ class CommandQueue {
   // Enqueue APIs — used by SerialTransport only for now (docs/16: enqueue only).
   // Returns false when the single slot is already full (busy / duplicate).
   bool enqueueDispense(const DispenseCommand& command);
+  bool enqueuePrime(const PrimeCommand& command);
+  bool enqueuePrimeStop();
   void enqueueCancel();
 
   // drainCancel() processes any pending cancel first (docs/16 tick order).

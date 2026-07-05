@@ -18,7 +18,7 @@ class ConfigStore;
 // recipe sequences are deferred (docs/16 phased implementation).
 class Coordinator {
  public:
-  enum class JobState : uint8_t { kIdle, kDispensing };
+  enum class JobState : uint8_t { kIdle, kDispensing, kPriming };
 
   // Sub-FSM phases for a dispense job. Published as job_phase in the snapshot.
   enum class Phase : uint8_t {
@@ -26,6 +26,7 @@ class Coordinator {
     kFlowWait,  // pump forward, waiting for flow onset (gated)
     kPour,      // pump forward, timed pour running
     kAntiDrip,  // pump reverse, anti-drip purge
+    kPrime,     // pump forward, continuous prime (no pour timer)
   };
 
   enum class JobResult : uint8_t { kNone, kOk, kError, kCancelled };
@@ -36,6 +37,14 @@ class Coordinator {
   // busy, cutoff open, channel invalid, or ml <= 0. now_ms is the ControlTask
   // clock (millis()) used for flow-gate and pour deadlines.
   bool startDispense(const DispenseCommand& command, unsigned long now_ms);
+
+  // Start continuous forward prime on one pump. Returns false when busy, cutoff
+  // open, or channel invalid. No scale / flow gate. now_ms is the ControlTask clock.
+  bool startPrime(uint8_t channel, unsigned long now_ms);
+
+  // Operator stop during prime: pump off, job ok, no anti-drip. No-op when idle
+  // or not in the prime phase.
+  void stopPrime();
 
   // Cancel any in-flight job immediately: stopAll(), clear job, no success flag,
   // no anti-drip (documented default). Safe to call when idle.
@@ -89,4 +98,5 @@ class Coordinator {
   // millis() rollover-safe, matching ScalePlatform's flow-timeout idiom.
   unsigned long pour_start_ms_ = 0;
   unsigned long anti_drip_start_ms_ = 0;
+  unsigned long prime_start_ms_ = 0;
 };

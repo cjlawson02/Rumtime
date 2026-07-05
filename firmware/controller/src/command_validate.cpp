@@ -6,6 +6,7 @@
 
 #include "config.h"
 #include "config_store.h"
+#include "coordinator.h"
 
 namespace {
 
@@ -50,6 +51,8 @@ const char* commandRejectText(CommandReject reject) {
       return "Error:bad calibration";
     case CommandReject::kBadIngredient:
       return "Error:bad ingredient";
+    case CommandReject::kPrimeUsage:
+      return "Error:usage prime <pump> | prime stop";
   }
   return "Error:unknown";
 }
@@ -80,6 +83,8 @@ const char* jobRejectText(JobReject reject) {
       return "scale-not-ready";
     case JobReject::kCutoffMidJob:
       return "cutoff-mid-job";
+    case JobReject::kPrimeTimeout:
+      return "prime-timeout";
   }
   return "unknown";
 }
@@ -173,6 +178,28 @@ CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusS
   return CommandReject::kNone;
 }
 
+CommandReject preflightPrimeEnqueue(uint8_t channel, const StatusSnapshot& status, uint8_t num_pumps,
+                                    bool cancel_pending_this_poll) {
+  if (status.cutoff_open) {
+    return CommandReject::kCutoffOpen;
+  }
+  if (channel >= num_pumps) {
+    return CommandReject::kBadPump;
+  }
+  if ((status.job_busy || status.command_pending) && !cancel_pending_this_poll) {
+    return CommandReject::kBusy;
+  }
+  return CommandReject::kNone;
+}
+
+CommandReject preflightPrimeStopEnqueue(const StatusSnapshot& status) {
+  if (status.job_busy &&
+      status.job_phase != static_cast<uint8_t>(Coordinator::Phase::kPrime)) {
+    return CommandReject::kBusy;
+  }
+  return CommandReject::kNone;
+}
+
 CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, uint8_t num_pumps,
                                     const ConfigStore& config, bool cancel_pending_this_poll) {
   CommandParseResult result;
@@ -252,6 +279,54 @@ CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, ui
 
     result.command.type = CommandType::kDispensePump;
     result.command.dispense = cmd;
+    return result;
+  }
+
+  if (strcmp(verb, "prime") == 0) {
+    char* arg = strtok(nullptr, " \t");
+    if (arg == nullptr) {
+      result.reject = CommandReject::kPrimeUsage;
+      return result;
+    }
+
+    if (strcmp(arg, "stop") == 0) {
+      if (strtok(nullptr, " \t") != nullptr) {
+        result.reject = CommandReject::kBadArgs;
+        return result;
+      }
+      result.reject = preflightPrimeStopEnqueue(status);
+      if (result.reject != CommandReject::kNone) {
+        return result;
+      }
+      result.command.type = CommandType::kPrimeStop;
+      return result;
+    }
+
+    if (strtok(nullptr, " \t") != nullptr) {
+      result.reject = CommandReject::kBadArgs;
+      return result;
+    }
+
+    char* pump_end = nullptr;
+    const long pump = strtol(arg, &pump_end, 10);
+    if (pump_end == arg || *pump_end != '\0') {
+      result.reject = CommandReject::kBadArgs;
+      return result;
+    }
+    if (pump < 1 || pump > num_pumps) {
+      result.reject = CommandReject::kBadPump;
+      return result;
+    }
+
+    const uint8_t channel = static_cast<uint8_t>(pump - 1);
+    result.reject =
+        preflightPrimeEnqueue(channel, status, num_pumps, cancel_pending_this_poll);
+    if (result.reject != CommandReject::kNone) {
+      return result;
+    }
+
+    result.command.type = CommandType::kPrimePump;
+    result.command.prime.channel = channel;
     return result;
   }
 

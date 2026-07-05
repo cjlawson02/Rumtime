@@ -9,6 +9,7 @@
 #include "command_validate.h"
 #include "config.h"
 #include "config_store.h"
+#include "coordinator.h"
 
 namespace {
 
@@ -358,6 +359,71 @@ void test_preflight_fast_calibration_accepts_large_volume() {
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
 }
 
+void test_valid_prime() {
+  const CommandParseResult r = parseCopy("prime 1", idleStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandType::kPrimePump), static_cast<int>(r.command.type));
+  TEST_ASSERT_EQUAL_UINT8(0, r.command.prime.channel);
+}
+
+void test_valid_prime_stop() {
+  const CommandParseResult r = parseCopy("prime stop", idleStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandType::kPrimeStop), static_cast<int>(r.command.type));
+}
+
+void test_prime_stop_rejects_during_dispense() {
+  StatusSnapshot s = busyStatus();
+  s.job_phase = static_cast<uint8_t>(Coordinator::Phase::kPour);
+  const CommandParseResult r = parseCopy("prime stop", s);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBusy), static_cast<int>(r.reject));
+}
+
+void test_prime_stop_ok_during_prime() {
+  StatusSnapshot s = busyStatus();
+  s.job_phase = static_cast<uint8_t>(Coordinator::Phase::kPrime);
+  const CommandParseResult r = parseCopy("prime stop", s);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandType::kPrimeStop), static_cast<int>(r.command.type));
+}
+
+void test_prime_bad_pump() {
+  const CommandParseResult r = parseCopy("prime 3", idleStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadPump), static_cast<int>(r.reject));
+}
+
+void test_prime_reject_cutoff_open() {
+  StatusSnapshot s = idleStatus();
+  s.cutoff_open = true;
+  const CommandParseResult r = parseCopy("prime 1", s);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kCutoffOpen), static_cast<int>(r.reject));
+}
+
+void test_prime_reject_busy() {
+  const CommandParseResult r = parseCopy("prime 1", busyStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBusy), static_cast<int>(r.reject));
+}
+
+void test_prime_stop_not_bare_stop() {
+  const CommandParseResult r = parseCopy("prime stop", idleStatus());
+  TEST_ASSERT_FALSE(r.is_cancel);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandType::kPrimeStop), static_cast<int>(r.command.type));
+}
+
+void test_prime_usage_missing_args() {
+  const CommandParseResult r = parseCopy("prime", idleStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kPrimeUsage), static_cast<int>(r.reject));
+}
+
+void test_prime_trailing_rejects() {
+  const CommandParseResult r = parseCopy("prime 1 extra", idleStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadArgs), static_cast<int>(r.reject));
+}
+
+void test_job_reject_prime_timeout_text() {
+  TEST_ASSERT_EQUAL_STRING("prime-timeout", jobRejectText(JobReject::kPrimeTimeout));
+}
+
 }  // namespace
 
 void setUp() {
@@ -415,5 +481,16 @@ int main() {
   RUN_TEST(test_config_trailing_rejects);
   RUN_TEST(test_preflight_slow_calibration_rejects_pour_too_long);
   RUN_TEST(test_preflight_fast_calibration_accepts_large_volume);
+  RUN_TEST(test_valid_prime);
+  RUN_TEST(test_valid_prime_stop);
+  RUN_TEST(test_prime_stop_rejects_during_dispense);
+  RUN_TEST(test_prime_stop_ok_during_prime);
+  RUN_TEST(test_prime_bad_pump);
+  RUN_TEST(test_prime_reject_cutoff_open);
+  RUN_TEST(test_prime_reject_busy);
+  RUN_TEST(test_prime_stop_not_bare_stop);
+  RUN_TEST(test_prime_usage_missing_args);
+  RUN_TEST(test_prime_trailing_rejects);
+  RUN_TEST(test_job_reject_prime_timeout_text);
   return UNITY_END();
 }

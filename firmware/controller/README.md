@@ -13,7 +13,7 @@ The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated t
 | `ScalePlatform` | `scale_platform.{h,cpp}` | **Implemented** — non-blocking HX711 FSM; one conversion per `tick()`, multi-tick tare, rolling filter, flow-gate + no-flow timeout flags; injected `ScaleOps` seam enables host-side unit tests |
 | `ControlTask` | `control_task.{h,cpp}` | **Skeleton** — 5 ms `vTaskDelayUntil` loop, tick order per doc 16; input→pump→scale path live; idle-only NVS commit with 1 s retry backoff + TWDT feed around flash write; feeds TWDT each tick; restarts on `xTaskCreate` failure |
 | `MachineInputs` | `machine_inputs.{h,cpp}` | **Deferred for v1** — optional GPIO tap of the same VM rocker (`kCutoffSense = -1`). One hardware rocker is enough; firmware does not need a sense line on the bench |
-| `Coordinator` | `coordinator.{h,cpp}` | **Implemented** — one job at a time; non-blocking single-pump gated timed dispense sub-FSM advanced in `tick(now_ms)`; drives `PumpBus` + `ScalePlatform` only (no direct GPIO). No multi-pump / sequence runner yet |
+| `Coordinator` | `coordinator.{h,cpp}` | **Implemented** — one job at a time; non-blocking single-pump gated timed dispense sub-FSM advanced in `tick(now_ms)`; continuous forward **prime** with operator stop and 60 s safety cutoff; drives `PumpBus` + `ScalePlatform` only (no direct GPIO). No multi-pump / sequence runner yet |
 | `CommandQueue` | `command_queue.{h,cpp}` + `queue_ops.h` | **Implemented (host-tested)** — depth-1 queue policy + `QueueOps` seam (FreeRTOS on ESP32, in-memory fake on host); `std::atomic` cancel; `markDispenseAfterCancel()` preserves `cancel`→`dispense` in one burst |
 | `StatusPublisher` | `status_snapshot.{h,cpp}` | **Implemented (host-tested)** — seqlock publish/read; carries `command_pending`, `job_cancelled`, config persist status |
 | `SerialTransport` | `serial_transport.{h,cpp}` | **Implemented (bench-verified)** — capped bytes/poll; captures pour calibration at enqueue; rejects config edits when queue pending; `// job:cancelled` wire line |
@@ -64,12 +64,12 @@ cd firmware/controller
 pio test -e native   # or plain `pio test` (ESP32 env skips host-only suites)
 ```
 
-Runs host-side Unity tests with no hardware (**118 cases** total). Native build includes `CommandQueue` and `StatusPublisher`; `SerialTransport` and `ControlTask` remain bench-verified (Arduino `Serial` / FreeRTOS task).
+Runs host-side Unity tests with no hardware (**139 cases** total). Native build includes `CommandQueue` and `StatusPublisher`; `SerialTransport` and `ControlTask` remain bench-verified (Arduino `Serial` / FreeRTOS task).
 
 - **`test_pump_bus`** (10 tests): channel-bounds rejection, run-before-begin refusal, fail-unsafe cutoff, cutoff refusal + STBY behavior, STBY lifecycle across multi-channel run/stop, direction truth table, safe-boot ordering, and duty clamping. Enabled by the `GpioOps` seam injected into `PumpChannel::begin()` and `PumpBus::begin()`.
 - **`test_scale_platform`** (16 tests): rolling filter average, flow-gate consecutive threshold, sub-threshold no-detect, flow timeout elapsed (non-blocking, scripted `now_ms`), tare FSM completing over multiple `tick()` calls, `ready()=false` when the backend fails to initialize, skipping conversions when the backend is not ready, flow timeout firing with no successful conversion at all, mutual exclusion between `flowDetected()`/`flowTimedOut()` (whichever latches first blocks the other), rolling-filter eviction of the oldest sample once the ring is full, stale/liveness `ready()` going false after `kScaleStaleTimeoutMs` and recovering on the tick after reads resume, `setFlowConfig` clamping a negative threshold and a sub-1 consecutive count so flat weights never spuriously trigger flow, `setCalibrationFactor` forwarding to the backend, and null/missing `ScaleOps` members leaving `ready()==false` without crashing. Enabled by the `ScaleOps` seam injected into `ScalePlatform::begin()`.
-- **`test_coordinator`** (23 tests): dispense FSM against real `PumpBus` + `ScalePlatform` fakes with `ConfigStore`; timed/flow-gated pours, custom per-pump `ml_per_s` / `anti_drip_ms`, mid-pour cal isolation, cancel, busy/cutoff/ml rejects, rollover-safe deadlines, `lastReject()` on failure paths.
-- **`test_command_validate`** (43 tests): line parse, per-pump pour preflight (slow-rate pour-too-long, fast-rate large-volume accept), cutoff/pour-ceiling/sub-resolution rejects, Marlin wire strings, `jobRejectText`, and the `cal`/`bind`/`unbind`/`config` config-op parse + reject paths.
+- **`test_coordinator`** (30 tests): dispense FSM against real `PumpBus` + `ScalePlatform` fakes with `ConfigStore`; timed/flow-gated pours, custom per-pump `ml_per_s` / `anti_drip_ms`, mid-pour cal isolation, cancel, busy/cutoff/ml rejects, rollover-safe deadlines, `lastReject()` on failure paths, continuous **prime** (forward run, operator stop without anti-drip, 60 s timeout, cancel abort).
+- **`test_command_validate`** (53 tests): line parse, per-pump pour preflight (slow-rate pour-too-long, fast-rate large-volume accept), cutoff/pour-ceiling/sub-resolution rejects, Marlin wire strings, `jobRejectText`, `cal`/`bind`/`unbind`/`config` config-op parse + reject paths, **`prime` / `prime stop`** parse and preflight.
 - **`test_config_store`** (17 tests): default seeding when no record, `setCalibration`/`setBinding`/`clearBinding` + `channelForIngredient`, duplicate-bind rejection, calibration/ingredient bound rejection, out-of-range accessors, load-time sanitization of corrupt `ml_per_s` / `anti_drip_ms`, commit failure keeps dirty, commit → reload round trip through a fake NVS, and magic/version/num-pumps/wrong-size/open-failure/null-ops resets to defaults. Enabled by the `NvsOps` seam injected into `ConfigStore::begin()`.
 
 The cutoff-refusal path (confirming `run()` returns false and STBY is never raised) is covered in the native tests via `MachineInputs::setCutoffOpen(true)` — no pin wiring needed. The scale tests feed scripted gram/raw sequences through a fake `ScaleOps`, so no bogde/HX711 library or wiring is involved.
@@ -107,6 +107,15 @@ FlowWait -> flowDetected()  -> Pour (pour timer starts at flow onset)
 Pour     -> now >= deadline (ml / ml_per_s) -> AntiDrip (reverse)
 AntiDrip -> now >= anti-drip deadline -> success, stopAll
 cancel   -> stopAll immediately, clear job (no anti-drip, no success flag)
+
+Continuous prime sub-FSM (advanced in `Coordinator::tick(now_ms)`):
+
+```text
+startPrime -> preconditions (cutoff closed, valid channel)
+          -> pump forward, phase kPrime (no scale, no pour timer)
+tick     -> elapsed >= kMaxPrimeDurationMs (60 s) -> error (prime-timeout), stopAll
+stopPrime -> operator stop: success, stopAll (no anti-drip)
+cancel   -> stopAll immediately, clear job (no anti-drip, job cancelled)
 ```
 
 Per-pump calibration comes from `ConfigStore` (NVS); the `config.h` constants are only
@@ -124,6 +133,7 @@ operator never gets a wrong volume without notice):
 - `kMaxDispenseMl = 500` — absurd/oversized volumes are refused up front.
 - `kMaxPourDurationMs = 120000` — hard pump-on ceiling; a request whose computed
   pour exceeds it is refused (guards against mis-calibration blowing up the timer).
+- `kMaxPrimeDurationMs = 60000` — continuous-prime safety cutoff (separate from pour max).
 - Non-finite (NaN/Inf) and sub-resolution (pour rounds to 0 ms) volumes are refused.
 
 ### Documented v1 defaults / policy
@@ -153,7 +163,9 @@ operator never gets a wrong volume without notice):
 | ------- | ------ |
 | `dispense <pump> <ml>` | Flow-gated dispense (requires scale ready) |
 | `dispense open <pump> <ml>` | Timed-from-motor-on dispense (no scale / flow gate) |
-| `cancel` / `stop` | Abort current job; **flushes** a pending queued dispense |
+| `prime <pump>` | Continuous forward prime (no scale; operator stops with `prime stop`) |
+| `prime stop` | Operator stop during prime — job ok, pump off, **no anti-drip** |
+| `cancel` / `stop` | Abort current job; **flushes** a pending queued command |
 | `status` | Print latest snapshot (`job_reject=`, `config_dirty=`, `config_persist_error=`) |
 | `cal <pump> <ml_per_s> [anti_drip_ms]` | Set per-pump calibration in NVS (anti-drip kept if omitted) |
 | `bind <pump> <ingredient>` | Bind an ingredient id to a pump in NVS |
@@ -177,6 +189,26 @@ Example (dispense):
 dispense 1 30
 ok
 // job:ok
+```
+
+Example (prime):
+
+```text
+prime 1
+ok
+prime stop
+ok
+// job:ok
+```
+
+Emergency abort during prime (no anti-drip, job cancelled):
+
+```text
+prime 1
+ok
+stop
+ok
+// job:cancelled
 ```
 
 Example (calibration persist):
