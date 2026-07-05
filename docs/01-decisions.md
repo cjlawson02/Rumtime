@@ -174,6 +174,7 @@ Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. M
 | Pour path          | Kiosk → ESP32 directly; **not** through Cloudflare.                                           |
 | Kiosk UX           | Locked in [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md) (menu grid, PIN, bottle bay, pour tuning, session confirm, pour anyway). |
 | Recipe content     | **Bundled JSON** in kiosk repo for v1 (`src/data/recipes.json`); Cloud KV optional later. Recipes use **ingredient IDs**, not pump numbers. |
+| Ingredient IDs     | **Opaque strings on ESP32** (binding + dispense lookup). Names/categories/recipes are **kiosk-only**. |
 | Pump ↔ ingredient  | **ESP32 NVS** (machine owns what is plumbed).                                                   |
 | Inventory          | **ESP32 authoritative**; subtract on dispense; persists in NVS.                               |
 | Offline operation  | **Bundled recipes + PWA cache** (v1); KV sync optional later.                              |

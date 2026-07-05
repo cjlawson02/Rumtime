@@ -2,7 +2,7 @@
 
 **Rumtime** is a modular cocktail execution engine: ingredients are registered as services, recipes are resolved at runtime, and beverages are dispensed through a scalable ESP32-powered pump architecture.
 
-This repo holds Rumtime documentation, Phase 0 bench-rig firmware, and Altium PCB specifications. CAD and full product firmware are still in progress. The v1 hardware design uses food-safe tubing, Kamoer KPHM100-class reversible peristaltic pumps, modular 4-pump cartridges, and an ESP32-S3 controller. Software stack direction (Cloudflare kiosk UI, ESP32 dispense engine) and **locked** firmware runtime model (`ControlTask` + command queue on FreeRTOS) are in [`docs/16-firmware-and-software-architecture.md`](docs/16-firmware-and-software-architecture.md); HTTP API contract is deferred.
+This repo holds Rumtime documentation, Phase 0 bench-rig firmware, and Altium PCB specifications. CAD and full product firmware are still in progress. The v1 hardware design uses food-safe tubing, Kamoer KPHM100-class reversible peristaltic pumps, modular 4-pump cartridges, and an ESP32-S3 controller. Software stack direction (Cloudflare kiosk UI, ESP32 dispense engine) and **locked** firmware runtime model (`ControlTask` + command queue on FreeRTOS) are in [`docs/16-firmware-and-software-architecture.md`](docs/16-firmware-and-software-architecture.md). Kiosk UX and **React + shadcn** stack in [`docs/17-kiosk-ui-plan.md`](docs/17-kiosk-ui-plan.md); production app at [`ui/kiosk/`](ui/kiosk/). Provisional device HTTP contract in [`docs/18-kiosk-device-api.md`](docs/18-kiosk-device-api.md).
 
 ## Current design snapshot
 
@@ -38,6 +38,8 @@ This repo holds Rumtime documentation, Phase 0 bench-rig firmware, and Altium PC
 | [`docs/14-bench-test-protocol.md`](docs/14-bench-test-protocol.md)                       | Bench tests, pass criteria, and session log template.                                          |
 | [`docs/15-project-timeline.md`](docs/15-project-timeline.md)                             | Gantt chart, milestones, and procurement log (order/receive dates).                            |
 | [`docs/16-firmware-and-software-architecture.md`](docs/16-firmware-and-software-architecture.md) | Software stack decisions, firmware layers, sequence runner, NVS ownership, migration from bench rig. |
+| [`docs/17-kiosk-ui-plan.md`](docs/17-kiosk-ui-plan.md)                                   | Locked kiosk UX, connectivity, and guest/setup flows.                                          |
+| [`ui/kiosk/`](ui/kiosk/)                                                                 | Production kiosk PWA — see [`ui/kiosk/README.md`](ui/kiosk/README.md). |
 | [`firmware/bench-rig/`](firmware/bench-rig/)                                             | ESP32-S3 + TB6612 bring-up firmware (PlatformIO).                                              |
 | [`firmware/controller/`](firmware/controller/)                                          | ESP32-S3 product firmware scaffold (`ControlTask` runtime; pump subsystem implemented).        |
 | [`hardware/altium/`](hardware/altium/)                                                   | Altium project layout and 4-pump module schematic spec.                                        |

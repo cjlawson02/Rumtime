@@ -20,7 +20,7 @@ ESP32-S3 product firmware
     -> optional local display / status LEDs
 ```
 
-Recipes use **logical ingredient IDs** (for example `bourbon`, `simple`). The ESP32 resolves ingredients to pumps using **machine-local configuration** stored in NVS. The kiosk edits that configuration; KV holds creative/menu content only.
+Recipes use **logical ingredient IDs** (for example `bourbon`, `blue_curacao`). The ESP32 stores those IDs as **opaque strings** — it does not know names, categories, or recipe structure. The kiosk owns the recipe catalog and resolves drinks to `{ ingredientId, ml }` dispense steps before calling the device. The ESP32 resolves each `ingredientId` to a pump using **machine-local configuration** stored in NVS. The kiosk edits that configuration; KV holds creative/menu content only.
 
 Pour commands, calibration, bindings, and inventory updates happen on the device. The cloud is not in the real-time dispense path.
 
@@ -29,7 +29,8 @@ Pour commands, calibration, bindings, and inventory updates happen on the device
 | Topic | Decision |
 | ----- | -------- |
 | Recipe storage | **Bundled JSON** in kiosk (v1); optional Cloudflare KV sync later — not firmware flash for full menu |
-| Pump ↔ ingredient binding | **ESP32 NVS** — reflects what is plumbed right now |
+| Pump ↔ ingredient binding | **ESP32 NVS** — opaque `ingredient_id` string per pump; reflects what is plumbed right now |
+| Ingredient semantics | **Kiosk only** — names, categories, manual vs pumped, recipe steps |
 | Calibration (`ml_per_s`, anti-drip, etc.) | **ESP32 NVS** |
 | Operational flags (`primed`, `last_cleaned_at`, …) | **ESP32** |
 | Inventory (`remaining_ml`) | **ESP32 authoritative**; subtract on completed dispense; kiosk reads for display |
@@ -56,9 +57,9 @@ Bindings and per-pump calibration survive reboot and do not depend on cloud avai
 Suggested fields per bound ingredient (see also [`06-flow-calibration-and-inventory.md`](06-flow-calibration-and-inventory.md)):
 
 ```text
-ingredient_id          # stable string, e.g. "bourbon"
+ingredient_id          # opaque string, e.g. "bourbon" — max 23 chars on device
 pump_id                # 1..16
-ml_per_second
+ml_per_second          # per pump (hardware line), not per ingredient label
 anti_drip_ms
 primed
 last_primed_at
@@ -68,6 +69,8 @@ bottle_size_ml
 low_warning_ml
 reserve_ml
 ```
+
+The device validates bindings and dispense requests by ID lookup only. It never parses drink names or recipe documents.
 
 Recipes never embed pump numbers. If `bourbon` is not bound or the bound pump is unavailable, the firmware rejects the request before starting motors.
 

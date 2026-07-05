@@ -1,0 +1,150 @@
+[
+  {
+    "id": "old-fashioned",
+    "name": "Old Fashioned",
+    "categories": ["whiskey"],
+    "description": "Bourbon, simple syrup, and Angostura bitters — stirred, spirit-forward.",
+    "needsIce": true,
+    "ingredients": [
+      { "id": "bourbon", "name": "Bourbon", "ml": 45, "kind": "pumped" },
+      { "id": "simple", "name": "Simple syrup", "ml": 10, "kind": "pumped" },
+      {
+        "id": "bitters",
+        "name": "Angostura bitters",
+        "kind": "manual",
+        "when": "after"
+      }
+    ]
+  },
+  {
+    "id": "margarita",
+    "name": "Margarita",
+    "categories": ["tequila"],
+    "description": "Tequila, triple sec, and lime — fresh lime required.",
+    "ingredients": [
+      { "id": "tequila", "name": "Tequila", "ml": 50, "kind": "pumped" },
+      { "id": "triple_sec", "name": "Triple sec", "ml": 20, "kind": "pumped" },
+      {
+        "id": "lime",
+        "name": "Fresh lime juice",
+        "ml": 15,
+        "kind": "manual",
+        "when": "before"
+      }
+    ]
+  },
+  {
+    "id": "moscow-mule",
+    "name": "Moscow Mule",
+    "categories": ["vodka"],
+    "description": "Vodka and lime, topped with ginger beer.",
+    "needsIce": true,
+    "ingredients": [
+      { "id": "vodka", "name": "Vodka", "ml": 45, "kind": "pumped" },
+      {
+        "id": "lime",
+        "name": "Fresh lime juice",
+        "ml": 10,
+        "kind": "manual",
+        "when": "before"
+      },
+      {
+        "id": "ginger_beer",
+        "name": "Ginger beer",
+        "kind": "manual",
+        "when": "after"
+      }
+    ]
+  },
+  {
+    "id": "gin-tonic",
+    "name": "Gin & Tonic",
+    "categories": ["gin"],
+    "description": "Gin with manual tonic top-off.",
+    "needsIce": true,
+    "ingredients": [
+      { "id": "gin", "name": "Gin", "ml": 50, "kind": "pumped" },
+      {
+        "id": "tonic",
+        "name": "Tonic water",
+        "kind": "manual",
+        "when": "after"
+      }
+    ]
+  },
+  {
+    "id": "daiquiri",
+    "name": "Daiquiri",
+    "categories": ["rum"],
+    "description": "White rum, simple syrup, and lime.",
+    "ingredients": [
+      { "id": "rum", "name": "White rum", "ml": 60, "kind": "pumped" },
+      { "id": "simple", "name": "Simple syrup", "ml": 15, "kind": "pumped" },
+      {
+        "id": "lime",
+        "name": "Fresh lime juice",
+        "ml": 20,
+        "kind": "manual",
+        "when": "before"
+      }
+    ]
+  },
+  {
+    "id": "whiskey-sour",
+    "name": "Whiskey Sour",
+    "categories": ["whiskey"],
+    "description": "Bourbon sour — needs fresh lemon.",
+    "needsIce": true,
+    "ingredients": [
+      { "id": "bourbon", "name": "Bourbon", "ml": 45, "kind": "pumped" },
+      { "id": "simple", "name": "Simple syrup", "ml": 20, "kind": "pumped" },
+      {
+        "id": "lemon",
+        "name": "Fresh lemon juice",
+        "ml": 25,
+        "kind": "manual",
+        "when": "before"
+      }
+    ]
+  },
+  {
+    "id": "amf",
+    "name": "AMF",
+    "categories": ["vodka", "rum", "tequila", "gin"],
+    "description": "Adiós — vodka, rum, tequila, gin, blue curaçao, citrus, Sprite top-off.",
+    "needsIce": true,
+    "ingredients": [
+      { "id": "vodka", "name": "Vodka", "ml": 15, "kind": "pumped" },
+      { "id": "rum", "name": "White rum", "ml": 15, "kind": "pumped" },
+      { "id": "tequila", "name": "Tequila", "ml": 15, "kind": "pumped" },
+      { "id": "gin", "name": "Gin", "ml": 15, "kind": "pumped" },
+      {
+        "id": "blue_curacao",
+        "name": "Blue curaçao",
+        "ml": 15,
+        "kind": "pumped"
+      },
+      { "id": "simple", "name": "Simple syrup", "ml": 20, "kind": "pumped" },
+      {
+        "id": "lemon",
+        "name": "Fresh lemon juice",
+        "ml": 20,
+        "kind": "manual",
+        "when": "before"
+      },
+      {
+        "id": "lime",
+        "name": "Fresh lime juice",
+        "ml": 20,
+        "kind": "manual",
+        "when": "before"
+      },
+      {
+        "id": "lemon_lime_soda",
+        "name": "Sprite or 7-Up",
+        "kind": "manual",
+        "when": "after"
+      }
+    ]
+  }
+]

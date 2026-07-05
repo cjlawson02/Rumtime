@@ -8,12 +8,14 @@ The production kiosk at [`ui/kiosk/`](../ui/kiosk/) uses `DeviceClient` + Zod ty
 
 ## Kiosk contract today (provisional)
 
-Base URL: `http://rumtime.local` (mDNS) or `VITE_DEVICE_API_BASE`.
+Base URL: `http://rumtime.local` (mDNS) or `VITE_DEVICE_API_BASE`. **Deploy the kiosk UI over LAN HTTP** on the same network as the ESP32 — not HTTPS-to-HTTP mixed content.
+
+**No API authentication in v1.** The kiosk setup PIN is an operator UX gate only; the device HTTP port is trusted-LAN. Do not expose it to the internet.
 
 | Method | Path | Body | Response |
 | ------ | ---- | ---- | -------- |
 | GET | `/status` | — | `DeviceStatus` JSON |
-| POST | `/pour` | `{ "recipeId": string }` | `204` or error |
+| POST | `/pour` | `{ "recipeId": string, "steps": [{ "ingredientId", "ml" }] }` | `204` or error |
 | POST | `/pour/cancel` | — | `204` |
 | POST | `/pour/ack` | — | `204` (manual prompt step ACK) |
 | POST | `/inventory/refill` | `{ "ingredientId": string }` | `204` (mark bottle refilled) |
@@ -111,7 +113,12 @@ Maps to kiosk `POST /pumps/dispense` + `cancel` when HTTP phase 5 lands. **`prim
 }
 ```
 
-`job.state`: `idle` | `pouring` | `prompt` | `complete` | `cancelled`.
+`job.state`: `idle` | `pouring` | `prompt` | `complete` | `cancelled`. Prefer `job: null` when idle; the kiosk normalizes `idle` to null.
+
+**Firmware should always include:**
+
+- **`pumps[]`** — physical line → ingredient assignments (may be empty during boot; kiosk falls back to `bindings` when empty or omitted).
+- **`primed: true | false`** on every entry in `bindings` — omit or `undefined` is treated as **not primed** (guest pours blocked).
 
 ### `DeviceStatus.notifications` (optional)
 
@@ -139,7 +146,36 @@ Kiosk-computed menu alerts (hidden drinks, low inventory) are **not** echoed in 
 
 **Dev mock:** [`ui/kiosk/src/api/mock-device.ts`](../ui/kiosk/src/api/mock-device.ts) seeds `scale_not_ready` and `flow_timeout` (`flow_timed_out` snapshot) so the notification center can be exercised without real firmware.
 
-Pour commands reference **recipe IDs** from bundled kiosk JSON. Firmware resolves ingredients → pumps via NVS bindings ([`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md)).
+### Ingredient IDs (locked)
+
+`ingredientId` is an **opaque string** on the ESP32. The device stores `pump ↔ ingredientId` in NVS and resolves dispense steps by ID. It does **not** store or interpret names, categories, or recipe structure.
+
+| Owner | Responsibility |
+| ----- | -------------- |
+| **Kiosk** | Recipe catalog, display names, categories, menu availability, resolving a drink to `{ ingredientId, ml }` steps, manual-step UX |
+| **ESP32** | Persist bindings, calibration (per pump), inventory/ops state keyed by `ingredientId`, execute dispense steps |
+
+Constraints on device: non-empty, max **23 characters** (`kIngredientIdMax` in firmware), unique across pumps, no spaces on serial `bind` (single token).
+
+The bottle-bay dropdown today lists IDs from bundled `recipes.json`; that is a UX convenience, not a firmware requirement — any valid string may be bound.
+
+### Pour command
+
+Kiosk resolves the recipe locally, then sends pumped steps only:
+
+```json
+{
+  "recipeId": "old-fashioned",
+  "steps": [
+    { "ingredientId": "bourbon", "ml": 45 },
+    { "ingredientId": "simple", "ml": 10 }
+  ]
+}
+```
+
+`recipeId` is for **kiosk UI correlation** (`job.recipeId` in status). Firmware executes `steps` only — it does not load recipe documents. Manual ingredients never appear in `steps`; prompt UX stays on the kiosk after pumped lines finish.
+
+Pour commands reference **ingredient IDs** from the kiosk catalog. Firmware resolves each ID → pump via NVS bindings ([`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md)).
 
 ## Firmware reality today
 
@@ -162,7 +198,7 @@ No HTTP routes. No per-ingredient inventory in the snapshot yet (NVS `ConfigStor
 | `bindings` + `remainingMl` per ingredient | NVS bindings; no inventory in snapshot | Kiosk preflight uses mock data only |
 | `job.progress` 0–100 | `job_phase`, no percent | UI progress bar is mock-only |
 | `job.promptMessage` | No prompt step in firmware | Doc 17 UX; sequence runner TBD |
-| `POST /pour { recipeId }` | Serial `dispense` by pump/ml | Recipe runner not wired to HTTP |
+| `POST /pour { recipeId, steps }` | Serial `dispense` by pump/ml | Kiosk resolves recipe; firmware runs steps |
 | `POST /pumps/dispense` prime | Serial **`prime` / `prime stop`** on controller | HTTP handler TBD; kiosk + MSW mock today |
 | Glass / scale preconditions | `scale_ready`, `grams`, flow-gate | Expose via `notifications[]` when HTTP ships |
 | Primed state | Kiosk mock + `/inventory/primed`; NVS field planned on device | Badge + calibrate gate in UI |
