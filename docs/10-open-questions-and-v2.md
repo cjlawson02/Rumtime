@@ -3,7 +3,7 @@
 ## Open questions — software and firmware
 
 1. HTTP/API contract shape (`/dispense`, `/config`, status transport) — deferred until firmware layers are stable; see [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md).
-2. Offline pour when internet is down but LAN works — deferred; options are kiosk recipe cache or ESP32 favorites snapshot.
+2. Offline pour when internet is down but LAN works — deferred; options are kiosk recipe cache or ESP32 favorites snapshot. Kiosk UX locked in [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md).
 3. LAN authentication (PIN, pairing) — deferred; home-trusted LAN assumed for v1.
 
 ## Open questions before buying full BOM

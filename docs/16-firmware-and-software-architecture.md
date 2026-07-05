@@ -28,14 +28,16 @@ Pour commands, calibration, bindings, and inventory updates happen on the device
 
 | Topic | Decision |
 | ----- | -------- |
-| Recipe storage | Cloudflare KV (via Worker); not firmware flash for full menu |
+| Recipe storage | **Bundled JSON** in kiosk (v1); optional Cloudflare KV sync later — not firmware flash for full menu |
 | Pump ↔ ingredient binding | **ESP32 NVS** — reflects what is plumbed right now |
 | Calibration (`ml_per_s`, anti-drip, etc.) | **ESP32 NVS** |
 | Operational flags (`primed`, `last_cleaned_at`, …) | **ESP32** |
 | Inventory (`remaining_ml`) | **ESP32 authoritative**; subtract on completed dispense; kiosk reads for display |
 | Kiosk transport | **Wi-Fi HTTP** to ESP32 on LAN (BLE deferred) |
-| Wi-Fi topology | Station mode on home LAN preferred; mDNS or DHCP reservation |
-| Offline operation | **Deferred** — may later cache recipes on kiosk or snapshot favorites on ESP32 |
+| Wi-Fi topology | **Station mode only** (v1) on home LAN; **no soft-AP** for normal operation yet |
+| Wi-Fi provisioning | **Serial** (SSID/password) until captive-portal soft-AP is implemented |
+| Device discovery | **mDNS** (e.g. `rumtime.local`); DHCP reservation as fallback |
+| Offline operation | **Bundled recipes + PWA cache** (v1); optional KV sync or ESP32 favorites later |
 | Manual pours | **Software only** — always available; no rear-panel test jumper |
 | Software modes enum | **Not required for v1** — hardware cutoff is the real disable; avoid heavy FRC-style mode machinery early |
 | Control pattern | Periodic **ControlTask** tick + thin **sequence runner** (FRC Timed Robot + command-scheduler pattern, not WPILib) |
@@ -303,14 +305,14 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 | Command queue **depth 1** + **409 busy** on duplicate dispense | Matches one-coordinator-job model; kiosk debounce not specified |
 | **PersistTask** (or idle hook) for NVS — not inline in ControlTask | Reviewer consensus; **controller uses idle hook** in `ControlTask::tick()` (1 s retry backoff on commit failure); dedicated `PersistTask` still deferred |
 | **PsychicHttp** or similar named as HTTP direction | Example only; library not chosen |
-| Glass-present check on dispense is **optional** per operation | Doc says "optional glass-present check"; you did not lock always-on vs manual-pour bypass |
+| Glass on scale for recipe pours | **Required** (flow-gate); **manual bypass** for timed-from-motor-on — see [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md) |
 | **Flow-gated** pour remains v1 default; timed fallback on scale fault | From existing docs 06/12; bench Tests 7–9 still gating |
 | Cutoff sense via **GPIO** (DPDT aux or VM divider) | Optional for firmware coherence; rocker on VM is required |
-| Cancel **aborts pour** immediately (may skip anti-drip) | Reviewer suggestion; not explicitly confirmed |
+| Cancel **aborts pour** immediately (may skip anti-drip) | **Locked** — acceptable UX; see doc 17 |
 | Inventory subtract on **job success only** in RAM; NVS after | You confirmed ESP32 authoritative; commit timing was reviewer-added |
 | Recipe JSON step schema (`parallel`, `prompt`, etc.) | Illustrative; not a locked contract |
-| Session-ingredient blocking in firmware validator | Referenced from existing ingredient rules; enforcement details open |
-| `prompt` steps block new dispense until kiosk ACK | Reasonable for coordinator; UI flow not designed |
+| Session-ingredient blocking | Kiosk **confirm** on drink detail before pour; firmware validator TBD |
+| `prompt` steps block new dispense until kiosk ACK | UI flow locked in doc 17 |
 | WebSocket for status later uses same snapshot model | Mentioned as compatible; transport not decided |
 | No dedicated safety FreeRTOS task for v1 | Hardware rocker + distributed checks sufficient |
 | Arduino stays through v1; ESP-IDF migration deferred | Your alignment with bench-rig toolchain |
@@ -319,13 +321,15 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 
 | Topic | Status |
 | ----- | ------ |
-| HTTP/API contract (`/dispense`, `/config`, status poll vs WebSocket) | Deferred |
+| HTTP/API contract (`/dispense`, `/config`, status poll vs WebSocket) | **Provisional kiosk draft:** [`18-kiosk-device-api.md`](18-kiosk-device-api.md) — reconcile before firmware phase 5 |
 | Offline pour (kiosk cache vs ESP32 favorites) | Deferred by you |
 | LAN auth (PIN, pairing) | Deferred; home-trusted LAN assumed |
 | Cutoff sense wiring (aux pole vs VM divider) | Optional hardware; rocker on VM is required |
-| Cancel during anti-drip: stop now vs complete reverse | Software open |
-| Manual pour: require glass / flow-gate or bypass | Software open |
-| Glass-present required for all recipe pours? | Software open |
+| Cancel during anti-drip: stop now vs complete reverse | **Locked:** stop now; skip anti-drip OK |
+| Manual pour: require glass / flow-gate or bypass | **Locked:** bypass available — doc 17 |
+| Glass-present required for all recipe pours? | **Locked:** yes, with manual bypass — doc 17 |
+| Kiosk UX (menu, PIN, bottle bay, pour tuning, inventory block, pour anyway, session confirm) | **Locked** — [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md) |
+| Wi-Fi soft-AP provisioning | **Deferred** — serial provisioning for v1 |
 | HTTP library choice | Implementation open |
 | Core pinning and priorities | Implementation open until profiled |
 | Whether `loop()` or ControlTask feeds TWDT | **ControlTask feeds TWDT** in controller firmware (including before/after idle NVS commit) |
@@ -335,9 +339,10 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 
 | Topic | Notes |
 | ----- | ----- |
-| HTTP/API contract | Separate doc when firmware layers are stable |
+| HTTP/API contract | **Provisional kiosk draft:** [`18-kiosk-device-api.md`](18-kiosk-device-api.md) — firmware must reconcile |
 | Offline recipe cache | Kiosk Service Worker vs ESP32 favorites |
 | BLE transport | Only if Wi-Fi proves insufficient |
+| Wi-Fi soft-AP / captive portal | After serial provisioning proves painful |
 | Closed-loop mass stop per ingredient | After timed + flow-gate validated insufficient |
 | Full command-framework (WPILib-style requirements) | Add only if pump conflicts appear in practice |
 | Auth on LAN | Optional PIN if untrusted guests on Wi-Fi |
@@ -350,3 +355,5 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 - [`07-cleaning-and-food-safety.md`](07-cleaning-and-food-safety.md) — cleaning workflows
 - [`firmware/controller/`](../firmware/controller/) — product firmware (ControlTask, coordinator, NVS `ConfigStore`, serial transport)
 - [`firmware/bench-rig/`](../firmware/bench-rig/) — Phase 0 bring-up (blocking model)
+- [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md) — locked kiosk UX and frontend stack
+- [`18-kiosk-device-api.md`](18-kiosk-device-api.md) — provisional kiosk HTTP contract (draft)

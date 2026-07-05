@@ -146,6 +146,7 @@ Cloudflare Pages + Worker + KV
 
 Kindle Fire kiosk (browser, home LAN)
     Wi-Fi HTTP → ESP32 (dispense, config, status)
+    mDNS discovery (e.g. rumtime.local)
     (pour commands do not route through Cloudflare)
 
 ESP32-S3 firmware
