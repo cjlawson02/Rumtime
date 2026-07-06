@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 /**
- * PROVISIONAL kiosk ↔ ESP32 HTTP contract.
- * Firmware has not agreed to these shapes — see docs/18-kiosk-device-api.md.
- * MSW mock implements this for dev; reconcile before firmware phase 5.
+ * Kiosk ↔ ESP32 HTTP contract.
+ * Firmware `GET /status` targets this schema — see docs/18-kiosk-device-api.md.
+ * Golden JSON + Zod parse in CI is still deferred; MSW mock covers dev.
  *
  * Ingredient IDs are opaque strings on the device (pump binding + dispense lookup only).
  * Names, categories, and recipes live in the kiosk catalog — not on the ESP32.

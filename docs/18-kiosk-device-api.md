@@ -1,12 +1,12 @@
 # Kiosk ↔ Device HTTP API (draft)
 
-Status: **PROVISIONAL** (2026-07-04). The kiosk scaffold defines a UI-first contract for mock/dev. **Firmware has not implemented HTTP**; the live transport is still serial (`dispense`, `status`, `config`). This doc records the gap so neither side silently diverges.
+Status: **IMPLEMENTED on firmware** (2026-07-05). Kiosk Zod schemas in [`ui/kiosk/src/api/types.ts`](../ui/kiosk/src/api/types.ts) are the acceptance target for `GET /status`. Serial bench transport remains for debug and Wi-Fi provisioning.
 
 ## Why this exists
 
-The production kiosk at [`ui/kiosk/`](../ui/kiosk/) uses `DeviceClient` + Zod types in [`src/api/types.ts`](../ui/kiosk/src/api/types.ts). MSW mocks the endpoints below in dev. When firmware phase 5 (Wi-Fi HTTP) lands, **one side must adapt** — either firmware exposes this shape, or the kiosk adds an adapter over the real snapshot/config API.
+The production kiosk at [`ui/kiosk/`](../ui/kiosk/) uses `DeviceClient` + Zod types in [`src/api/types.ts`](../ui/kiosk/src/api/types.ts). MSW mocks the endpoints below in dev. Firmware `GET /status` targets the same Zod schema (acceptance tests via golden JSON still deferred).
 
-## Kiosk contract today (provisional)
+## Kiosk contract
 
 Base URL: `http://rumtime.local` (mDNS) or `VITE_DEVICE_API_BASE`. **Deploy the kiosk UI over LAN HTTP** on the same network as the ESP32 — not HTTPS-to-HTTP mixed content.
 
@@ -41,7 +41,9 @@ Base URL: `http://rumtime.local` (mDNS) or `VITE_DEVICE_API_BASE`. **Deploy the 
 
 **Kiosk wizards:** Per-line **Prime** and **Calibrate** on `/setup/calibration` only (no global wizard entry). Footer holds step actions; body shows `PumpDispenseStatus` during runs. Calibration timed run uses `DEFAULT_CALIBRATION_RUN_SECONDS` (25) from [`ui/kiosk/src/lib/calibration.ts`](../ui/kiosk/src/lib/calibration.ts). Flow rate fields show **`{N}s / shot`** derived from `SHOT_ML` (1.5 US fl oz).
 
-`pumpJob` on `/status` **only while a dispense is active**. When idle (no pour in progress), `pumpJob` is **`null`**. Terminal states (`complete`, `cancelled`) may appear briefly on some firmware builds, but the kiosk client treats **`pumpJob` cleared to `null`** as the idle signal after a timed pour finishes or is cancelled. Use a pour lifecycle tracker (`ui/kiosk/src/lib/pump-pour-lifecycle.ts`) to detect `running → finished/cancelled` across polls.
+`pumpJob` on `/status` **only while a dispense is active**. When idle (no pour in progress), `pumpJob` is **`null`** — that is the primary idle signal for setup wizards (prime/calibration/verify). The kiosk treats **`pumpJob` cleared to `null`** as finished after a timed pour; explicit terminal `complete`/`cancelled` on `pumpJob` is optional polish.
+
+**Recipe `job` (guest pours):** When a multi-step pour completes without a manual prompt step, firmware publishes a **brief terminal latch** (`job.state`: `"complete"` or `"cancelled"`, ~500 ms / at least one poll) before clearing `job` to `null`. The kiosk pour page keys off `job.state === "complete"` for drinks like Daiquiri (pumped-only + pre-pour lime). Prompt-step drinks remain a known gap until the prompt FSM exists.
 
 Example while running:
 
@@ -69,7 +71,7 @@ prime stop            operator stop — job ok, pump off, no reverse purge
 stop | cancel         abort — job cancelled (mid-prime emergency only in kiosk)
 ```
 
-Maps to kiosk `POST /pumps/dispense` + `cancel` when HTTP phase 5 lands. **`primed` in NVS** is still kiosk-side via `/inventory/primed` until firmware stores it.
+**`primed` in NVS** is stored via `InventoryStore` and set by kiosk `POST /inventory/primed` (or serial bind + primed HTTP after bind).
 
 ### `DeviceStatus` (kiosk Zod schema)
 
@@ -113,7 +115,7 @@ Maps to kiosk `POST /pumps/dispense` + `cancel` when HTTP phase 5 lands. **`prim
 }
 ```
 
-`job.state`: `idle` | `pouring` | `prompt` | `complete` | `cancelled`. Prefer `job: null` when idle; the kiosk normalizes `idle` to null.
+`job.state`: `idle` | `pouring` | `prompt` | `complete` | `cancelled`. Prefer `job: null` when idle; the kiosk normalizes `idle` to null. For pumped-only recipes, firmware **must** emit `complete` (or `cancelled`) for at least one poll before returning to `job: null`.
 
 **Firmware should always include:**
 
@@ -177,48 +179,15 @@ Kiosk resolves the recipe locally, then sends pumped steps only:
 
 Pour commands reference **ingredient IDs** from the kiosk catalog. Firmware resolves each ID → pump via NVS bindings ([`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md)).
 
-## Firmware reality today
+## Firmware implementation (phase 5)
 
-### Serial transport (bench / controller)
+HTTP routes match the table above. `GET /status` is built by `device_status.cpp` to pass kiosk `deviceStatusSchema`. Handlers enqueue on `CommandQueue` / `ConfigOpQueue` only (Core 0); motion stays on ControlTask (Core 1).
 
-Commands enqueue to `CommandQueue`; status comes from `StatusSnapshot` ([`status_snapshot.h`](../firmware/controller/include/status_snapshot.h)):
+**Implemented:** bindings, inventory (`remainingMl`, `bottleSizeMl`, `primed`), recipe pour, pump dispense (prime/verify/calibration), config edits with busy reject, mDNS, serial Wi-Fi provisioning.
 
-```text
-cutoff_open, pumps_running, scale_ready, grams, flow_detected, flow_timed_out
-job_busy, job_ok, job_error, job_cancelled, job_phase, job_reject
-config_dirty, config_persist_error
-```
+**Deferred:** `prompt` steps / meaningful `POST /pour/ack`, cleaning (`flush`/`sanitize`/`drain` → 501), LAN auth, WebSocket status.
 
-No HTTP routes. No per-ingredient inventory in the snapshot yet (NVS `ConfigStore` has bindings + calibration; inventory fields deferred per doc 16).
-
-### Alignment gaps
-
-| Kiosk expects | Firmware has (today) | Notes |
-| ------------- | -------------------- | ----- |
-| `bindings` + `remainingMl` per ingredient | NVS bindings; no inventory in snapshot | Kiosk preflight uses mock data only |
-| `job.progress` 0–100 | `job_phase`, no percent | UI progress bar is mock-only |
-| `job.promptMessage` | No prompt step in firmware | Doc 17 UX; sequence runner TBD |
-| `POST /pour { recipeId, steps }` | Serial `dispense` by pump/ml | Kiosk resolves recipe; firmware runs steps |
-| `POST /pumps/dispense` prime | Serial **`prime` / `prime stop`** on controller | HTTP handler TBD; kiosk + MSW mock today |
-| Glass / scale preconditions | `scale_ready`, `grams`, flow-gate | Expose via `notifications[]` when HTTP ships |
-| Primed state | Kiosk mock + `/inventory/primed`; NVS field planned on device | Badge + calibrate gate in UI |
-| Guest notifications | Kiosk notification center | Merges `notifications[]` + menu availability alerts |
-
-## Reconciliation options (pick before HTTP ships)
-
-1. **Firmware extends API** — HTTP handlers aggregate `StatusSnapshot` + NVS bindings/inventory + coordinator into `DeviceStatus`. Kiosk types stay stable; mock retired.
-2. **Kiosk adapter** — HTTP returns raw snapshot + config endpoints; kiosk maps to view models. More firmware flexibility, more kiosk code.
-3. **Hybrid** — `/status` returns firmware-native JSON; kiosk keeps a thin `mapStatusSnapshot()` layer. Recommended if snapshot stays lean.
-
-**Do not** implement HTTP handlers that touch GPIO/pumps directly — enqueue only per doc 16.
-
-## Error codes (provisional)
-
-| HTTP | Meaning |
-| ---- | ------- |
-| 409 | Device busy (`job_busy`) |
-| 503 | Cutoff open / unsafe |
-| 422 | Validation (unbound ingredient, unprimed line, low inventory, glass missing) |
+Serial transport remains for bench debug (`dispense`, `pour`, `prime`, `wifi *`, etc.).
 
 Kiosk surfaces pour and setup errors in UI (alerts on drink detail, setup panels); firmware remains authoritative on reject.
 
@@ -234,4 +203,4 @@ Track on Kindle Fire + Fully Kiosk smoke test:
 
 - [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md) — runtime model, phased HTTP plan
 - [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md) — locked UX; bottle bay + pour tuning setup implemented
-- [`ui/kiosk/src/api/types.ts`](../ui/kiosk/src/api/types.ts) — Zod schemas (provisional)
+- [`ui/kiosk/src/api/types.ts`](../ui/kiosk/src/api/types.ts) — Zod schemas (firmware targets this shape)

@@ -64,6 +64,7 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
 
   channel_ = command.channel;
   pour_ms_ = pour_ms;
+  flow_gated_ = command.flow_gate;
   anti_drip_ms_ = (command.ml_per_s > 0.0f && std::isfinite(command.ml_per_s))
                       ? command.anti_drip_ms
                       : config_->antiDripMs(command.channel);
@@ -183,6 +184,11 @@ void Coordinator::tick(unsigned long now_ms) {
       break;
 
     case Phase::kPour:
+      if (flow_gated_ && !scale_->ready()) {
+        last_reject_ = JobReject::kScaleFault;
+        finish(JobResult::kError);
+        break;
+      }
       if ((now_ms - pour_start_ms_) >= pour_ms_) {
         beginAntiDrip(now_ms);
       }

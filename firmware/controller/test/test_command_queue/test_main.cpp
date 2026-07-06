@@ -108,7 +108,7 @@ void test_cancel_then_dispense_preserves_queue() {
   cmd.channel = 0;
   cmd.ml = 30.0f;
   TEST_ASSERT_TRUE(queue.enqueueDispense(cmd));
-  queue.markDispenseAfterCancel();
+  queue.markCommandAfterCancel();
 
   TEST_ASSERT_TRUE(queue.drainCancel());
   TEST_ASSERT_TRUE(queue.hasPending());
@@ -137,11 +137,33 @@ void test_cancel_without_dispense() {
   TEST_ASSERT_FALSE(queue.hasPending());
 }
 
+void test_dispense_then_cancel_preserves_pour() {
+  CommandQueue queue;
+  TEST_ASSERT_TRUE(queue.begin(kFakeQueueOps));
+
+  PourSequenceCommand seq;
+  strncpy(seq.steps[0].ingredient_id, "bourbon", kIngredientIdMax);
+  seq.steps[0].ml = 30.0f;
+  seq.step_count = 1;
+  TEST_ASSERT_TRUE(queue.enqueuePourSequence(seq));
+  queue.markCommandAfterCancel();
+  queue.enqueueCancel();
+
+  TEST_ASSERT_TRUE(queue.drainCancel());
+  TEST_ASSERT_TRUE(queue.hasPending());
+
+  Command out;
+  TEST_ASSERT_TRUE(queue.drainCommand(out));
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandType::kPourSequence), static_cast<int>(out.type));
+  TEST_ASSERT_EQUAL_FLOAT(30.0f, out.pour_sequence.steps[0].ml);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_enqueue_dispense_then_drain);
   RUN_TEST(test_dispense_then_cancel_flushes_queue);
   RUN_TEST(test_cancel_then_dispense_preserves_queue);
+  RUN_TEST(test_dispense_then_cancel_preserves_pour);
   RUN_TEST(test_duplicate_enqueue_busy);
   RUN_TEST(test_cancel_without_dispense);
   return UNITY_END();

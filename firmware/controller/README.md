@@ -2,7 +2,7 @@
 
 Product firmware for **ESP32-S3-DevKitC-1** (Arduino / PlatformIO), implementing the locked runtime model in [`docs/16-firmware-and-software-architecture.md`](../../docs/16-firmware-and-software-architecture.md): a fixed-period **`ControlTask`** on Core 1 that is the sole owner of motor outputs, with distributed safety (each subsystem refuses unsafe work).
 
-The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated timed dispense), **NVS machine config** (per-pump calibration + bindings), and **enqueue-only serial** transport are implemented; sequence runner, multi-pump parallel, and Wi-Fi/HTTP are still stubs or absent. The blocking-serial bench rig in [`firmware/bench-rig/`](../bench-rig/) stays as bring-up reference and is unchanged.
+The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated timed dispense), **sequence runner** (sequential multi-ingredient pours), **NVS machine config** (per-pump calibration + bindings), **inventory** (primed / remaining ml per ingredient), **enqueue-only serial** transport, and **Wi-Fi HTTP** (kiosk device API) are implemented. Multi-pump parallel and I2C modules remain deferred. The blocking-serial bench rig in [`firmware/bench-rig/`](../bench-rig/) stays as bring-up reference and is unchanged.
 
 ## Implemented vs stub
 
@@ -11,15 +11,21 @@ The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated t
 | `PumpChannel` | `pump_channel.{h,cpp}` | **Implemented** — one TB6612 channel (IN1/IN2/PWM); sole GPIO writer for its motor outputs; injected `GpioOps` seam enables host-side unit tests |
 | `PumpBus` | `pump_bus.{h,cpp}` | **Implemented** — owns STBY + 2 channels; `run`/`stop`/`stopAll`; refuses `run()` and forces `stopAll()` when cutoff open; fails UNSAFE when uninitialized; configures direction/PWM before raising STBY; clamps duty |
 | `ScalePlatform` | `scale_platform.{h,cpp}` | **Implemented** — non-blocking HX711 FSM; one conversion per `tick()`, multi-tick tare, rolling filter, flow-gate + no-flow timeout flags; injected `ScaleOps` seam enables host-side unit tests |
-| `ControlTask` | `control_task.{h,cpp}` | **Skeleton** — 5 ms `vTaskDelayUntil` loop, tick order per doc 16; input→pump→scale path live; idle-only NVS commit with 1 s retry backoff + TWDT feed around flash write; feeds TWDT each tick; restarts on `xTaskCreate` failure |
+| `ControlTask` | `control_task.{h,cpp}` | **Implemented** — 5 ms `vTaskDelayUntil` loop; queue drain, coordinator, sequence runner, idle NVS commit, status publish, serial poll; TWDT feed each tick |
 | `MachineInputs` | `machine_inputs.{h,cpp}` | **Deferred for v1** — optional GPIO tap of the same VM rocker (`kCutoffSense = -1`). One hardware rocker is enough; firmware does not need a sense line on the bench |
-| `Coordinator` | `coordinator.{h,cpp}` | **Implemented** — one job at a time; non-blocking single-pump gated timed dispense sub-FSM advanced in `tick(now_ms)`; continuous forward **prime** with operator stop and 60 s safety cutoff; drives `PumpBus` + `ScalePlatform` only (no direct GPIO). No multi-pump / sequence runner yet |
-| `CommandQueue` | `command_queue.{h,cpp}` + `queue_ops.h` | **Implemented (host-tested)** — depth-1 queue policy + `QueueOps` seam (FreeRTOS on ESP32, in-memory fake on host); `std::atomic` cancel; `markDispenseAfterCancel()` preserves `cancel`→`dispense` in one burst |
+| `Coordinator` | `coordinator.{h,cpp}` | **Implemented** — one job at a time; non-blocking single-pump gated timed dispense sub-FSM advanced in `tick(now_ms)`; continuous forward **prime** with operator stop and 60 s safety cutoff; drives `PumpBus` + `ScalePlatform` only (no direct GPIO). Multi-pump parallel still deferred |
+| `SequenceRunner` | `sequence_runner.{h,cpp}` | **Implemented** — sequential multi-step pours (`ingredient_id` + `ml`); resolves pumps via `ConfigStore::channelForIngredient`; each step runs through the coordinator flow-gated dispense FSM; max **16** steps per sequence; parallel groups still deferred |
+| `CommandQueue` | `command_queue.{h,cpp}` + `queue_ops.h` | **Implemented (host-tested)** — depth-1 queue policy + `QueueOps` seam (FreeRTOS on ESP32, in-memory fake on host); `std::atomic` cancel; `markCommandAfterCancel()` preserves a command enqueued in the same poll as `cancel` |
 | `StatusPublisher` | `status_snapshot.{h,cpp}` | **Implemented (host-tested)** — seqlock publish/read; carries `command_pending`, `job_cancelled`, config persist status |
-| `SerialTransport` | `serial_transport.{h,cpp}` | **Implemented (bench-verified)** — capped bytes/poll; captures pour calibration at enqueue; rejects config edits when queue pending; `// job:cancelled` wire line |
-| `ConfigStore` | `config_store.{h,cpp}` | **Implemented** — RAM-authoritative per-pump calibration (`ml_per_s`, `anti_drip_ms`) + ingredient bindings, persisted as one versioned/magic-guarded NVS blob (`static_assert` layout lock); loads at boot with per-field sanitization or seeds `config.h` defaults; duplicate ingredient binds rejected; mutators set `dirty()`, `commit()` is the sole flash write (idle-only, 1 s retry backoff on failure). Injected `NvsOps` seam enables host-side unit tests; ESP32 build wires Arduino `Preferences` |
+| `SerialTransport` | `serial_transport.{h,cpp}` | **Implemented (bench-verified)** — capped bytes/poll; pour calibration at enqueue; config/inventory ops via `ConfigOpQueue`; Wi-Fi provisioning commands; rejects config edits when queue pending or job busy |
+| `ConfigStore` | `config_store.{h,cpp}` | **Implemented** — RAM-authoritative per-pump calibration + ingredient bindings, persisted as one versioned NVS blob |
+| `InventoryStore` | `inventory_store.{h,cpp}` | **Implemented** — per-ingredient `remaining_ml`, `bottle_size_ml`, `primed`; parallel NVS blob; seeds on bind; subtract per completed pour step |
+| `ConfigOpQueue` | `config_op_queue.{h,cpp}` | **Implemented (host-tested)** — depth-1 cross-task queue; HTTP (Core 0) enqueues; ControlTask drains and applies RAM mutations |
+| `DeviceStatus` mapper | `device_status.{h,cpp}` | **Implemented (host-tested)** — `GET /status` JSON matching kiosk `deviceStatusSchema` |
+| `HttpServer` | `http_server.{h,cpp}` | **Implemented** — Arduino `WebServer` + ArduinoJson v7 on Core 0; enqueue-only handlers; CORS `*` for LAN dev |
+| `WiFiManager` | `wifi_manager.{h,cpp}` | **Implemented** — STA-only; serial provisioning; mDNS `rumtime.local`; reconnect on disconnect |
 
-Not present yet: sequence runner, multi-pump parallel dispense, Wi-Fi/HTTP, I2C/PCA9685, cleaning, inventory, recipes.
+Not present yet: multi-pump parallel dispense, I2C/PCA9685, cleaning sequences, soft-AP captive portal.
 
 ## Safety model (this PR)
 
@@ -64,13 +70,16 @@ cd firmware/controller
 pio test -e native   # or plain `pio test` (ESP32 env skips host-only suites)
 ```
 
-Runs host-side Unity tests with no hardware (**139 cases** total). Native build includes `CommandQueue` and `StatusPublisher`; `SerialTransport` and `ControlTask` remain bench-verified (Arduino `Serial` / FreeRTOS task).
+Runs host-side Unity tests with no hardware (**175 cases** total). Native build includes mapping/validation layers; `SerialTransport`, `ControlTask`, and ESP32 network code remain bench-verified on hardware.
+
+- **`test_device_status`** (12 tests): idle `job`/`pumpJob` null, sequence pouring progress, verify `pumpJob`, job terminal latch, prime `pumpJob`, published bindings, notifications, config apply failure, config-op queue, binding seeds inventory, calibration preflight 422, HTTP status codes.
 
 - **`test_pump_bus`** (10 tests): channel-bounds rejection, run-before-begin refusal, fail-unsafe cutoff, cutoff refusal + STBY behavior, STBY lifecycle across multi-channel run/stop, direction truth table, safe-boot ordering, and duty clamping. Enabled by the `GpioOps` seam injected into `PumpChannel::begin()` and `PumpBus::begin()`.
 - **`test_scale_platform`** (16 tests): rolling filter average, flow-gate consecutive threshold, sub-threshold no-detect, flow timeout elapsed (non-blocking, scripted `now_ms`), tare FSM completing over multiple `tick()` calls, `ready()=false` when the backend fails to initialize, skipping conversions when the backend is not ready, flow timeout firing with no successful conversion at all, mutual exclusion between `flowDetected()`/`flowTimedOut()` (whichever latches first blocks the other), rolling-filter eviction of the oldest sample once the ring is full, stale/liveness `ready()` going false after `kScaleStaleTimeoutMs` and recovering on the tick after reads resume, `setFlowConfig` clamping a negative threshold and a sub-1 consecutive count so flat weights never spuriously trigger flow, `setCalibrationFactor` forwarding to the backend, and null/missing `ScaleOps` members leaving `ready()==false` without crashing. Enabled by the `ScaleOps` seam injected into `ScalePlatform::begin()`.
 - **`test_coordinator`** (30 tests): dispense FSM against real `PumpBus` + `ScalePlatform` fakes with `ConfigStore`; timed/flow-gated pours, custom per-pump `ml_per_s` / `anti_drip_ms`, mid-pour cal isolation, cancel, busy/cutoff/ml rejects, rollover-safe deadlines, `lastReject()` on failure paths, continuous **prime** (forward run, operator stop without anti-drip, 60 s timeout, cancel abort).
-- **`test_command_validate`** (53 tests): line parse, per-pump pour preflight (slow-rate pour-too-long, fast-rate large-volume accept), cutoff/pour-ceiling/sub-resolution rejects, Marlin wire strings, `jobRejectText`, `cal`/`bind`/`unbind`/`config` config-op parse + reject paths, **`prime` / `prime stop`** parse and preflight.
-- **`test_config_store`** (17 tests): default seeding when no record, `setCalibration`/`setBinding`/`clearBinding` + `channelForIngredient`, duplicate-bind rejection, calibration/ingredient bound rejection, out-of-range accessors, load-time sanitization of corrupt `ml_per_s` / `anti_drip_ms`, commit failure keeps dirty, commit → reload round trip through a fake NVS, and magic/version/num-pumps/wrong-size/open-failure/null-ops resets to defaults. Enabled by the `NvsOps` seam injected into `ConfigStore::begin()`.
+- **`test_command_validate`** — line parse, dispense/prime/**pour** preflight, aggregate sequence caps, Marlin wire strings, `jobRejectText`, config-op parse + reject paths.
+- **`test_config_store`** (17 tests): default seeding, calibration/bindings, duplicate-bind rejection, load sanitization, commit round trip, schema guards.
+- **`test_sequence_runner`** (11 tests): 2-step success, unbound ingredient, step-2 failure, cancel, busy, flow-gate, binding resolution, job-status priority after sequence, config snapshot at start, `clearTerminalResult` before coordinator job.
 
 The cutoff-refusal path (confirming `run()` returns false and STBY is never raised) is covered in the native tests via `MachineInputs::setCutoffOpen(true)` — no pin wiring needed. The scale tests feed scripted gram/raw sequences through a fake `ScaleOps`, so no bogde/HX711 library or wiring is involved.
 
@@ -133,6 +142,10 @@ operator never gets a wrong volume without notice):
 - `kMaxDispenseMl = 500` — absurd/oversized volumes are refused up front.
 - `kMaxPourDurationMs = 120000` — hard pump-on ceiling; a request whose computed
   pour exceeds it is refused (guards against mis-calibration blowing up the timer).
+- `kMaxSequenceTotalMl = kMaxDispenseMl` — aggregate pumped ml across all steps in
+  one recipe pour (blocks pathological 16-step totals).
+- `kMaxSequenceDurationMs = kMaxPourDurationMs` — aggregate sequential pump-on time
+  across all steps in one recipe pour.
 - `kMaxPrimeDurationMs = 60000` — continuous-prime safety cutoff (separate from pour max).
 - Non-finite (NaN/Inf) and sub-resolution (pour rounds to 0 ms) volumes are refused.
 
@@ -163,6 +176,7 @@ operator never gets a wrong volume without notice):
 | ------- | ------ |
 | `dispense <pump> <ml>` | Flow-gated dispense (requires scale ready) |
 | `dispense open <pump> <ml>` | Timed-from-motor-on dispense (no scale / flow gate) |
+| `pour <ingredient> <ml> [<ingredient> <ml> ...]` | Flow-gated multi-step recipe pour (max 16 steps; ingredient → pump via NVS bindings). Bindings + calibration are **snapshotted at sequence start** (not re-read per step). HTTP is the production transport for multi-step recipes; serial is bench/debug (`kLineMax = 512`). |
 | `prime <pump>` | Continuous forward prime (no scale; operator stops with `prime stop`) |
 | `prime stop` | Operator stop during prime — job ok, pump off, **no anti-drip** |
 | `cancel` / `stop` | Abort current job; **flushes** a pending queued command |
@@ -172,16 +186,57 @@ operator never gets a wrong volume without notice):
 | `unbind <pump>` | Clear a pump binding |
 | `config` | Print per-pump calibration + bindings |
 
-Config edits (`cal`/`bind`/`unbind`) return `ok` when the RAM mutation succeeds, or
-`Error:...` on a bad value. **`ok` does not mean persisted** — poll `status` for
-`config_dirty=0` (flash caught up) or watch for `// config:error persist failed`.
-The NVS flash write happens on the next idle commit (never during a pour), retried at
-most once per second on failure. Config edits are applied directly on the ControlTask
-(not via the dispense queue) because `SerialTransport` runs on that task today — see
-the HTTP prerequisite note below before a Core-0 producer edits config concurrently.
+Config edits (`cal`/`bind`/`unbind`) and inventory ops enqueue on **`ConfigOpQueue`** (same busy gates as HTTP). **`ok` does not mean persisted** — poll `status` for `config_dirty=0` or watch for `// config:error persist failed`.
+
+### Wi-Fi serial provisioning (STA-only)
+
+Credentials live in NVS (`wifi_ssid` / `wifi_pass`, separate from machine config). mDNS hostname: **`rumtime.local`**.
+
+| Command | Effect |
+| ------- | ------ |
+| `wifi status` | Print connected, SSID, IP, RSSI, hostname |
+| `wifi ssid <ssid>` | Stage SSID (RAM) |
+| `wifi pass <password>` | Stage password (RAM) |
+| `wifi save` | Persist credentials + connect |
+| `wifi clear` | Wipe credentials and disconnect |
+
+### HTTP device API (kiosk contract)
+
+Library: **ArduinoJson v7** + Arduino **`WebServer`** on **Core 0** (`NetworkTask`, priority 4). Port **80**. Handlers: parse JSON → validate → read status snapshot → enqueue → return. **No GPIO, pumps, or NVS writes in handlers.**
+
+Base: `http://rumtime.local` (or device IP). Contract: [`docs/18-kiosk-device-api.md`](../../docs/18-kiosk-device-api.md) and kiosk Zod schemas in `ui/kiosk/src/api/types.ts`.
+
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| GET | `/status` | Kiosk `DeviceStatus` JSON |
+| POST | `/pour` | `{ recipeId, steps[] }` → sequence runner |
+| POST | `/pour/cancel` | Cancel current job |
+| POST | `/pour/ack` | 204 no-op (prompt steps deferred) |
+| POST | `/pumps/dispense` | `prime` / `verify` / `calibration` |
+| POST | `/pumps/dispense/cancel` | `prime stop` or cancel |
+| POST | `/pumps/binding` | Bind/clear ingredient on pump |
+| POST | `/pumps/calibration` | Per-pump calibration |
+| POST | `/inventory/refill` | Refill to bottle size |
+| POST | `/inventory/bottle-size` | Set bottle size ml |
+| POST | `/inventory/level` | Set remaining ml |
+| POST | `/inventory/primed` | Set primed flag |
+
+**HTTP errors (locked):**
+
+| Condition | HTTP | JSON `error` |
+| --------- | ---- | ------------- |
+| Queue full / job busy | 409 | `busy` |
+| Cutoff open | 503 | `unsafe` |
+| Validation reject | 422 | e.g. `bad_pump`, `not_primed`, `low_inventory` |
+| Accepted command | 204 | (empty body) |
+| Malformed JSON | 400 | `bad_request` |
+| Cleaning purposes | 501 | `not_implemented` |
+
+Guest recipe pours require **`primed: true`** and `remaining_ml >= step_ml + 10` (kiosk reserve) or preflight returns **422**.
 
 Dispense preflight uses the **target pump's** `ml_per_s` from `ConfigStore` (not the
-seed default), so pour-ceiling rejects match what the coordinator will enforce.
+seed default), so pour-ceiling rejects match what the coordinator will enforce. `pour`
+captures bindings + calibration at **sequence start** (same policy as `dispense` at enqueue).
 
 Example (dispense):
 
@@ -189,6 +244,35 @@ Example (dispense):
 dispense 1 30
 ok
 // job:ok
+```
+
+Example (multi-step pour):
+
+```text
+bind 1 bourbon
+ok
+bind 2 simple
+ok
+pour bourbon 30 simple 15
+ok
+// job:ok
+```
+
+Unbound ingredient (no motion):
+
+```text
+pour rye 30
+Error:bad ingredient
+```
+
+Cancel mid-sequence:
+
+```text
+pour bourbon 30 simple 15
+ok
+cancel
+ok
+// job:cancelled
 ```
 
 Example (prime):
@@ -268,20 +352,13 @@ per-pump values. `RAM is session-authoritative`; the flash write is deferred to 
   tests use an in-memory fake, the ESP32 build wires Arduino `Preferences` in
   `control_task.cpp` (sole NVS I/O site; `putBytes` is the flash write).
 
-**HTTP prerequisite:** config edits are applied on the ControlTask today. When the Core-0
-Wi-Fi/HTTP task lands, config writes must not race the coordinator's per-pump reads — route
-them through the same mechanism as the other HTTP prerequisites (atomic cancel flag,
-tear-free snapshot) before a second task edits `ConfigStore`.
-
-**Deferred:** bindings are stored and looked up (`channelForIngredient`) but recipes do not
-yet resolve ingredient → pump through them; that arrives with the sequence runner / recipe
-path. Inventory fields (`remaining_ml`, etc.) are not in the record yet.
+**Inventory:** separate NVS blob (`inv` key). Binds seed `remaining_ml = bottle_size_ml`, `primed = false`. Each completed pour step subtracts ml in RAM; idle commit persists.
 
 ## Next subsystems to implement (order)
 
-1. ~~**Command queue**~~ — done (depth 1, cancel-first drain, busy on duplicate dispense).
-2. ~~**Coordinator**~~ — done for single-pump gated timed dispense; multi-pump parallel still deferred.
-3. ~~**NVS config**~~ — done: per-pump `ml_per_s` / `anti_drip_ms` + ingredient bindings in NVS via `ConfigStore`, idle-commit hook, `cal`/`bind`/`unbind`/`config` serial edits. Inventory fields + recipe ingredient resolution still deferred.
-4. **Sequence runner** — sequential + parallel dispense steps; manual pour as single-step job.
-5. **Wi-Fi HTTP** — enqueue only; status snapshot poll. **Prerequisites (tracked, deferred with HTTP):** (a) make `CommandQueue::cancel_pending_` a `std::atomic<bool>` with `exchange()` — a `volatile` flag can drop a cancel once a Core-0 producer exists (a dropped stop is a spill); (b) implement `StatusPublisher` tear-free read (seqlock / double-buffer) before a second task reads the snapshot; (c) decide the wire contract for reject-on-busy vs. rejection reporting.
+1. ~~**Command queue**~~ — done.
+2. ~~**Coordinator**~~ — done (single-pump); multi-pump parallel still deferred.
+3. ~~**NVS config**~~ — done.
+4. ~~**Sequence runner**~~ — done (sequential pours).
+5. ~~**Wi-Fi HTTP**~~ — done: STA + mDNS + kiosk HTTP API + inventory + cross-task config queue.
 6. **Cleaning sequences**, then **I2C pump modules** (PCA9685 + TB6612).

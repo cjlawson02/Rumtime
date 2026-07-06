@@ -2,38 +2,54 @@
 
 #include <Arduino.h>
 
-#include "command_queue.h"
-#include "config_store.h"
 #include "coordinator.h"
+#include "device_status.h"
 #include "machine_inputs.h"
 #include "pump_bus.h"
 #include "scale_platform.h"
+#include "sequence_runner.h"
 #include "serial_transport.h"
-#include "status_snapshot.h"
 
-// Periodic motion owner (docs/16). Fixed-period FreeRTOS task on Core 1; sole
-// writer of motor outputs and the status snapshot. Scale/coordinator join this
-// task as their subsystems land.
 class ControlTask {
  public:
-  void begin();  // safe GPIO + subsystem init (call in setup, before start())
-  void start();  // spawn the pinned periodic task
+  void begin();
+  void start();
 
  private:
   static void taskEntry(void* arg);
-  void run();   // vTaskDelayUntil loop
-  void tick();  // one control period
+  void run();
+  void tick();
+  void drainConfigOps();
+  void publishConfigAndInventory(StatusSnapshot& snapshot);
+  void updatePumpJobSnapshot(StatusSnapshot& snapshot, unsigned long now);
+  void updateJobTerminalLatch(StatusSnapshot& snapshot, unsigned long now);
+  void armJobTerminal(JobTerminalState state, unsigned long now);
+  void clearPumpJobContext();
+  void setPumpJobFromDispense(const DispenseCommand& cmd, unsigned long now);
+  void setPumpJobFromPrime(uint8_t channel, unsigned long now);
 
   MachineInputs inputs_;
   PumpBus pumps_;
   ScalePlatform scale_;
-  ConfigStore config_;
-  CommandQueue queue_;
   Coordinator coordinator_;
-  StatusPublisher status_;
+  SequenceRunner sequence_;
   SerialTransport serial_;
   TaskHandle_t handle_ = nullptr;
-  bool prev_job_busy_ = false;
+  bool prev_top_job_busy_ = false;
+  bool prev_sequence_busy_ = false;
   bool config_persist_error_ = false;
+  bool inventory_persist_error_ = false;
   unsigned long last_config_commit_attempt_ms_ = 0;
+
+  char active_recipe_id_[kRecipeIdMax] = {0};
+  uint8_t pump_job_pump_id_ = 0;
+  uint8_t pump_job_purpose_ = 0;
+  unsigned long pump_job_start_ms_ = 0;
+  float pump_job_target_ml_ = 0.0f;
+  unsigned long pump_job_duration_ms_ = 0;
+
+  JobTerminalState job_terminal_ = JobTerminalState::kNone;
+  unsigned long job_terminal_until_ms_ = 0;
+  char terminal_recipe_id_[kRecipeIdMax] = {0};
+  bool config_op_apply_failed_ = false;
 };

@@ -1,0 +1,164 @@
+#include "wifi_manager.h"
+
+#include <Arduino.h>
+#include <Preferences.h>
+#include <WiFi.h>
+#include <ESPmDNS.h>
+
+#include <cstring>
+
+namespace {
+
+Preferences g_wifi_prefs;
+
+}  // namespace
+
+void WiFiManager::begin() {
+  WiFi.mode(WIFI_STA);
+  WiFi.setHostname(kMdnsHostname);
+  loadCredentialsFromNvs();
+  if (status_.has_credentials) {
+    startConnect();
+  }
+}
+
+void WiFiManager::loadCredentialsFromNvs() {
+  status_ = WiFiStatus{};
+  if (!g_wifi_prefs.begin(kWifiCredNamespace, /*readOnly=*/true)) {
+    return;
+  }
+  const String ssid = g_wifi_prefs.getString(kWifiSsidKey, "");
+  g_wifi_prefs.end();
+  if (ssid.length() == 0) {
+    return;
+  }
+  std::strncpy(status_.ssid, ssid.c_str(), sizeof(status_.ssid) - 1);
+  std::strncpy(staged_ssid_, status_.ssid, sizeof(staged_ssid_) - 1);
+  status_.has_credentials = true;
+}
+
+void WiFiManager::stageSsid(const char* ssid) {
+  if (ssid == nullptr) {
+    staged_ssid_[0] = '\0';
+  } else {
+    std::strncpy(staged_ssid_, ssid, sizeof(staged_ssid_) - 1);
+    staged_ssid_[sizeof(staged_ssid_) - 1] = '\0';
+  }
+  staged_dirty_ = true;
+}
+
+void WiFiManager::stagePassword(const char* password) {
+  if (password == nullptr) {
+    staged_pass_[0] = '\0';
+  } else {
+    std::strncpy(staged_pass_, password, sizeof(staged_pass_) - 1);
+    staged_pass_[sizeof(staged_pass_) - 1] = '\0';
+  }
+  staged_dirty_ = true;
+}
+
+bool WiFiManager::saveCredentials() {
+  if (staged_ssid_[0] == '\0') {
+    return false;
+  }
+  if (!g_wifi_prefs.begin(kWifiCredNamespace, /*readOnly=*/false)) {
+    return false;
+  }
+  const bool ssid_ok = g_wifi_prefs.putString(kWifiSsidKey, staged_ssid_);
+  const bool pass_ok = g_wifi_prefs.putString(kWifiPassKey, staged_pass_);
+  if (!ssid_ok || !pass_ok) {
+    g_wifi_prefs.remove(kWifiSsidKey);
+    g_wifi_prefs.remove(kWifiPassKey);
+    g_wifi_prefs.end();
+    return false;
+  }
+  g_wifi_prefs.end();
+  std::strncpy(status_.ssid, staged_ssid_, sizeof(status_.ssid) - 1);
+  status_.has_credentials = true;
+  reconnect_requested_.store(true, std::memory_order_release);
+  return true;
+}
+
+void WiFiManager::clearCredentials() {
+  staged_ssid_[0] = '\0';
+  staged_pass_[0] = '\0';
+  staged_dirty_ = false;
+  if (g_wifi_prefs.begin(kWifiCredNamespace, /*readOnly=*/false)) {
+    g_wifi_prefs.remove(kWifiSsidKey);
+    g_wifi_prefs.remove(kWifiPassKey);
+    g_wifi_prefs.end();
+  }
+  status_.has_credentials = false;
+  status_.ssid[0] = '\0';
+  WiFi.disconnect(true);
+  mdns_started_ = false;
+  updateStatus();
+}
+
+void WiFiManager::startConnect() {
+  if (!status_.has_credentials) {
+    return;
+  }
+  if (!g_wifi_prefs.begin(kWifiCredNamespace, /*readOnly=*/true)) {
+    return;
+  }
+  const String ssid = g_wifi_prefs.getString(kWifiSsidKey, "");
+  const String pass = g_wifi_prefs.getString(kWifiPassKey, "");
+  g_wifi_prefs.end();
+  if (ssid.length() == 0) {
+    return;
+  }
+  WiFi.disconnect(true);
+  WiFi.begin(ssid.c_str(), pass.c_str());
+  last_reconnect_attempt_ms_ = millis();
+}
+
+void WiFiManager::startMdns() {
+  if (mdns_started_) {
+    return;
+  }
+  if (MDNS.begin(kMdnsHostname)) {
+    MDNS.addService("http", "tcp", kHttpPort);
+    mdns_started_ = true;
+  }
+}
+
+void WiFiManager::updateStatus() {
+  status_.connected = WiFi.status() == WL_CONNECTED;
+  status_.rssi = status_.connected ? WiFi.RSSI() : 0;
+  if (status_.connected) {
+    const IPAddress ip = WiFi.localIP();
+    std::snprintf(status_.ip, sizeof(status_.ip), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+  } else {
+    status_.ip[0] = '\0';
+  }
+}
+
+void WiFiManager::tick() {
+  if (reconnect_requested_.exchange(false, std::memory_order_acq_rel)) {
+    startConnect();
+  }
+
+  updateStatus();
+
+  if (status_.connected) {
+    startMdns();
+    return;
+  }
+
+  if (!status_.has_credentials) {
+    return;
+  }
+
+  const unsigned long now = millis();
+  if (WiFi.status() == WL_CONNECTED) {
+    return;
+  }
+  if ((now - last_reconnect_attempt_ms_) >= 10000UL) {
+    startConnect();
+  }
+}
+
+WiFiStatus WiFiManager::status() const {
+  return status_;
+}

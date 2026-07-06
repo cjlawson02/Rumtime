@@ -286,13 +286,13 @@ Preserve validated behavior: flow-gate timing, anti-drip duration, ml/s calibrat
 
 ## Phased implementation
 
-Implementation lives in [`firmware/controller/`](../firmware/controller/README.md) (product) and [`firmware/bench-rig/`](../firmware/bench-rig/) (Phase 0 bring-up reference). Status as of 2026-07-04:
+Implementation lives in [`firmware/controller/`](../firmware/controller/README.md) (product) and [`firmware/bench-rig/`](../firmware/bench-rig/) (Phase 0 bring-up reference). Status as of 2026-07-05:
 
 1. ~~**ControlTask skeleton**~~ — done: 5 ms FreeRTOS task on Core 1, non-blocking scale FSM, pump bus, TWDT, tick order per this doc.
 2. ~~**Command queue**~~ — done: depth-1 queue, cancel-first drain, busy on duplicate dispense; serial enqueue path bench-verified.
-3. ~~**NVS config**~~ — done in controller: `ConfigStore` with per-pump `ml_per_s` / `anti_drip_ms` + ingredient bindings; idle-commit hook (not a separate `PersistTask`); load-time sanitization; `cal`/`bind`/`unbind`/`config` serial edits. **Still deferred within this phase:** inventory fields (`remaining_ml`, etc.), recipe ingredient → pump resolution, schema forward-migration (v1 uses reset-on-version-bump).
-4. **Sequence runner** — sequential + parallel dispense steps; manual pour as single-step job.
-5. **Wi-Fi HTTP** — enqueue only; status snapshot poll. **Prerequisites before a Core-0 producer reads/writes shared state:** (a) `CommandQueue` cancel flag must be `std::atomic<bool>` with `exchange()` (the current `volatile bool` can drop a cancel across cores — a dropped stop is a spill); (b) `StatusPublisher` must be tear-free (seqlock / double-buffer) per implementation rule 4; (c) lock the reject/ack wire contract (`409 busy` vs. reporting downstream rejection); (d) route config mutations through ControlTask (or mutex `Preferences`) — serial applies them directly today. These are deferred *with* HTTP, not independently.
+3. ~~**NVS config**~~ — done: `ConfigStore` with per-pump calibration + bindings; idle-commit hook; serial + HTTP config via `ConfigOpQueue`.
+4. ~~**Sequence runner**~~ — done: sequential multi-ingredient pours (`pour` serial + `POST /pour`); parallel groups still deferred.
+5. ~~**Wi-Fi HTTP**~~ — done: STA + mDNS + kiosk HTTP API + `InventoryStore` + cross-task config queue; Arduino `WebServer` + ArduinoJson v7 on Core 0.
 6. **Cleaning sequences** — compose existing step types.
 7. **I2C pump modules** — replace GPIO bench driver with `PumpModule` HAL.
 
@@ -324,7 +324,7 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 
 | Topic | Status |
 | ----- | ------ |
-| HTTP/API contract (`/dispense`, `/config`, status poll vs WebSocket) | **Provisional kiosk draft:** [`18-kiosk-device-api.md`](18-kiosk-device-api.md) — reconcile before firmware phase 5 |
+| HTTP/API contract (`/dispense`, `/config`, status poll vs WebSocket) | **Implemented** — [`18-kiosk-device-api.md`](18-kiosk-device-api.md); poll-only v1 |
 | Offline pour (kiosk cache vs ESP32 favorites) | Deferred by you |
 | LAN auth (PIN, pairing) | Deferred; home-trusted LAN assumed |
 | Cutoff sense wiring (aux pole vs VM divider) | Optional hardware; rocker on VM is required |

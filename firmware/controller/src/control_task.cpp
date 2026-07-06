@@ -4,12 +4,18 @@
 #include <HX711.h>
 #include <Preferences.h>
 
+#include <cstring>
+
 #include "config.h"
 #include "config_store.h"
+#include "device_status.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "gpio_ops.h"
+#include "http_validate.h"
+#include "job_status.h"
 #include "queue_ops.h"
+#include "runtime_context.h"
 #include "scale_ops.h"
 
 namespace {
@@ -40,8 +46,6 @@ const GpioOps kArduinoGpioOps = {
     arduinoAnalogWrite,
 };
 
-// Real HX711 ops for the ScalePlatform seam. Sole HX711 I/O site on the
-// ESP32 path (control_task.cpp is excluded from the native build).
 HX711 g_hx711;
 
 void hx711Begin(int dout, int sck) {
@@ -71,9 +75,6 @@ const ScaleOps kHx711Ops = {
     hx711ReadRaw, hx711SetScale,  hx711SetOffset,
 };
 
-// NVS-backed config store seam (Preferences). Sole NVS I/O site on the ESP32
-// path. putBytes performs the flash write, so it only runs from ConfigStore::
-// commit() (idle hook below), never during a pour.
 Preferences g_prefs;
 
 bool prefsBegin(const char* ns) {
@@ -81,7 +82,7 @@ bool prefsBegin(const char* ns) {
 }
 bool prefsGetBlob(const char* key, void* out, std::size_t len) {
   if (g_prefs.getBytesLength(key) != len) {
-    return false;  // absent or a differently-sized (stale) record -> treat as missing
+    return false;
   }
   return g_prefs.getBytes(key, out, len) == len;
 }
@@ -89,7 +90,7 @@ bool prefsSetBlob(const char* key, const void* data, std::size_t len) {
   return g_prefs.putBytes(key, data, len) == len;
 }
 bool prefsCommit() {
-  return true;  // Preferences::putBytes already persists to NVS
+  return true;
 }
 
 const NvsOps kPrefsOps = {
@@ -136,20 +137,28 @@ const QueueOps kFreeRtosQueueOps = {
     freertosQueuePending,
 };
 
+RuntimeContext& ctx() {
+  return runtimeContext();
+}
+
 }  // namespace
 
 void ControlTask::begin() {
-  // Safe GPIO happens here before the periodic task runs (docs/16 safe boot).
   inputs_.begin();
   pumps_.begin(inputs_, kArduinoGpioOps);
   scale_.begin(kHx711Ops);
-  config_.begin(kPrefsOps);  // per-pump calibration + bindings from NVS (or seed defaults)
-  if (!queue_.begin(kFreeRtosQueueOps)) {
+  ctx().config.begin(kPrefsOps);
+  ctx().inventory.begin(kPrefsOps);
+  if (!ctx().queue.begin(kFreeRtosQueueOps)) {
     fatalRestart("command queue alloc failed; restarting");
   }
-  coordinator_.begin(pumps_, scale_, config_);
-  status_.begin();
-  serial_.begin(queue_, status_, config_);
+  if (!ctx().config_queue.begin(kFreeRtosQueueOps)) {
+    fatalRestart("config op queue alloc failed; restarting");
+  }
+  coordinator_.begin(pumps_, scale_, ctx().config);
+  sequence_.begin(coordinator_, ctx().config, ctx().inventory, pumps_, scale_);
+  ctx().status.begin();
+  serial_.begin(ctx().queue, ctx().status, ctx().config, ctx().inventory, ctx().config_queue);
 }
 
 void ControlTask::start() {
@@ -169,7 +178,6 @@ void ControlTask::run() {
   const uint32_t timeout_s = (kControlTaskWdtTimeoutMs + 999U) / 1000U;
   esp_err_t wdt_err = esp_task_wdt_init(timeout_s, true);
   if (wdt_err == ESP_ERR_INVALID_STATE) {
-    // Arduino core may have initialized TWDT already — subscribe this task only.
     wdt_err = ESP_OK;
   }
   if (wdt_err != ESP_OK) {
@@ -187,37 +195,174 @@ void ControlTask::run() {
   }
 }
 
+void ControlTask::drainConfigOps() {
+  PendingConfigOp pending;
+  while (ctx().config_queue.drain(pending)) {
+    const ConfigOpReject reject =
+        applyConfigOp(pending.config, ctx().config, ctx().inventory);
+    config_op_apply_failed_ = (reject != ConfigOpReject::kNone);
+  }
+}
+
+void ControlTask::clearPumpJobContext() {
+  pump_job_pump_id_ = 0;
+  pump_job_purpose_ = 0;
+  pump_job_start_ms_ = 0;
+  pump_job_target_ml_ = 0.0f;
+  pump_job_duration_ms_ = 0;
+}
+
+void ControlTask::setPumpJobFromDispense(const DispenseCommand& cmd, unsigned long now) {
+  if (cmd.pump_job_purpose == 0) {
+    return;
+  }
+  pump_job_pump_id_ = static_cast<uint8_t>(cmd.channel + 1);
+  pump_job_purpose_ = cmd.pump_job_purpose;
+  pump_job_start_ms_ = now;
+  pump_job_target_ml_ = cmd.pump_job_target_ml;
+  pump_job_duration_ms_ = cmd.pump_job_duration_ms;
+}
+
+void ControlTask::setPumpJobFromPrime(uint8_t channel, unsigned long now) {
+  pump_job_pump_id_ = static_cast<uint8_t>(channel + 1);
+  pump_job_purpose_ = static_cast<uint8_t>(PumpJobPurposeWire::kPrime);
+  pump_job_start_ms_ = now;
+  pump_job_target_ml_ = 0.0f;
+  pump_job_duration_ms_ = 0;
+}
+
+void ControlTask::updatePumpJobSnapshot(StatusSnapshot& snapshot, unsigned long now) {
+  (void)now;
+  if (sequence_.busy()) {
+    clearPumpJobContext();
+    snapshot.pump_job_pump_id = 0;
+    return;
+  }
+  if (!coordinator_.busy()) {
+    clearPumpJobContext();
+    snapshot.pump_job_pump_id = 0;
+    return;
+  }
+  snapshot.pump_job_pump_id = pump_job_pump_id_;
+  snapshot.pump_job_purpose = pump_job_purpose_;
+  snapshot.pump_job_start_ms = pump_job_start_ms_;
+  snapshot.pump_job_target_ml = pump_job_target_ml_;
+  snapshot.pump_job_duration_ms = pump_job_duration_ms_;
+}
+
+void ControlTask::armJobTerminal(JobTerminalState state, unsigned long now) {
+  job_terminal_ = state;
+  job_terminal_until_ms_ = now + kJobTerminalLatchMs;
+  std::strncpy(terminal_recipe_id_, active_recipe_id_, kRecipeIdMax - 1);
+  terminal_recipe_id_[kRecipeIdMax - 1] = '\0';
+}
+
+void ControlTask::updateJobTerminalLatch(StatusSnapshot& snapshot, unsigned long now) {
+  if (job_terminal_ != JobTerminalState::kNone && now >= job_terminal_until_ms_) {
+    job_terminal_ = JobTerminalState::kNone;
+    job_terminal_until_ms_ = 0;
+    terminal_recipe_id_[0] = '\0';
+  }
+  snapshot.job_terminal = job_terminal_;
+  if (job_terminal_ != JobTerminalState::kNone) {
+    std::strncpy(snapshot.terminal_recipe_id, terminal_recipe_id_, kRecipeIdMax - 1);
+    snapshot.terminal_recipe_id[kRecipeIdMax - 1] = '\0';
+  } else {
+    snapshot.terminal_recipe_id[0] = '\0';
+  }
+}
+
+void ControlTask::publishConfigAndInventory(StatusSnapshot& snapshot) {
+  snapshot.published_pump_count = PumpBus::kNumChannels;
+  for (uint8_t ch = 0; ch < PumpBus::kNumChannels; ++ch) {
+    SnapshotPump& row = snapshot.published_pumps[ch];
+    row.pump_id = static_cast<uint8_t>(ch + 1);
+    row.bound = ctx().config.bound(ch);
+    row.ml_per_second = ctx().config.mlPerSecond(ch);
+    row.anti_drip_ms = ctx().config.antiDripMs(ch);
+    row.ingredient_id[0] = '\0';
+    if (row.bound) {
+      std::strncpy(row.ingredient_id, ctx().config.ingredient(ch), kIngredientIdMax - 1);
+    }
+  }
+
+  uint8_t count = 0;
+  for (uint8_t ch = 0; ch < PumpBus::kNumChannels && count < kMaxInventoryEntries; ++ch) {
+    if (!ctx().config.bound(ch)) {
+      continue;
+    }
+    const char* ingredient = ctx().config.ingredient(ch);
+    bool duplicate = false;
+    for (uint8_t i = 0; i < count; ++i) {
+      if (std::strcmp(snapshot.published_bindings[i].ingredient_id, ingredient) == 0) {
+        duplicate = true;
+        break;
+      }
+    }
+    if (duplicate) {
+      continue;
+    }
+    SnapshotBinding& b = snapshot.published_bindings[count];
+    std::strncpy(b.ingredient_id, ingredient, kIngredientIdMax - 1);
+    b.ingredient_id[kIngredientIdMax - 1] = '\0';
+    const InventoryEntry* entry = ctx().inventory.find(ingredient);
+    b.remaining_ml = entry != nullptr ? entry->remaining_ml : kDefaultBottleSizeMl;
+    b.bottle_size_ml = entry != nullptr ? entry->bottle_size_ml : kDefaultBottleSizeMl;
+    b.primed = entry != nullptr && entry->primed;
+    ++count;
+  }
+  snapshot.published_binding_count = count;
+}
+
 void ControlTask::tick() {
-  // Tick order per docs/16. Read inputs first so serial preflight sees live cutoff.
   const unsigned long now = millis();
 
   inputs_.tick();
-  StatusSnapshot preflight_status = status_.read();
+  StatusSnapshot preflight_status = ctx().status.read();
   preflight_status.cutoff_open = inputs_.cutoffOpen();
+  preflight_status.config_op_pending = ctx().config_queue.hasPending();
 
-  serial_.poll(&preflight_status);  // enqueue-only, non-blocking; never touches pumps/scale
+  serial_.poll(&preflight_status);
 
-  if (queue_.drainCancel()) {
+  if (ctx().queue.drainCancel()) {
     coordinator_.cancel();
+    sequence_.cancel();
   }
-  pumps_.tick();     // stopAll() if cutoff open; sole motor output path
-  scale_.tick(now);  // non-blocking HX711 FSM
+  pumps_.tick();
+  scale_.tick(now);
+
+  drainConfigOps();
 
   Command command;
-  if (queue_.drainCommand(command)) {
+  if (ctx().queue.drainCommand(command)) {
     switch (command.type) {
       case CommandType::kDispensePump:
-        if (!coordinator_.startDispense(command.dispense, now)) {
+        sequence_.clearTerminalResult();
+        if (coordinator_.startDispense(command.dispense, now)) {
+          setPumpJobFromDispense(command.dispense, now);
+        } else {
           serial_.emitJobEvent(false, coordinator_.lastReject());
         }
         break;
       case CommandType::kPrimePump:
-        if (!coordinator_.startPrime(command.prime.channel, now)) {
+        sequence_.clearTerminalResult();
+        if (coordinator_.startPrime(command.prime.channel, now)) {
+          setPumpJobFromPrime(command.prime.channel, now);
+        } else {
           serial_.emitJobEvent(false, coordinator_.lastReject());
         }
         break;
       case CommandType::kPrimeStop:
         coordinator_.stopPrime();
+        break;
+      case CommandType::kPourSequence:
+        std::strncpy(active_recipe_id_, command.pour_sequence.recipe_id, kRecipeIdMax - 1);
+        active_recipe_id_[kRecipeIdMax - 1] = '\0';
+        if (!sequence_.start(command.pour_sequence.steps, command.pour_sequence.step_count,
+                             now)) {
+          serial_.emitJobEvent(false, sequence_.lastReject());
+          active_recipe_id_[0] = '\0';
+        }
         break;
       case CommandType::kNone:
       default:
@@ -225,6 +370,9 @@ void ControlTask::tick() {
     }
   }
   coordinator_.tick(now);
+  sequence_.tick(now);
+
+  const bool top_job_busy = sequence_.busy() || coordinator_.busy();
 
   StatusSnapshot snapshot;
   snapshot.cutoff_open = pumps_.cutoffOpen();
@@ -234,57 +382,116 @@ void ControlTask::tick() {
   snapshot.flow_detected = scale_.flowDetected();
   snapshot.flow_timed_out = scale_.flowTimedOut();
   snapshot.last_delta_g = scale_.lastDeltaG();
-  snapshot.job_busy = coordinator_.busy();
-  snapshot.command_pending = queue_.hasPending();
-  snapshot.job_ok = coordinator_.ok();
-  snapshot.job_error = coordinator_.error();
-  snapshot.job_cancelled = coordinator_.cancelled();
-  snapshot.job_phase = static_cast<uint8_t>(coordinator_.phase());
-  snapshot.job_reject = coordinator_.lastReject();
-  snapshot.config_dirty = config_.dirty();
-  snapshot.config_persist_error = config_persist_error_;
-  status_.publish(snapshot);
+  snapshot.job_busy = top_job_busy;
+  snapshot.command_pending = ctx().queue.hasPending();
+  snapshot.config_op_pending = ctx().config_queue.hasPending();
+  snapshot.config_op_apply_failed = config_op_apply_failed_;
+  snapshot.sequence_busy = sequence_.busy();
+  snapshot.sequence_step_index = sequence_.busy() ? sequence_.stepIndex() : 0;
+  snapshot.sequence_step_count = sequence_.busy() ? sequence_.stepCount() : 0;
+  if (sequence_.busy()) {
+    std::strncpy(snapshot.sequence_ingredient, sequence_.currentIngredient(), kIngredientIdMax - 1);
+    snapshot.sequence_ingredient[kIngredientIdMax - 1] = '\0';
+    std::strncpy(snapshot.active_recipe_id, active_recipe_id_, kRecipeIdMax - 1);
+    snapshot.active_recipe_id[kRecipeIdMax - 1] = '\0';
+  } else {
+    snapshot.sequence_ingredient[0] = '\0';
+    snapshot.active_recipe_id[0] = '\0';
+  }
 
-  if (prev_job_busy_ && !snapshot.job_busy) {
-    if (snapshot.job_cancelled) {
+  updatePumpJobSnapshot(snapshot, now);
+  updateJobTerminalLatch(snapshot, now);
+  publishConfigAndInventory(snapshot);
+
+  JobStatusInputs job_in;
+  job_in.sequence_busy = sequence_.busy();
+  job_in.sequence_result = sequence_.result();
+  job_in.sequence_ok = sequence_.ok();
+  job_in.sequence_error = sequence_.error();
+  job_in.sequence_cancelled = sequence_.cancelled();
+  job_in.sequence_reject = sequence_.lastReject();
+  job_in.coordinator_busy = coordinator_.busy();
+  job_in.coordinator_ok = coordinator_.ok();
+  job_in.coordinator_error = coordinator_.error();
+  job_in.coordinator_cancelled = coordinator_.cancelled();
+  job_in.coordinator_reject = coordinator_.lastReject();
+  job_in.coordinator_phase = coordinator_.phase();
+  fillJobStatusFields(job_in, &snapshot.job_ok, &snapshot.job_error, &snapshot.job_cancelled,
+                      &snapshot.job_phase, &snapshot.job_reject);
+  snapshot.config_dirty = ctx().config.dirty() || ctx().inventory.dirty();
+  snapshot.config_persist_error = config_persist_error_ || inventory_persist_error_;
+  ctx().status.publish(snapshot);
+
+  if (prev_top_job_busy_ && !top_job_busy) {
+    if (prev_sequence_busy_) {
+      if (sequence_.cancelled()) {
+        armJobTerminal(JobTerminalState::kCancelled, now);
+        serial_.emitJobCancelled();
+        sequence_.clearTerminalResult();
+      } else if (sequence_.ok()) {
+        armJobTerminal(JobTerminalState::kComplete, now);
+        serial_.emitJobEvent(true, JobReject::kNone);
+        sequence_.clearTerminalResult();
+      } else {
+        serial_.emitJobEvent(false, sequence_.lastReject());
+        sequence_.clearTerminalResult();
+      }
+      active_recipe_id_[0] = '\0';
+    } else if (snapshot.job_cancelled) {
       serial_.emitJobCancelled();
     } else if (snapshot.job_ok || snapshot.job_error) {
       serial_.emitJobEvent(snapshot.job_ok, snapshot.job_reject);
     }
+    clearPumpJobContext();
   }
-  prev_job_busy_ = snapshot.job_busy;
+  prev_top_job_busy_ = top_job_busy;
+  prev_sequence_busy_ = sequence_.busy();
 
-  // Idle-only NVS commit (docs/16: never flash-write on the motion path). Feed
-  // TWDT around the blocking flash write. On failure, retry with backoff and
-  // surface // config:error once per failure episode.
-  if (!snapshot.job_busy && config_.dirty()) {
+  if (job_terminal_ != JobTerminalState::kNone) {
+    StatusSnapshot latch = snapshot;
+    updateJobTerminalLatch(latch, now);
+    ctx().status.publish(latch);
+  }
+
+  if (!snapshot.job_busy && (ctx().config.dirty() || ctx().inventory.dirty())) {
     if ((now - last_config_commit_attempt_ms_) >= kConfigCommitRetryMs) {
       last_config_commit_attempt_ms_ = now;
       if (esp_task_wdt_reset() != ESP_OK) {
         fatalRestart("TWDT reset failed; restarting");
       }
-      if (config_.commit([]() {
-            if (esp_task_wdt_reset() != ESP_OK) {
-              fatalRestart("TWDT reset failed; restarting");
-            }
-          })) {
-        config_persist_error_ = false;
-      } else {
-        if (!config_persist_error_) {
-          serial_.emitConfigPersistError();
-        }
-        config_persist_error_ = true;
+      bool config_ok = true;
+      bool inventory_ok = true;
+      if (ctx().config.dirty()) {
+        config_ok = ctx().config.commit([]() {
+          if (esp_task_wdt_reset() != ESP_OK) {
+            fatalRestart("TWDT reset failed; restarting");
+          }
+        });
+      }
+      if (ctx().inventory.dirty()) {
+        inventory_ok = ctx().inventory.commit([]() {
+          if (esp_task_wdt_reset() != ESP_OK) {
+            fatalRestart("TWDT reset failed; restarting");
+          }
+        });
+      }
+      const bool had_error = config_persist_error_ || inventory_persist_error_;
+      config_persist_error_ = !config_ok;
+      inventory_persist_error_ = !inventory_ok;
+      if ((config_persist_error_ || inventory_persist_error_) && !had_error) {
+        serial_.emitConfigPersistError();
       }
       if (esp_task_wdt_reset() != ESP_OK) {
         fatalRestart("TWDT reset failed; restarting");
       }
-      snapshot.config_dirty = config_.dirty();
-      snapshot.config_persist_error = config_persist_error_;
-      status_.publish(snapshot);
+      snapshot.config_dirty = ctx().config.dirty() || ctx().inventory.dirty();
+      snapshot.config_persist_error = config_persist_error_ || inventory_persist_error_;
+      ctx().status.publish(snapshot);
     }
-  } else if (config_persist_error_ && !config_.dirty()) {
-    // A successful commit elsewhere cleared dirty; clear the fault latch too.
+  } else if ((config_persist_error_ || inventory_persist_error_) && !ctx().config.dirty() &&
+             !ctx().inventory.dirty()) {
     config_persist_error_ = false;
+    inventory_persist_error_ = false;
   }
 
   if (esp_task_wdt_reset() != ESP_OK) {

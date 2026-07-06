@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 
+#include "config.h"
 #include "queue_ops.h"
 
 // Command types and the depth-1 command queue (docs/16). Transports enqueue
@@ -11,18 +12,21 @@
 // Framework-agnostic: queue I/O lives behind QueueOps (FreeRTOS on ESP32,
 // in-memory fake in host tests) — same pattern as GpioOps / ScaleOps / NvsOps.
 
-enum class CommandType : uint8_t { kNone, kDispensePump, kPrimePump, kPrimeStop };
+enum class CommandType : uint8_t { kNone, kDispensePump, kPrimePump, kPrimeStop, kPourSequence };
 
 // DispensePump {channel, ml, flow_gate}. channel is 0-based (pump N -> N-1).
 // flow_gate true requires a ready scale (flow gate). flow_gate false is the
 // timed "dispense open" override — no scale required.
+// pump_job_purpose: PumpJobPurposeWire for kiosk pumpJob; 0 = plain dispense (no pumpJob).
 struct DispenseCommand {
   uint8_t channel = 0;
   float ml = 0.0f;
   bool flow_gate = false;
-  // Captured at enqueue so same-tick config edits cannot change a queued pour.
   float ml_per_s = 0.0f;
   uint32_t anti_drip_ms = 0;
+  uint8_t pump_job_purpose = 0;
+  float pump_job_target_ml = 0.0f;
+  unsigned long pump_job_duration_ms = 0;
 };
 
 // PrimePump {channel}. channel is 0-based (pump N -> N-1). Continuous forward run
@@ -31,10 +35,25 @@ struct PrimeCommand {
   uint8_t channel = 0;
 };
 
+// One recipe/manual pour step: opaque ingredient id + volume. Resolved to a pump
+// via ConfigStore at run time (docs/16 phase 4).
+struct PourSequenceStep {
+  char ingredient_id[kIngredientIdMax] = {0};
+  float ml = 0.0f;
+};
+
+// Multi-step pour sequence (sequential only; parallel groups deferred).
+struct PourSequenceCommand {
+  char recipe_id[kRecipeIdMax] = {0};
+  PourSequenceStep steps[kMaxPourSequenceSteps] = {};
+  uint8_t step_count = 0;
+};
+
 struct Command {
   CommandType type = CommandType::kNone;
   DispenseCommand dispense;
   PrimeCommand prime;
+  PourSequenceCommand pour_sequence;
 };
 
 class CommandQueue {
@@ -47,6 +66,7 @@ class CommandQueue {
   bool enqueueDispense(const DispenseCommand& command);
   bool enqueuePrime(const PrimeCommand& command);
   bool enqueuePrimeStop();
+  bool enqueuePourSequence(const PourSequenceCommand& command);
   void enqueueCancel();
 
   // drainCancel() processes any pending cancel first (docs/16 tick order).
@@ -57,8 +77,8 @@ class CommandQueue {
   // True when a dispense is waiting in the depth-1 slot (not yet drained).
   bool hasPending() const;
 
-  // Same serial poll() saw cancel then dispense — preserve the queued pour on drain.
-  void markDispenseAfterCancel();
+  // Same serial poll() saw cancel then a command — preserve the queued slot on drain.
+  void markCommandAfterCancel();
 
  private:
   const QueueOps* ops_ = nullptr;

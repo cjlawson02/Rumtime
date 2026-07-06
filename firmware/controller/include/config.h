@@ -46,6 +46,9 @@ constexpr unsigned long kDefaultAntiDripMs = 100;
 constexpr uint8_t kMaxPumps = 16;
 constexpr std::size_t kIngredientIdMax = 24;  // includes the NUL terminator
 
+// Max steps in one pour sequence (sequential only; parallel groups deferred).
+constexpr uint8_t kMaxPourSequenceSteps = 16;
+
 // Blob is guarded by magic + schema version; a mismatch resets to seed defaults
 // (docs/16: "Version the schema; migrate or reset on breaking changes.").
 constexpr uint32_t kConfigMagic = 0x524D4331;  // 'RMC1'
@@ -68,6 +71,12 @@ constexpr uint32_t kMaxAntiDripMs = 5000;
 constexpr float kMaxDispenseMl = 500.0f;
 constexpr unsigned long kMaxPourDurationMs = 120000;  // 120 s hard pump-on ceiling
 constexpr unsigned long kMaxPrimeDurationMs = 60000;  // 60 s continuous-prime safety cutoff
+
+// Multi-step pour sequence aggregate safety (v1). Per-step ceilings still apply;
+// these caps block pathological totals (e.g. 16 × kMaxDispenseMl). No v1 cocktail
+// exceeds ~200 ml pumped; kMaxSequenceTotalMl matches single-pour max as a default.
+constexpr float kMaxSequenceTotalMl = kMaxDispenseMl;
+constexpr unsigned long kMaxSequenceDurationMs = kMaxPourDurationMs;
 
 // ControlTask period — docs/16 default 5 ms (1–10 ms acceptable).
 constexpr unsigned long kControlTaskPeriodMs = 5;
@@ -101,3 +110,33 @@ constexpr unsigned long kScaleBeginTimeoutMs = 2000;
 
 // No successful conversion within this window marks the scale stale (not ready).
 constexpr unsigned long kScaleStaleTimeoutMs = 1000;
+
+// Firmware version string exposed on GET /status (kiosk deviceStatusSchema).
+constexpr const char* kFirmwareVersion = "0.2.0";
+
+// Network (phase 5 — STA-only, serial provisioning until captive portal).
+constexpr const char* kMdnsHostname = "rumtime";
+constexpr const char* kMdnsHostFqdn = "rumtime.local";
+constexpr uint16_t kHttpPort = 80;
+constexpr int kNetworkTaskCore = 0;
+constexpr unsigned int kNetworkTaskPriority = 4;
+constexpr unsigned int kNetworkTaskStackBytes = 8192;
+
+// Wi-Fi credentials NVS (separate from machine config blob).
+constexpr const char* kWifiCredNamespace = "rumtime-wifi";
+constexpr const char* kWifiSsidKey = "wifi_ssid";
+constexpr const char* kWifiPassKey = "wifi_pass";
+
+// Recipe id on POST /pour (kiosk correlation only; max chars including NUL).
+constexpr std::size_t kRecipeIdMax = 32;
+
+// Inventory (phase 5 — parallel NVS blob keyed by ingredient id).
+constexpr uint32_t kInventoryMagic = 0x524D494E;  // 'RMIN'
+constexpr uint16_t kInventorySchemaVersion = 1;
+constexpr const char* kInventoryBlobKey = "inv";
+constexpr uint8_t kMaxInventoryEntries = 16;
+constexpr float kDefaultBottleSizeMl = 750.0f;
+constexpr float kInventoryReserveMl = 10.0f;  // matches kiosk INVENTORY_RESERVE_ML
+
+// Recipe job terminal latch on GET /status (kiosk pour-page complete detection).
+constexpr unsigned long kJobTerminalLatchMs = 500;

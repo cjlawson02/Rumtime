@@ -178,7 +178,7 @@ Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. M
 | Pump ↔ ingredient  | **ESP32 NVS** (machine owns what is plumbed).                                                   |
 | Inventory          | **ESP32 authoritative**; subtract on dispense; persists in NVS.                               |
 | Offline operation  | **Bundled recipes + PWA cache** (v1); KV sync optional later.                              |
-| API contract       | **Provisional kiosk draft:** [`18-kiosk-device-api.md`](18-kiosk-device-api.md) — reconcile before firmware HTTP phase 5. |
+| API contract       | **Implemented** — firmware exposes kiosk `DeviceStatus` shape per [`18-kiosk-device-api.md`](18-kiosk-device-api.md). |
 
 Rationale: Physical reality (bindings, calibration, inventory) must survive reboot and match plumbed lines. Creative content (recipes) can update in the cloud without reflashing. LAN HTTP matches a browser kiosk and keeps dispense latency off the public internet.
 
@@ -199,6 +199,6 @@ Rationale: Physical reality (bindings, calibration, inventory) must survive rebo
 | Pump exclusivity      | Coordinator policy; `PumpChannel` refuses run when cutoff open.                                        |
 | Pump safety (hardware) | Rocker on pump VM + TB6612 **STBY**; safe GPIO at boot. **No bus MOSFET v1.**                          |
 | Pump safety (software) | **Distributed** in pumps, scale, coordinator, steps — no central safety pipeline.                        |
-| JSON on device        | ArduinoJson v7 (when implemented).                                                                    |
+| JSON on device        | **ArduinoJson v7** (`WebServer` on Core 0). |
 
 Full layer diagram and migration notes: [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md).

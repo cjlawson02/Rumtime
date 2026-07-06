@@ -49,11 +49,21 @@ bool CommandQueue::enqueuePrimeStop() {
   return ops_->send(handle_, &cmd, sizeof(cmd));
 }
 
+bool CommandQueue::enqueuePourSequence(const PourSequenceCommand& command) {
+  if (ops_ == nullptr || handle_ == nullptr || ops_->send == nullptr) {
+    return false;
+  }
+  Command cmd;
+  cmd.type = CommandType::kPourSequence;
+  cmd.pour_sequence = command;
+  return ops_->send(handle_, &cmd, sizeof(cmd));
+}
+
 void CommandQueue::enqueueCancel() {
   cancel_pending_.store(true, std::memory_order_release);
 }
 
-void CommandQueue::markDispenseAfterCancel() {
+void CommandQueue::markCommandAfterCancel() {
   preserve_queued_dispense_on_drain_ = true;
 }
 
@@ -62,7 +72,7 @@ bool CommandQueue::drainCancel() {
     return false;
   }
   // Drop a dispense queued *before* cancel in the same burst. When cancel is
-  // followed by dispense in one poll(), markDispenseAfterCancel() skips reset.
+  // followed by a command in one poll(), markCommandAfterCancel() skips reset.
   if (!preserve_queued_dispense_on_drain_ && ops_ != nullptr && handle_ != nullptr &&
       ops_->reset != nullptr) {
     ops_->reset(handle_);

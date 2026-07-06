@@ -7,23 +7,30 @@
 #include "command_queue.h"
 #include "command_validate.h"
 #include "config_store.h"
+#include "http_validate.h"
+#include "network_task.h"
 #include "pump_bus.h"
 #include "status_snapshot.h"
+#include "wifi_manager.h"
 
-void SerialTransport::begin(CommandQueue& queue, StatusPublisher& status, ConfigStore& config) {
+void SerialTransport::begin(CommandQueue& queue, StatusPublisher& status, ConfigStore& config,
+                            InventoryStore& inventory, ConfigOpQueue& config_queue) {
   queue_ = &queue;
   status_ = &status;
   config_ = &config;
+  inventory_ = &inventory;
+  config_queue_ = &config_queue;
   Serial.begin(115200);
   len_ = 0;
   overflow_ = false;
   cancel_pending_this_poll_ = false;
+  command_enqueued_this_poll_ = false;
 }
 
 void SerialTransport::poll(const StatusSnapshot* status_override) {
   cancel_pending_this_poll_ = false;
+  command_enqueued_this_poll_ = false;
   size_t bytes_read = 0;
-  // Non-blocking: cap work per tick so a serial flood cannot starve motion.
   while (Serial.available() > 0 && bytes_read < kMaxBytesPerPoll) {
     const char c = static_cast<char>(Serial.read());
     ++bytes_read;
@@ -41,20 +48,95 @@ void SerialTransport::poll(const StatusSnapshot* status_override) {
     if (len_ + 1 < kLineMax) {
       line_[len_++] = c;
     } else {
-      overflow_ = true;  // drop the rest of an over-long line
+      overflow_ = true;
     }
   }
 }
 
+bool SerialTransport::handleWifiCommand(char* line) {
+  char* verb = std::strtok(line, " \t");
+  if (verb == nullptr || std::strcmp(verb, "wifi") != 0) {
+    return false;
+  }
+  char* sub = strtok(nullptr, " \t");
+  WiFiManager& wifi = networkWiFiManager();
+  if (sub == nullptr) {
+    Serial.println("Error:usage wifi status|ssid|pass|save|clear");
+    return true;
+  }
+  if (strcmp(sub, "status") == 0) {
+    const WiFiStatus st = wifi.status();
+    Serial.print("wifi connected=");
+    Serial.print(st.connected ? 1 : 0);
+    Serial.print(" ssid=");
+    Serial.print(st.ssid[0] != '\0' ? st.ssid : "-");
+    Serial.print(" ip=");
+    Serial.print(st.ip[0] != '\0' ? st.ip : "-");
+    Serial.print(" rssi=");
+    Serial.print(st.rssi);
+    Serial.print(" hostname=");
+    Serial.println(kMdnsHostFqdn);
+    return true;
+  }
+  if (strcmp(sub, "ssid") == 0) {
+    char* arg = strtok(nullptr, "\r\n");
+    if (arg == nullptr) {
+      Serial.println("Error:usage wifi ssid <ssid>");
+      return true;
+    }
+    wifi.stageSsid(arg);
+    Serial.println("ok");
+    return true;
+  }
+  if (strcmp(sub, "pass") == 0) {
+    char* arg = strtok(nullptr, "\r\n");
+    if (arg == nullptr) {
+      Serial.println("Error:usage wifi pass <password>");
+      return true;
+    }
+    wifi.stagePassword(arg);
+    Serial.println("ok");
+    return true;
+  }
+  if (strcmp(sub, "save") == 0) {
+    if (strtok(nullptr, " \t") != nullptr) {
+      Serial.println("Error:bad args");
+      return true;
+    }
+    Serial.println(wifi.saveCredentials() ? "ok" : "Error:wifi save failed");
+    return true;
+  }
+  if (strcmp(sub, "clear") == 0) {
+    if (strtok(nullptr, " \t") != nullptr) {
+      Serial.println("Error:bad args");
+      return true;
+    }
+    wifi.clearCredentials();
+    Serial.println("ok");
+    return true;
+  }
+  Serial.println("Error:unknown wifi command");
+  return true;
+}
+
 void SerialTransport::handleLine(char* line, const StatusSnapshot* status_override) {
+  if (std::strncmp(line, "wifi", 4) == 0 &&
+      (line[4] == '\0' || line[4] == ' ' || line[4] == '\t')) {
+    handleWifiCommand(line);
+    return;
+  }
+
   const StatusSnapshot status =
       status_override != nullptr ? *status_override : status_->read();
 
   const CommandParseResult parsed =
-      parseCommandLine(line, status, PumpBus::kNumChannels, *config_,
+      parseCommandLine(line, status, PumpBus::kNumChannels, *config_, *inventory_,
                        cancel_pending_this_poll_);
 
   if (parsed.is_cancel) {
+    if (command_enqueued_this_poll_) {
+      queue_->markCommandAfterCancel();
+    }
     queue_->enqueueCancel();
     cancel_pending_this_poll_ = true;
     Serial.println("ok");
@@ -72,16 +154,32 @@ void SerialTransport::handleLine(char* line, const StatusSnapshot* status_overri
   }
 
   if (parsed.config_op.type != ConfigOpType::kNone) {
-    if (queue_->hasPending()) {
-      Serial.println(commandRejectText(CommandReject::kBusy));
+    if (parsed.config_op.type == ConfigOpType::kDump) {
+      printConfig();
       return;
     }
-    applyConfigOp(parsed.config_op);
+    if (config_queue_->hasPending()) {
+      Serial.println("busy");
+      return;
+    }
+    const ConfigOpReject reject =
+        preflightConfigOpEnqueue(parsed.config_op, status, PumpBus::kNumChannels);
+    if (reject != ConfigOpReject::kNone) {
+      Serial.println(reject == ConfigOpReject::kBusy ? "busy"
+                                                     : commandRejectText(CommandReject::kBadArgs));
+      return;
+    }
+    if (!config_queue_->enqueue(parsed.config_op)) {
+      Serial.println("busy");
+    } else {
+      Serial.println("ok");
+    }
     return;
   }
 
   if (parsed.command.type == CommandType::kPrimeStop) {
     if (queue_->enqueuePrimeStop()) {
+      command_enqueued_this_poll_ = true;
       Serial.println("ok");
     } else {
       Serial.println("busy");
@@ -91,8 +189,22 @@ void SerialTransport::handleLine(char* line, const StatusSnapshot* status_overri
 
   if (parsed.command.type == CommandType::kPrimePump) {
     if (queue_->enqueuePrime(parsed.command.prime)) {
+      command_enqueued_this_poll_ = true;
       if (cancel_pending_this_poll_) {
-        queue_->markDispenseAfterCancel();
+        queue_->markCommandAfterCancel();
+      }
+      Serial.println("ok");
+    } else {
+      Serial.println("busy");
+    }
+    return;
+  }
+
+  if (parsed.command.type == CommandType::kPourSequence) {
+    if (queue_->enqueuePourSequence(parsed.command.pour_sequence)) {
+      command_enqueued_this_poll_ = true;
+      if (cancel_pending_this_poll_) {
+        queue_->markCommandAfterCancel();
       }
       Serial.println("ok");
     } else {
@@ -110,12 +222,13 @@ void SerialTransport::handleLine(char* line, const StatusSnapshot* status_overri
   cmd.anti_drip_ms = config_->antiDripMs(cmd.channel);
 
   if (queue_->enqueueDispense(cmd)) {
+    command_enqueued_this_poll_ = true;
     if (cancel_pending_this_poll_) {
-      queue_->markDispenseAfterCancel();
+      queue_->markCommandAfterCancel();
     }
     Serial.println("ok");
   } else {
-    Serial.println("busy");  // depth-1 slot full: a job is already pending
+    Serial.println("busy");
   }
 }
 
@@ -136,40 +249,10 @@ void SerialTransport::emitConfigPersistError() {
   Serial.println("// config:error persist failed");
 }
 
-void SerialTransport::applyConfigOp(const ConfigOp& op) {
-  bool ok = false;
-  switch (op.type) {
-    case ConfigOpType::kDump:
-      printConfig();
-      return;
-    case ConfigOpType::kSetCalibration: {
-      // Keep the existing anti-drip when the operator omitted it (cal <pump> <ml/s>).
-      const uint32_t anti_drip =
-          op.has_anti_drip ? op.anti_drip_ms : config_->antiDripMs(op.channel);
-      ok = config_->setCalibration(op.channel, op.ml_per_s, anti_drip);
-      Serial.println(ok ? "ok" : commandRejectText(CommandReject::kBadCalibration));
-      return;
-    }
-    case ConfigOpType::kSetBinding:
-      ok = config_->setBinding(op.channel, op.ingredient_id);
-      Serial.println(ok ? "ok" : commandRejectText(CommandReject::kBadIngredient));
-      return;
-    case ConfigOpType::kClearBinding:
-      config_->clearBinding(op.channel);
-      Serial.println("ok");
-      return;
-    case ConfigOpType::kNone:
-    default:
-      return;
-  }
-}
-
 void SerialTransport::printConfig() {
-  // Only the physically controllable channels; the NVS record is sized larger
-  // (kMaxPumps) for future I2C modules but the coordinator addresses these.
   for (uint8_t ch = 0; ch < PumpBus::kNumChannels; ++ch) {
     Serial.print("config pump=");
-    Serial.print(ch + 1);  // 1-based on the wire
+    Serial.print(ch + 1);
     Serial.print(" ml_per_s=");
     Serial.print(config_->mlPerSecond(ch), 3);
     Serial.print(" anti_drip_ms=");
@@ -210,6 +293,12 @@ void SerialTransport::printStatus() {
   Serial.print(s.job_phase);
   Serial.print(" job_reject=");
   Serial.print(jobRejectText(s.job_reject));
+  Serial.print(" sequence_busy=");
+  Serial.print(s.sequence_busy ? 1 : 0);
+  Serial.print(" sequence_step=");
+  Serial.print(s.sequence_step_index);
+  Serial.print(" sequence_ingredient=");
+  Serial.print(s.sequence_ingredient[0] == '\0' ? "-" : s.sequence_ingredient);
   Serial.print(" config_dirty=");
   Serial.print(s.config_dirty ? 1 : 0);
   Serial.print(" config_persist_error=");

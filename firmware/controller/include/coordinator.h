@@ -14,8 +14,8 @@ class ConfigStore;
 // single-pump gated timed dispense as a non-blocking sub-FSM advanced in tick().
 // Uses PumpBus + ScalePlatform only — never touches GPIO directly.
 //
-// v1 scope: one pump, no parallel groups, no sequence runner. Multi-pump and
-// recipe sequences are deferred (docs/16 phased implementation).
+// v1 scope: one pump at a time; multi-step recipes run via SequenceRunner.
+// Parallel pump groups are deferred (docs/16 phased implementation).
 class Coordinator {
  public:
   enum class JobState : uint8_t { kIdle, kDispensing, kPriming };
@@ -99,4 +99,5 @@ class Coordinator {
   unsigned long pour_start_ms_ = 0;
   unsigned long anti_drip_start_ms_ = 0;
   unsigned long prime_start_ms_ = 0;
+  bool flow_gated_ = false;
 };
