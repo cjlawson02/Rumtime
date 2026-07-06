@@ -19,6 +19,21 @@ import {
 
 const base = DEVICE_API_BASE.replace(/\/$/, '');
 
+function map422Error(message: string): { error: string; message: string } {
+  const code = message.includes('primed')
+    ? 'not_primed'
+    : message.includes('inventory')
+      ? 'low_inventory'
+      : message.includes('unassigned')
+        ? 'unassigned'
+        : message.includes('pump')
+          ? 'bad_pump'
+          : message.includes('ingredient') || message.includes('bound')
+            ? 'bad_ingredient'
+            : 'unprocessable';
+  return { error: code, message };
+}
+
 export const deviceHandlers = [
   http.get(`${base}/status`, () => {
     return HttpResponse.json(getMockDeviceStatus());
@@ -34,18 +49,8 @@ export const deviceHandlers = [
       if (message.startsWith('409')) {
         return HttpResponse.json({ error: 'busy' }, { status: 409 });
       }
-      if (message.startsWith('404')) {
-        return HttpResponse.json({ error: 'not_found' }, { status: 404 });
-      }
       if (message.startsWith('422')) {
-        const code = message.includes('primed')
-          ? 'not_primed'
-          : message.includes('inventory')
-            ? 'low_inventory'
-            : message.includes('unassigned')
-              ? 'unassigned'
-              : 'unprocessable';
-        return HttpResponse.json({ error: code, message }, { status: 422 });
+        return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
     }
@@ -68,8 +73,8 @@ export const deviceHandlers = [
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'refill failed';
-      if (message.startsWith('404')) {
-        return HttpResponse.json({ error: 'not bound' }, { status: 404 });
+      if (message.startsWith('422')) {
+        return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
     }
@@ -82,8 +87,8 @@ export const deviceHandlers = [
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'binding failed';
-      if (message.startsWith('404')) {
-        return HttpResponse.json({ error: 'not found' }, { status: 404 });
+      if (message.startsWith('422')) {
+        return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
     }
@@ -97,8 +102,8 @@ export const deviceHandlers = [
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'bottle size failed';
-      if (message.startsWith('404')) {
-        return HttpResponse.json({ error: 'not bound' }, { status: 404 });
+      if (message.startsWith('422')) {
+        return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
     }
@@ -112,8 +117,8 @@ export const deviceHandlers = [
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'fill level failed';
-      if (message.startsWith('404')) {
-        return HttpResponse.json({ error: 'not bound' }, { status: 404 });
+      if (message.startsWith('422')) {
+        return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
     }
@@ -127,8 +132,8 @@ export const deviceHandlers = [
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'calibration failed';
-      if (message.startsWith('404')) {
-        return HttpResponse.json({ error: 'not found' }, { status: 404 });
+      if (message.startsWith('422')) {
+        return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
     }
@@ -141,8 +146,8 @@ export const deviceHandlers = [
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'primed failed';
-      if (message.startsWith('404')) {
-        return HttpResponse.json({ error: 'not bound' }, { status: 404 });
+      if (message.startsWith('422')) {
+        return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
     }
@@ -159,16 +164,8 @@ export const deviceHandlers = [
       if (message.startsWith('409')) {
         return HttpResponse.json({ error: 'busy' }, { status: 409 });
       }
-      if (message.startsWith('404')) {
-        return HttpResponse.json({ error: 'not found' }, { status: 404 });
-      }
       if (message.startsWith('422')) {
-        const code = message.includes('primed')
-          ? 'not_primed'
-          : message.includes('unassigned')
-            ? 'unassigned'
-            : 'unprocessable';
-        return HttpResponse.json({ error: code, message }, { status: 422 });
+        return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
     }

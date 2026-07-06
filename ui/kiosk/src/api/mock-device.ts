@@ -1,7 +1,6 @@
 import type { DeviceClient } from '@/api/device-client';
 import type {
   BottleSizeCommand,
-  DeviceNotification,
   DeviceStatus,
   InventoryLevelCommand,
   PourCommand,
@@ -19,6 +18,7 @@ import {
   DEFAULT_ANTI_DRIP_MS,
   DEFAULT_ML_PER_SECOND,
   deviceStatusSchema,
+  INVENTORY_RESERVE_ML,
 } from '@/api/types';
 import { getRecipeById } from '@/data/load-recipes';
 import { POST_POUR_MANUAL_IDS } from '@/lib/manual-pour';
@@ -44,7 +44,10 @@ function cloneBindings(
 }
 
 const DEFAULT_BOTTLE_ML = 750;
-const MOCK_PUMP_COUNT = 8;
+/** Matches firmware bench `PumpBus::kNumChannels`. */
+const MOCK_PUMP_COUNT = 2;
+/** Matches firmware `kJobTerminalLatchMs`. */
+const JOB_TERMINAL_LATCH_MS = 500;
 
 const INITIAL_BINDINGS: DeviceStatus['bindings'] = {
   bourbon: {
@@ -97,31 +100,12 @@ const INITIAL_BINDINGS: DeviceStatus['bindings'] = {
   },
 };
 
-/** Example firmware alerts — see docs/18-kiosk-device-api.md `notifications[]`. */
-const INITIAL_NOTIFICATIONS: DeviceNotification[] = [
-  {
-    id: 'scale_not_ready',
-    severity: 'warning',
-    title: 'Scale not ready',
-    message: 'Place an empty glass on the platform before pouring.',
-  },
-  {
-    id: 'flow_timeout',
-    severity: 'warning',
-    title: 'No flow detected',
-    message:
-      'The last pour timed out waiting for liquid. Check that the line is primed and the bottle has liquid.',
-    actionHref: '/setup/calibration',
-    actionLabel: 'Pour tuning',
-  },
-];
-
 function buildInitialPumps(): PumpSlot[] {
-  const ingredientIds = Object.keys(INITIAL_BINDINGS);
+  const assignedIds = ['bourbon', 'simple'];
 
   return Array.from({ length: MOCK_PUMP_COUNT }, (_, index) => ({
     pumpId: index + 1,
-    ingredientId: ingredientIds[index] ?? null,
+    ingredientId: assignedIds[index] ?? null,
     mlPerSecond: DEFAULT_ML_PER_SECOND,
     antiDripMs: DEFAULT_ANTI_DRIP_MS,
   }));
@@ -131,6 +115,7 @@ type MockState = {
   status: DeviceStatus;
   pourTimer: ReturnType<typeof setInterval> | null;
   pumpTimer: ReturnType<typeof setInterval> | null;
+  jobTerminalTimer: ReturnType<typeof setTimeout> | null;
 };
 
 const state: MockState = {
@@ -140,12 +125,13 @@ const state: MockState = {
     hostname: 'rumtime.local',
     bindings: cloneBindings(INITIAL_BINDINGS),
     pumps: buildInitialPumps(),
-    notifications: [...INITIAL_NOTIFICATIONS],
+    notifications: [],
     job: null,
     pumpJob: null,
   },
   pourTimer: null,
   pumpTimer: null,
+  jobTerminalTimer: null,
 };
 
 function clearPourTimer() {
@@ -162,9 +148,47 @@ function clearPumpTimer() {
   }
 }
 
+function clearJobTerminalTimer() {
+  if (state.jobTerminalTimer) {
+    clearTimeout(state.jobTerminalTimer);
+    state.jobTerminalTimer = null;
+  }
+}
+
 function clearAllTimers() {
   clearPourTimer();
   clearPumpTimer();
+  clearJobTerminalTimer();
+}
+
+function totalMlPerIngredient(steps: PourStep[]): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const step of steps) {
+    totals.set(
+      step.ingredientId,
+      (totals.get(step.ingredientId) ?? 0) + step.ml,
+    );
+  }
+  return totals;
+}
+
+function validatePourInventory(steps: PourStep[]) {
+  for (const [ingredientId, totalMl] of totalMlPerIngredient(steps)) {
+    const binding = state.status.bindings[ingredientId];
+    if (!binding) continue;
+    if (binding.remainingMl < totalMl + INVENTORY_RESERVE_ML) {
+      throw new Error('422: low inventory');
+    }
+  }
+}
+
+/** Firmware latches complete/cancelled briefly then clears job; prompt has no firmware equivalent. */
+function armJobTerminalLatch() {
+  clearJobTerminalTimer();
+  state.jobTerminalTimer = setTimeout(() => {
+    state.jobTerminalTimer = null;
+    setJob(null);
+  }, JOB_TERMINAL_LATCH_MS);
 }
 
 /** Manual top-offs that get a post-pour prompt (carbonated mixers in v1). */
@@ -179,12 +203,6 @@ function manualPromptForRecipe(recipeId: string): string | undefined {
 
   const names = postPour.map((i) => i.name).join(', ');
   return `Top with ${names}, then tap Done.`;
-}
-
-function subtractInventory(steps: PourStep[]) {
-  for (const step of steps) {
-    subtractIngredientMl(step.ingredientId, step.ml);
-  }
 }
 
 function setJob(job: PourJob | null) {
@@ -248,7 +266,7 @@ function startPumpDispenseSimulation(command: PumpDispenseCommand) {
     (slot) => slot.pumpId === command.pumpId,
   );
   if (!pump) {
-    throw new Error('404: pump not found');
+    throw new Error('422: pump not found');
   }
 
   const isContinuousPrime =
@@ -345,13 +363,17 @@ function startPourSimulation(command: PourCommand) {
   clearPourTimer();
   const recipe = getRecipeById(command.recipeId);
   const pumped = recipe?.ingredients.filter((i) => i.kind === 'pumped') ?? [];
-  let stepIndex = 0;
+  const steps = command.steps;
+  let completedSteps = 0;
+
+  const stepName = (index: number) =>
+    pumped[index]?.name ?? steps[index]?.ingredientId ?? 'ingredients';
 
   setJob({
     recipeId: command.recipeId,
     state: 'pouring',
     progress: 0,
-    stepLabel: `Pouring ${pumped[0]?.name ?? 'ingredients'}…`,
+    stepLabel: `Pouring ${stepName(0)}…`,
   });
 
   state.pourTimer = setInterval(() => {
@@ -364,17 +386,24 @@ function startPourSimulation(command: PourCommand) {
     const nextProgress = Math.min(job.progress + 4, 100);
     let stepLabel = job.stepLabel;
 
-    if (nextProgress >= 50 && stepIndex === 0 && pumped.length > 1) {
-      stepIndex = 1;
-      stepLabel = `Pouring ${pumped[1]?.name}…`;
+    const stepThreshold = ((completedSteps + 1) / steps.length) * 100;
+    if (nextProgress >= stepThreshold && completedSteps < steps.length) {
+      subtractIngredientMl(
+        steps[completedSteps]!.ingredientId,
+        steps[completedSteps]!.ml,
+      );
+      completedSteps += 1;
+      if (completedSteps < steps.length) {
+        stepLabel = `Pouring ${stepName(completedSteps)}…`;
+      }
     }
 
     if (nextProgress >= 100) {
       clearPourTimer();
-      subtractInventory(command.steps);
       const prompt = manualPromptForRecipe(command.recipeId);
 
       if (prompt) {
+        // Kiosk-only UX — firmware has no prompt state yet.
         setJob({
           recipeId: command.recipeId,
           state: 'prompt',
@@ -389,6 +418,7 @@ function startPourSimulation(command: PourCommand) {
           progress: 100,
           stepLabel: 'Pour complete',
         });
+        armJobTerminalLatch();
       }
       return;
     }
@@ -409,7 +439,7 @@ export function resetMockDevice() {
     hostname: 'rumtime.local',
     bindings: cloneBindings(INITIAL_BINDINGS),
     pumps: buildInitialPumps(),
-    notifications: [...INITIAL_NOTIFICATIONS],
+    notifications: [],
     job: null,
     pumpJob: null,
   };
@@ -465,6 +495,8 @@ export class MockDeviceClient implements DeviceClient {
         }
       }
 
+      validatePourInventory(command.steps);
+
       if (state.status.job) {
         setJob(null);
       }
@@ -482,6 +514,7 @@ export class MockDeviceClient implements DeviceClient {
           state: 'cancelled',
           stepLabel: 'Pour cancelled',
         });
+        armJobTerminalLatch();
       }
     });
   }
@@ -497,18 +530,18 @@ export class MockDeviceClient implements DeviceClient {
         stepLabel: 'Pour complete',
         promptMessage: undefined,
       });
+      armJobTerminalLatch();
     });
   }
 
   refillIngredient(command: RefillCommand): Promise<void> {
     return runDeviceMutation(() => {
       if (!(command.ingredientId in state.status.bindings)) {
-        throw new Error('404: ingredient not bound');
+        throw new Error('422: ingredient not bound');
       }
       const binding = state.status.bindings[command.ingredientId];
 
       binding.remainingMl = binding.bottleSizeMl ?? DEFAULT_BOTTLE_ML;
-      binding.primed = true;
     });
   }
 
@@ -518,7 +551,7 @@ export class MockDeviceClient implements DeviceClient {
       (slot) => slot.pumpId === command.pumpId,
     );
     if (!pump) {
-      throw new Error('404: pump not found');
+      throw new Error('422: pump not found');
     }
 
     if (command.ingredientId) {
@@ -548,7 +581,7 @@ export class MockDeviceClient implements DeviceClient {
   updateBottleSize(command: BottleSizeCommand): Promise<void> {
     return runDeviceMutation(() => {
     if (!(command.ingredientId in state.status.bindings)) {
-      throw new Error('404: ingredient not bound');
+      throw new Error('422: ingredient not bound');
     }
     const binding = state.status.bindings[command.ingredientId];
 
@@ -562,7 +595,7 @@ export class MockDeviceClient implements DeviceClient {
   updateInventoryLevel(command: InventoryLevelCommand): Promise<void> {
     return runDeviceMutation(() => {
     if (!(command.ingredientId in state.status.bindings)) {
-      throw new Error('404: ingredient not bound');
+      throw new Error('422: ingredient not bound');
     }
     const binding = state.status.bindings[command.ingredientId];
 
@@ -577,7 +610,7 @@ export class MockDeviceClient implements DeviceClient {
       (slot) => slot.pumpId === command.pumpId,
     );
     if (!pump) {
-      throw new Error('404: pump not found');
+      throw new Error('422: pump not found');
     }
 
       pump.mlPerSecond = command.mlPerSecond;
@@ -588,7 +621,7 @@ export class MockDeviceClient implements DeviceClient {
   updatePrimed(command: PrimedCommand): Promise<void> {
     return runDeviceMutation(() => {
     if (!(command.ingredientId in state.status.bindings)) {
-      throw new Error('404: ingredient not bound');
+      throw new Error('422: ingredient not bound');
     }
     const binding = state.status.bindings[command.ingredientId];
 
@@ -604,7 +637,7 @@ export class MockDeviceClient implements DeviceClient {
       (slot) => slot.pumpId === command.pumpId,
     );
     if (!pump) {
-      throw new Error('404: pump not found');
+      throw new Error('422: pump not found');
     }
     if (!pump.ingredientId && !isCleaningPurpose(command.purpose)) {
       throw new Error('422: pump unassigned');

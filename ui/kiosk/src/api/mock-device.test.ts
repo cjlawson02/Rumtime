@@ -22,6 +22,7 @@ describe('MockDeviceClient', () => {
 
   it('rejects a second pour while prompt is active', async () => {
     const client = new MockDeviceClient();
+    await client.updatePumpBinding({ pumpId: 1, ingredientId: 'vodka' });
     await client.startPour(pourCommand('moscow-mule'));
 
     const status = getMockDeviceStatus();
@@ -163,6 +164,7 @@ describe('MockDeviceClient', () => {
 
   it('acknowledges a post-pour prompt', async () => {
     const client = new MockDeviceClient();
+    await client.updatePumpBinding({ pumpId: 1, ingredientId: 'gin' });
     await client.startPour(pourCommand('gin-tonic'));
 
     while (getMockDeviceStatus().job?.state === 'pouring') {
@@ -194,7 +196,7 @@ describe('MockDeviceClient', () => {
     expect(getMockDeviceStatus().job?.state).toBe('cancelled');
   });
 
-  it('refills an ingredient to bottle size and primes the line', async () => {
+  it('refills an ingredient to bottle size without changing primed state', async () => {
     const client = new MockDeviceClient();
 
     await client.updateInventoryLevel({
@@ -207,7 +209,7 @@ describe('MockDeviceClient', () => {
 
     const binding = getMockDeviceStatus().bindings.rum;
     expect(binding.remainingMl).toBe(binding.bottleSizeMl);
-    expect(binding.primed).toBe(true);
+    expect(binding.primed).toBe(false);
   });
 
   it('updates bottle size and caps remaining volume', async () => {
@@ -254,7 +256,7 @@ describe('MockDeviceClient', () => {
     const newIngredientId = 'new_syrup';
 
     await client.updatePumpBinding({
-      pumpId: 8,
+      pumpId: 2,
       ingredientId: newIngredientId,
     });
 
@@ -272,13 +274,13 @@ describe('MockDeviceClient', () => {
 
     await expect(
       client.refillIngredient({ ingredientId: 'missing' }),
-    ).rejects.toThrow(/404/);
+    ).rejects.toThrow(/422/);
     await expect(
       client.updatePumpBinding({ pumpId: 99, ingredientId: 'bourbon' }),
-    ).rejects.toThrow(/404/);
+    ).rejects.toThrow(/422/);
     await expect(
       client.startPumpDispense({ pumpId: 99, purpose: 'verify', ml: 10 }),
-    ).rejects.toThrow(/404/);
+    ).rejects.toThrow(/422/);
   });
 
   it('rejects pours for unbound ingredients and unassigned pumps', async () => {
@@ -384,23 +386,23 @@ describe('MockDeviceClient', () => {
 
     await expect(
       client.updateBottleSize({ ingredientId: 'missing', bottleSizeMl: 750 }),
-    ).rejects.toThrow(/404/);
+    ).rejects.toThrow(/422/);
     await expect(
       client.updateInventoryLevel({
         ingredientId: 'missing',
         remainingMl: 100,
       }),
-    ).rejects.toThrow(/404/);
+    ).rejects.toThrow(/422/);
     await expect(
       client.updatePrimed({ ingredientId: 'missing', primed: true }),
-    ).rejects.toThrow(/404/);
+    ).rejects.toThrow(/422/);
     await expect(
       client.updatePumpCalibration({
         pumpId: 99,
         mlPerSecond: 2,
         antiDripMs: 100,
       }),
-    ).rejects.toThrow(/404/);
+    ).rejects.toThrow(/422/);
   });
 
   it('auto-stops continuous prime after the firmware safety limit', async () => {
@@ -435,8 +437,66 @@ describe('MockDeviceClient', () => {
     await client.startPour(pourCommand('old-fashioned'));
     await client.cancelPour();
 
-    await client.startPour(pourCommand('gin-tonic'));
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    await client.startPour(pourCommand('old-fashioned'));
 
     expect(getMockDeviceStatus().job?.state).toBe('pouring');
+  });
+
+  it('rejects pours when inventory is below step total plus reserve', async () => {
+    const client = new MockDeviceClient();
+
+    await client.updateInventoryLevel({
+      ingredientId: 'bourbon',
+      remainingMl: 50,
+    });
+
+    await expect(client.startPour(pourCommand('old-fashioned'))).rejects.toThrow(
+      /422.*inventory/i,
+    );
+  });
+
+  it('clears complete job after terminal latch', async () => {
+    const client = new MockDeviceClient();
+    await client.startPour(pourCommand('old-fashioned'));
+
+    while (getMockDeviceStatus().job?.state === 'pouring') {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+
+    expect(getMockDeviceStatus().job?.state).toBe('complete');
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    expect(getMockDeviceStatus().job).toBeNull();
+  });
+
+  it('deducts inventory per pour step as progress advances', async () => {
+    const client = new MockDeviceClient();
+    const bourbonBefore = getMockDeviceStatus().bindings.bourbon.remainingMl;
+    const simpleBefore = getMockDeviceStatus().bindings.simple.remainingMl;
+
+    await client.startPour(pourCommand('old-fashioned'));
+
+    while (
+      getMockDeviceStatus().job?.progress !== undefined &&
+      getMockDeviceStatus().job!.progress < 55
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+
+    const midBourbon = getMockDeviceStatus().bindings.bourbon.remainingMl;
+    const midSimple = getMockDeviceStatus().bindings.simple.remainingMl;
+    expect(midBourbon).toBeLessThan(bourbonBefore);
+    expect(midSimple).toBe(simpleBefore);
+
+    while (getMockDeviceStatus().job?.state === 'pouring') {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+
+    expect(getMockDeviceStatus().bindings.simple.remainingMl).toBeLessThan(
+      simpleBefore,
+    );
   });
 });
