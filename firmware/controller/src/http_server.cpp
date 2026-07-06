@@ -143,8 +143,7 @@ void handlePour() {
   seq.step_count = idx;
 
   const StatusSnapshot status = g_ctx->status.read();
-  const CommandReject reject =
-      preflightPourSequenceEnqueue(seq, status, PumpBus::kNumChannels);
+  const CommandReject reject = preflightPourSequenceEnqueue(seq, status, PumpBus::kNumChannels);
   if (reject != CommandReject::kNone) {
     sendError(httpStatusForReject(reject), httpErrorCode(reject), httpMessageForReject(reject));
     return;

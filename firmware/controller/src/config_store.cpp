@@ -62,8 +62,7 @@ void ConfigStore::begin(const NvsOps& ops) {
   ops_ = &ops;
   dirty_ = false;
 
-  if (ops_->begin == nullptr || ops_->getBlob == nullptr || ops_->setBlob == nullptr ||
-      ops_->commit == nullptr) {
+  if (ops_->begin == nullptr || ops_->getBlob == nullptr || ops_->setBlob == nullptr) {
     loadDefaults();
     return;
   }
@@ -177,7 +176,7 @@ bool ConfigStore::clearBinding(uint8_t channel) {
 }
 
 bool ConfigStore::commit(void (*feed_wdt)()) {
-  if (ops_ == nullptr || ops_->setBlob == nullptr || ops_->commit == nullptr) {
+  if (ops_ == nullptr || ops_->setBlob == nullptr) {
     return false;
   }
   record_.crc32 = crc32OfRecord(record_);
@@ -189,9 +188,6 @@ bool ConfigStore::commit(void (*feed_wdt)()) {
   }
   if (feed_wdt != nullptr) {
     feed_wdt();
-  }
-  if (!ops_->commit()) {
-    return false;
   }
   dirty_ = false;
   return true;

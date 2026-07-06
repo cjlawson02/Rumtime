@@ -89,15 +89,10 @@ bool prefsGetBlob(const char* key, void* out, std::size_t len) {
 bool prefsSetBlob(const char* key, const void* data, std::size_t len) {
   return g_prefs.putBytes(key, data, len) == len;
 }
-bool prefsCommit() {
-  return g_prefs.commit();
-}
-
 const NvsOps kPrefsOps = {
     prefsBegin,
     prefsGetBlob,
     prefsSetBlob,
-    prefsCommit,
 };
 
 void* freertosQueueCreate(std::size_t item_size) {

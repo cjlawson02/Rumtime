@@ -72,8 +72,8 @@ bool CommandQueue::drainCancel(bool job_was_busy) {
     return false;
   }
   const bool drop_queued = job_was_busy || hasPending();
-  if (drop_queued && !preserve_queued_dispense_on_drain_ && ops_ != nullptr &&
-      handle_ != nullptr && ops_->reset != nullptr) {
+  if (drop_queued && !preserve_queued_dispense_on_drain_ && ops_ != nullptr && handle_ != nullptr &&
+      ops_->reset != nullptr) {
     ops_->reset(handle_);
   }
   preserve_queued_dispense_on_drain_ = false;

@@ -20,13 +20,11 @@
 
 // Injected NVS seam. getBlob returns true only when a blob of EXACTLY len bytes
 // exists (so a stale, differently-sized record reads as absent -> defaults).
-// setBlob performs the flash write; commit is a flush hook (no-op for backends
-// that persist on write, e.g. Arduino Preferences::putBytes).
+// setBlob performs the flash write (immediate for Arduino Preferences::putBytes).
 struct NvsOps {
   bool (*begin)(const char* ns);
   bool (*getBlob)(const char* key, void* out, std::size_t len);
   bool (*setBlob)(const char* key, const void* data, std::size_t len);
-  bool (*commit)();
 };
 
 struct PumpConfig {

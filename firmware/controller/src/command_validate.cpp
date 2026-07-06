@@ -173,9 +173,8 @@ CommandReject preflightPourSequenceEnqueueImpl(const PourSequenceCommand& cmd,
     return CommandReject::kScaleNotReady;
   }
 
-  const CommandReject validated =
-      validatePourSequenceStepsImpl(cmd.steps, cmd.step_count, num_pumps, config,
-                                    config == nullptr ? &status : nullptr);
+  const CommandReject validated = validatePourSequenceStepsImpl(
+      cmd.steps, cmd.step_count, num_pumps, config, config == nullptr ? &status : nullptr);
   if (validated != CommandReject::kNone) {
     return validated;
   }

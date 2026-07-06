@@ -127,11 +127,8 @@ bool nvsGetBlob(const char*, void*, std::size_t) {
 bool nvsSetBlob(const char*, const void*, std::size_t) {
   return true;
 }
-bool nvsCommit() {
-  return true;
-}
 NvsOps makeNvsOps() {
-  return NvsOps{nvsBegin, nvsGetBlob, nvsSetBlob, nvsCommit};
+  return NvsOps{nvsBegin, nvsGetBlob, nvsSetBlob};
 }
 
 struct Harness {

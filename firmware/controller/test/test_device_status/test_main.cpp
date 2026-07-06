@@ -26,13 +26,10 @@ bool nvsGetBlob(const char*, void*, std::size_t) {
 bool nvsSetBlob(const char*, const void*, std::size_t) {
   return true;
 }
-bool nvsCommit() {
-  return true;
-}
 
 ConfigStore g_config;
 InventoryStore g_inventory;
-const NvsOps kTestNvsOps = {nvsBegin, nvsGetBlob, nvsSetBlob, nvsCommit};
+const NvsOps kTestNvsOps = {nvsBegin, nvsGetBlob, nvsSetBlob};
 
 ConfigOp g_queue_slot;
 bool g_queue_has_item = false;

@@ -46,11 +46,8 @@ bool fakeSetBlob(const char*, const void* data, std::size_t len) {
   g_nvs->has = true;
   return true;
 }
-bool fakeCommit() {
-  return true;
-}
 NvsOps makeNvsOps() {
-  return NvsOps{fakeBegin, fakeGetBlob, fakeSetBlob, fakeCommit};
+  return NvsOps{fakeBegin, fakeGetBlob, fakeSetBlob};
 }
 
 FakeNvs g_backing;
@@ -259,7 +256,7 @@ void test_crc_mismatch_resets_to_defaults() {
 void test_null_ops_falls_back_to_defaults() {
   resetBacking();
   ConfigStore store;
-  NvsOps ops = NvsOps{nullptr, nullptr, nullptr, nullptr};
+  NvsOps ops = NvsOps{nullptr, nullptr, nullptr};
   store.begin(ops);
   TEST_ASSERT_EQUAL_FLOAT(kDefaultMlPerSecond, store.mlPerSecond(0));
   // commit() must not crash when the seam is null; it simply fails.
@@ -324,7 +321,7 @@ bool failSetBlob(const char*, const void*, std::size_t) {
 
 void test_commit_failure_keeps_dirty() {
   resetBacking();
-  const NvsOps ops = {fakeBegin, fakeGetBlob, failSetBlob, fakeCommit};
+  const NvsOps ops = {fakeBegin, fakeGetBlob, failSetBlob};
   ConfigStore store;
   store.begin(ops);
   TEST_ASSERT_TRUE(store.setCalibration(0, 2.0f, 100));

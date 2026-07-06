@@ -2,6 +2,10 @@
 
 #include "config.h"
 
+#if defined(ARDUINO)
+#include <Arduino.h>
+#endif
+
 namespace {
 
 uint8_t filterDepth() {

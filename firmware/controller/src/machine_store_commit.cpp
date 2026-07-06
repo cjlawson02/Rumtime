@@ -1,5 +1,4 @@
 #include "config_store.h"
-
 #include "crc32.h"
 #include "inventory_store.h"
 
@@ -17,7 +16,7 @@ bool commitMachineStores(ConfigStore& config, InventoryStore& inventory, void (*
   }
 
   const NvsOps* ops = config.ops_;
-  if (ops == nullptr || ops->begin == nullptr || ops->setBlob == nullptr || ops->commit == nullptr) {
+  if (ops == nullptr || ops->begin == nullptr || ops->setBlob == nullptr) {
     return false;
   }
   if (!ops->begin(kNvsNamespace)) {
@@ -41,9 +40,6 @@ bool commitMachineStores(ConfigStore& config, InventoryStore& inventory, void (*
   }
   if (feed_wdt != nullptr) {
     feed_wdt();
-  }
-  if (!ops->commit()) {
-    return false;
   }
   config.dirty_ = false;
   inventory.dirty_ = false;
