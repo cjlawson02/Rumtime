@@ -12,28 +12,17 @@ void StatusPublisher::publish(const StatusSnapshot& snapshot) {
 }
 
 StatusSnapshot StatusPublisher::read() const {
-  StatusSnapshot copy;
-  for (int attempt = 0; attempt < 32; ++attempt) {
+  for (int attempt = 0; attempt < 64; ++attempt) {
     const uint32_t before = seq_.load(std::memory_order_acquire);
     if (before & 1U) {
       continue;
     }
-    copy = latest_;
+    StatusSnapshot copy = latest_;
     const uint32_t after = seq_.load(std::memory_order_acquire);
     if (before == after) {
       return copy;
     }
   }
-  for (int attempt = 0; attempt < 32; ++attempt) {
-    const uint32_t before = seq_.load(std::memory_order_acquire);
-    if (before & 1U) {
-      continue;
-    }
-    copy = latest_;
-    const uint32_t after = seq_.load(std::memory_order_acquire);
-    if (before == after) {
-      return copy;
-    }
-  }
-  return copy;
+  StatusSnapshot empty{};
+  return empty;
 }

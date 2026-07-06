@@ -18,11 +18,6 @@ constexpr int kPump2Pwm = 16;
 
 constexpr int kStandby = 17;
 
-// Optional electrical sense of the SAME hardware rocker (aux pole). -1 = not used
-// (v1 default). The rocker on pump VM is the real disable; this GPIO only lets
-// firmware know rocker position — not a second operator switch.
-constexpr int kCutoffSense = -1;
-
 // HX711 — reserved for subsystem 2 (scale); avoid pump GPIO and strapping pins (0, 45, 46).
 constexpr int kScaleDout = 1;
 constexpr int kScaleSck = 2;
@@ -121,6 +116,11 @@ constexpr uint16_t kHttpPort = 80;
 constexpr int kNetworkTaskCore = 0;
 constexpr unsigned int kNetworkTaskPriority = 4;
 constexpr unsigned int kNetworkTaskStackBytes = 8192;
+
+// Wi-Fi reconnect timing (STA-only; event-driven disconnect + backoff).
+constexpr unsigned long kWifiReconnectCooldownMs = 500;
+constexpr unsigned long kWifiReconnectBackoffMs = 10000;
+constexpr unsigned long kWifiConnectTimeoutMs = 45000;
 
 // Wi-Fi credentials NVS (separate from machine config blob).
 constexpr const char* kWifiCredNamespace = "rumtime-wifi";

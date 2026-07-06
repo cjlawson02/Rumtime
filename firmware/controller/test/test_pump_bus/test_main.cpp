@@ -5,7 +5,6 @@
 
 #include "config.h"
 #include "gpio_ops.h"
-#include "machine_inputs.h"
 #include "pump_bus.h"
 #include "pump_channel.h"
 
@@ -103,9 +102,8 @@ bool isChannelPin(int pin) {
 void test_invalid_channel_returns_false_and_no_writes() {
   FakeGpio fake;
   g_fake = &fake;
-  MachineInputs inputs;
   PumpBus bus;
-  bus.begin(inputs, makeOps());
+  bus.begin(makeOps());
   fake.reset();
 
   TEST_ASSERT_FALSE(bus.run(42, PumpDirection::kForward, 123));
@@ -122,36 +120,11 @@ void test_run_before_begin_returns_false_and_no_writes() {
   TEST_ASSERT_FALSE(fake.standby_high);
 }
 
-void test_cutoff_open_fails_unsafe_when_inputs_unset() {
-  PumpBus bus;
-  TEST_ASSERT_TRUE(bus.cutoffOpen());
-}
-
-void test_cutoff_open_refuses_motion_and_never_raises_stby() {
-  FakeGpio fake;
-  g_fake = &fake;
-  MachineInputs inputs;
-  PumpBus bus;
-  bus.begin(inputs, makeOps());
-  fake.reset();
-
-  inputs.setCutoffOpen(true);
-  TEST_ASSERT_FALSE(bus.run(0, PumpDirection::kForward, 100));
-  TEST_ASSERT_EQUAL(0, fake.count(OpType::kDigitalWrite, pins::kStandby, kGpioLevelHigh));
-
-  bus.stopAll();
-  TEST_ASSERT_EQUAL(0, fake.count(OpType::kDigitalWrite, pins::kStandby, kGpioLevelHigh));
-  TEST_ASSERT_EQUAL(kGpioLevelLow, fake.lastDigitalLevel(pins::kPump1In1));
-  TEST_ASSERT_EQUAL(kGpioLevelLow, fake.lastDigitalLevel(pins::kPump1In2));
-  TEST_ASSERT_EQUAL(0, fake.lastAnalogDuty(pins::kPump1Pwm));
-}
-
 void test_stby_raised_once_and_dropped_after_last_stop() {
   FakeGpio fake;
   g_fake = &fake;
-  MachineInputs inputs;
   PumpBus bus;
-  bus.begin(inputs, makeOps());
+  bus.begin(makeOps());
   fake.reset();
 
   TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kForward, 100));
@@ -168,12 +141,24 @@ void test_stby_raised_once_and_dropped_after_last_stop() {
   TEST_ASSERT_FALSE(fake.standby_high);
 }
 
+void test_run_stops_other_channel_first() {
+  FakeGpio fake;
+  g_fake = &fake;
+  PumpBus bus;
+  bus.begin(makeOps());
+  fake.reset();
+
+  TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kForward, 100));
+  TEST_ASSERT_TRUE(bus.run(1, PumpDirection::kForward, 80));
+  TEST_ASSERT_EQUAL(0, fake.lastAnalogDuty(pins::kPump1Pwm));
+  TEST_ASSERT_EQUAL(80, fake.lastAnalogDuty(pins::kPump2Pwm));
+}
+
 void test_direction_truth_table() {
   FakeGpio fake;
   g_fake = &fake;
-  MachineInputs inputs;
   PumpBus bus;
-  bus.begin(inputs, makeOps());
+  bus.begin(makeOps());
   fake.reset();
 
   TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kForward, 100));
@@ -192,10 +177,9 @@ void test_direction_truth_table() {
 void test_begin_drives_stby_low_before_any_channel_write() {
   FakeGpio fake;
   g_fake = &fake;
-  MachineInputs inputs;
   PumpBus bus;
 
-  bus.begin(inputs, makeOps());
+  bus.begin(makeOps());
 
   int first_stby_low = -1;
   int first_channel_write = -1;
@@ -218,9 +202,8 @@ void test_begin_drives_stby_low_before_any_channel_write() {
 void test_duty_clamp_on_bus_run() {
   FakeGpio fake;
   g_fake = &fake;
-  MachineInputs inputs;
   PumpBus bus;
-  bus.begin(inputs, makeOps());
+  bus.begin(makeOps());
   fake.reset();
 
   TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kForward, -20));
@@ -230,14 +213,12 @@ void test_duty_clamp_on_bus_run() {
   TEST_ASSERT_EQUAL(255, fake.lastAnalogDuty(pins::kPump1Pwm));
 }
 
-void test_stop_request_succeeds_even_when_cutoff_open() {
+void test_stop_request_succeeds() {
   FakeGpio fake;
   g_fake = &fake;
-  MachineInputs inputs;
   PumpBus bus;
-  bus.begin(inputs, makeOps());
+  bus.begin(makeOps());
   fake.reset();
-  inputs.setCutoffOpen(true);
 
   TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kStop, 100));
   TEST_ASSERT_EQUAL(0, fake.count(OpType::kDigitalWrite, pins::kStandby, kGpioLevelHigh));
@@ -269,13 +250,12 @@ int main() {
   UNITY_BEGIN();
   RUN_TEST(test_invalid_channel_returns_false_and_no_writes);
   RUN_TEST(test_run_before_begin_returns_false_and_no_writes);
-  RUN_TEST(test_cutoff_open_fails_unsafe_when_inputs_unset);
-  RUN_TEST(test_cutoff_open_refuses_motion_and_never_raises_stby);
   RUN_TEST(test_stby_raised_once_and_dropped_after_last_stop);
+  RUN_TEST(test_run_stops_other_channel_first);
   RUN_TEST(test_direction_truth_table);
   RUN_TEST(test_begin_drives_stby_low_before_any_channel_write);
   RUN_TEST(test_duty_clamp_on_bus_run);
-  RUN_TEST(test_stop_request_succeeds_even_when_cutoff_open);
+  RUN_TEST(test_stop_request_succeeds);
   RUN_TEST(test_pump_channel_clamps_duty);
   return UNITY_END();
 }

@@ -10,7 +10,6 @@
 #include "config_store.h"
 #include "coordinator.h"
 #include "gpio_ops.h"
-#include "machine_inputs.h"
 #include "pump_bus.h"
 #include "scale_ops.h"
 #include "scale_platform.h"
@@ -153,7 +152,6 @@ NvsOps makeNvsOps() {
 struct Harness {
   FakeGpio gpio;
   FakeScale scale_fake;
-  MachineInputs inputs;
   PumpBus pumps;
   ScalePlatform scale;
   ConfigStore config;
@@ -168,7 +166,7 @@ struct Harness {
     gpio_ops = makeGpioOps();
     scale_ops = makeScaleOps();
     nvs_ops = makeNvsOps();
-    pumps.begin(inputs, gpio_ops);
+    pumps.begin(gpio_ops);
     scale.begin(scale_ops);
     config.begin(nvs_ops);
     coordinator.begin(pumps, scale, config);
@@ -177,7 +175,6 @@ struct Harness {
 
   // One ControlTask control period: pump safety -> scale FSM -> coordinator FSM.
   void step(unsigned long now_ms) {
-    pumps.tick();
     scale.tick(now_ms);
     coordinator.tick(now_ms);
   }
@@ -278,17 +275,16 @@ void test_flow_gate_timeout_aborts() {
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kFlowWait),
                     static_cast<int>(h.coordinator.phase()));
 
-  // Tick frequently so the scale keeps converting (never stale); only the
-  // wall-clock flow timeout should end the job.
+  // Flow-wait is capped at min(pour_ms, kFlowDetectTimeoutMs) — 1 s pour aborts
+  // before the scale's 5 s no-flow timeout when no flow is detected.
   unsigned long now = 0;
-  while (h.coordinator.busy() && now <= kFlowDetectTimeoutMs + 500) {
+  while (h.coordinator.busy() && now <= 1500) {
     now += 200;
     h.step(now);
   }
 
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_TRUE(h.coordinator.error());
-  TEST_ASSERT_TRUE(h.scale.flowTimedOut());
   TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kFlowTimeout),
                     static_cast<int>(h.coordinator.lastReject()));
   TEST_ASSERT_TRUE(pumpStopped(h.gpio));
@@ -371,19 +367,6 @@ void test_reject_when_busy() {
   TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kBusy),
                     static_cast<int>(h.coordinator.lastReject()));
   TEST_ASSERT_FALSE(h.coordinator.error());
-}
-
-void test_reject_cutoff_open() {
-  Harness h;
-  h.begin();
-  h.inputs.setCutoffOpen(true);
-
-  TEST_ASSERT_FALSE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, false), 0));
-  TEST_ASSERT_FALSE(h.coordinator.busy());
-  TEST_ASSERT_TRUE(h.coordinator.error());
-  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kCutoffOpen),
-                    static_cast<int>(h.coordinator.lastReject()));
-  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pins::kStandby, kGpioLevelHigh));
 }
 
 void test_reject_invalid_channel() {
@@ -490,23 +473,6 @@ void test_timed_dispense_survives_millis_rollover() {
   TEST_ASSERT_TRUE(pumpStopped(h.gpio));
 }
 
-void test_cutoff_open_during_flow_wait_aborts() {
-  Harness h;
-  h.begin();
-  h.scale_fake.grams = {50.0f};  // flat, ready -> stays in flow wait
-
-  TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, true), 0));
-  h.step(1);
-  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kFlowWait),
-                    static_cast<int>(h.coordinator.phase()));
-
-  h.inputs.setCutoffOpen(true);  // rocker opens while waiting for flow
-  h.step(2);
-  TEST_ASSERT_FALSE(h.coordinator.busy());
-  TEST_ASSERT_TRUE(h.coordinator.error());
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
-}
-
 void test_cancel_when_idle_is_noop() {
   Harness h;
   h.begin();
@@ -514,21 +480,6 @@ void test_cancel_when_idle_is_noop() {
   h.coordinator.cancel();  // must not crash or start a job
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_FALSE(h.coordinator.ok());
-}
-
-void test_cutoff_open_mid_pour_aborts() {
-  Harness h;
-  h.begin();
-
-  TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, false), 0));
-  h.step(200);
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
-
-  h.inputs.setCutoffOpen(true);  // rocker opens mid-pour
-  h.step(400);
-  TEST_ASSERT_FALSE(h.coordinator.busy());
-  TEST_ASSERT_TRUE(h.coordinator.error());
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
 }
 
 void test_custom_ml_per_s_extends_pour_duration() {
@@ -651,18 +602,6 @@ void test_reject_prime_when_busy() {
                     static_cast<int>(h.coordinator.lastReject()));
 }
 
-void test_reject_prime_cutoff_open() {
-  Harness h;
-  h.begin();
-  h.inputs.setCutoffOpen(true);
-
-  TEST_ASSERT_FALSE(h.coordinator.startPrime(0, 0));
-  TEST_ASSERT_FALSE(h.coordinator.busy());
-  TEST_ASSERT_TRUE(h.coordinator.error());
-  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kCutoffOpen),
-                    static_cast<int>(h.coordinator.lastReject()));
-}
-
 void test_stop_prime_when_idle_is_noop() {
   Harness h;
   h.begin();
@@ -690,7 +629,6 @@ int main() {
   RUN_TEST(test_scale_not_ready_during_flow_wait_aborts);
   RUN_TEST(test_cancel_aborts_immediately_without_anti_drip);
   RUN_TEST(test_reject_when_busy);
-  RUN_TEST(test_reject_cutoff_open);
   RUN_TEST(test_reject_invalid_channel);
   RUN_TEST(test_reject_non_positive_ml);
   RUN_TEST(test_reject_channel_at_bound);
@@ -700,9 +638,7 @@ int main() {
   RUN_TEST(test_reject_sub_resolution_ml);
   RUN_TEST(test_second_job_clears_prior_result);
   RUN_TEST(test_timed_dispense_survives_millis_rollover);
-  RUN_TEST(test_cutoff_open_during_flow_wait_aborts);
   RUN_TEST(test_cancel_when_idle_is_noop);
-  RUN_TEST(test_cutoff_open_mid_pour_aborts);
   RUN_TEST(test_custom_ml_per_s_extends_pour_duration);
   RUN_TEST(test_custom_anti_drip_ms);
   RUN_TEST(test_mid_pour_cal_does_not_change_running_job);
@@ -711,7 +647,6 @@ int main() {
   RUN_TEST(test_prime_timeout_errors_without_anti_drip);
   RUN_TEST(test_cancel_during_prime_aborts_without_anti_drip);
   RUN_TEST(test_reject_prime_when_busy);
-  RUN_TEST(test_reject_prime_cutoff_open);
   RUN_TEST(test_stop_prime_when_idle_is_noop);
   return UNITY_END();
 }

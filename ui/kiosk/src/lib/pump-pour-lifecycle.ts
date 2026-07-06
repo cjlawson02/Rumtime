@@ -18,10 +18,9 @@ export function resetPumpPourTracker(tracker: PumpPourTracker): void {
   tracker.cancelRequested = false;
 }
 
-/** Call after a successful dispense POST so fast firmware clears are detected. */
+/** Call after a successful dispense POST and a fresh /status read. */
 export function markPumpPourDispenseStarted(tracker: PumpPourTracker): void {
   tracker.pending = true;
-  tracker.seenRunning = true;
 }
 
 /** Resolve dispense outcome from /status pumpJob (idle = null after terminal). */
@@ -44,14 +43,14 @@ export function resolvePumpPourOutcome(
     return 'running';
   }
 
-  if (!tracker.seenRunning) return null;
-
   if (matches && job.state === 'complete') {
     return 'finished';
   }
   if (matches && job.state === 'cancelled') {
     return 'cancelled';
   }
+
+  if (!tracker.seenRunning) return null;
 
   // Idle contract: job cleared from status after our run ended.
   if (!matches) {

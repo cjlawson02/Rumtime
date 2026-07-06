@@ -34,12 +34,12 @@ class Coordinator {
   void begin(PumpBus& pumps, ScalePlatform& scale, ConfigStore& config);
 
   // Start a single-pump dispense. Returns false (and does not start motion) when
-  // busy, cutoff open, channel invalid, or ml <= 0. now_ms is the ControlTask
-  // clock (millis()) used for flow-gate and pour deadlines.
+  // busy, channel invalid, or ml <= 0. now_ms is the ControlTask clock (millis())
+  // used for flow-gate and pour deadlines.
   bool startDispense(const DispenseCommand& command, unsigned long now_ms);
 
-  // Start continuous forward prime on one pump. Returns false when busy, cutoff
-  // open, or channel invalid. No scale / flow gate. now_ms is the ControlTask clock.
+  // Start continuous forward prime on one pump. Returns false when busy or channel
+  // invalid. No scale / flow gate. now_ms is the ControlTask clock.
   bool startPrime(uint8_t channel, unsigned long now_ms);
 
   // Operator stop during prime: pump off, job ok, no anti-drip. No-op when idle
@@ -52,6 +52,9 @@ class Coordinator {
 
   // Advance the current job by one control period. Non-blocking.
   void tick(unsigned long now_ms);
+
+  // Clear terminal result after status has been published (mirrors SequenceRunner).
+  void clearTerminalResult();
 
   bool busy() const {
     return state_ != JobState::kIdle;
@@ -99,5 +102,7 @@ class Coordinator {
   unsigned long pour_start_ms_ = 0;
   unsigned long anti_drip_start_ms_ = 0;
   unsigned long prime_start_ms_ = 0;
+  unsigned long flow_wait_start_ms_ = 0;
+  unsigned long flow_wait_max_ms_ = 0;
   bool flow_gated_ = false;
 };

@@ -17,7 +17,7 @@ Product firmware architecture (`ControlTask` + command queue + status snapshot o
 | BIN2       | 15            | Pump 2 direction               |
 | PWMB       | 16            | Pump 2 PWM                     |
 | STBY       | 17            | Driver enable (HIGH = active)  |
-| VM         | 12 V pump bus | Through hardware cutoff switch |
+| VM         | 12 V pump bus | Main-powered 12 V feed (no separate pump cutoff) |
 | VCC        | 3.3 V         | Logic                          |
 | GND        | GND           | Common ground with ESP32       |
 
@@ -165,7 +165,7 @@ Record tuning values in the bench test log table.
 
 ## Safety notes
 
-- Firmware sets all outputs off at boot; still use pump power cutoff.
+- Firmware sets all outputs off at boot; use **main power** cutoff for hardware stop.
 - Do not run reverse into ingredient bottles during cleaning experiments.
 - Stall test manually with meter — firmware does not current-limit.
 - Flow-gated polling uses single-sample HX711 reads with a 150 ms conversion timeout (~10 Hz effective rate with 15 ms poll interval). If the HX711 disconnects or stops responding, reads time out, `scale_ready` becomes `no` on `status`, and flow detection returns false until power-cycle / re-init.

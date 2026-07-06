@@ -108,14 +108,16 @@ void test_bad_ml_negative() {
 void test_bad_ml_nan() {
   char line[64];
   snprintf(line, sizeof(line), "dispense 1 %g", std::nanf(""));
-  const CommandParseResult r = parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
+  const CommandParseResult r =
+      parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadMl), static_cast<int>(r.reject));
 }
 
 void test_bad_ml_over_max() {
   char line[64];
   snprintf(line, sizeof(line), "dispense 1 %g", kMaxDispenseMl + 1.0f);
-  const CommandParseResult r = parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
+  const CommandParseResult r =
+      parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadMl), static_cast<int>(r.reject));
 }
 
@@ -124,20 +126,14 @@ void test_reject_pour_too_long() {
       (static_cast<float>(kMaxPourDurationMs) / 1000.0f) * kDefaultMlPerSecond + 1.0f;
   char line[64];
   snprintf(line, sizeof(line), "dispense 1 %g", over_duration_ml);
-  const CommandParseResult r = parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
+  const CommandParseResult r =
+      parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kPourTooLong), static_cast<int>(r.reject));
 }
 
 void test_reject_sub_resolution_ml() {
   const CommandParseResult r = parseCopy("dispense 1 0.0001", idleStatus());
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kSubResolutionMl), static_cast<int>(r.reject));
-}
-
-void test_reject_cutoff_open() {
-  StatusSnapshot s;
-  s.cutoff_open = true;
-  const CommandParseResult r = parseCopy("dispense 1 30", s);
-  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kCutoffOpen), static_cast<int>(r.reject));
 }
 
 void test_cancel_then_dispense_same_poll() {
@@ -279,14 +275,16 @@ void test_cal_without_anti_drip_keeps_flag_false() {
 void test_cal_rejects_out_of_range_rate() {
   char line[64];
   snprintf(line, sizeof(line), "cal 1 %g", kMaxMlPerSecond + 1.0f);
-  const CommandParseResult r = parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
+  const CommandParseResult r =
+      parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadCalibration), static_cast<int>(r.reject));
 }
 
 void test_cal_rejects_anti_drip_too_long() {
   char line[64];
   snprintf(line, sizeof(line), "cal 1 2.0 %lu", static_cast<unsigned long>(kMaxAntiDripMs) + 1UL);
-  const CommandParseResult r = parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
+  const CommandParseResult r =
+      parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadCalibration), static_cast<int>(r.reject));
 }
 
@@ -313,7 +311,8 @@ void test_bind_too_long_ingredient() {
   char line[64];
   std::string ing(kIngredientIdMax, 'x');  // no room for NUL
   snprintf(line, sizeof(line), "bind 1 %s", ing.c_str());
-  const CommandParseResult r = parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
+  const CommandParseResult r =
+      parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadIngredient), static_cast<int>(r.reject));
 }
 
@@ -348,7 +347,6 @@ void test_config_trailing_rejects() {
 
 void test_job_reject_text() {
   TEST_ASSERT_EQUAL_STRING("flow-timeout", jobRejectText(JobReject::kFlowTimeout));
-  TEST_ASSERT_EQUAL_STRING("cutoff-open", jobRejectText(JobReject::kCutoffOpen));
   TEST_ASSERT_EQUAL_STRING("scale-not-ready", jobRejectText(JobReject::kScaleNotReady));
   TEST_ASSERT_EQUAL_STRING("none", jobRejectText(JobReject::kNone));
 }
@@ -400,13 +398,6 @@ void test_prime_stop_ok_during_prime() {
 void test_prime_bad_pump() {
   const CommandParseResult r = parseCopy("prime 3", idleStatus());
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadPump), static_cast<int>(r.reject));
-}
-
-void test_prime_reject_cutoff_open() {
-  StatusSnapshot s = idleStatus();
-  s.cutoff_open = true;
-  const CommandParseResult r = parseCopy("prime 1", s);
-  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kCutoffOpen), static_cast<int>(r.reject));
 }
 
 void test_prime_reject_busy() {
@@ -470,15 +461,6 @@ void test_pour_reject_scale_not_ready() {
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kScaleNotReady), static_cast<int>(r.reject));
 }
 
-void test_pour_reject_cutoff_open() {
-  StatusSnapshot s = idleStatus();
-  s.cutoff_open = true;
-  TEST_ASSERT_TRUE(g_config.setBinding(0, "bourbon"));
-  seedPrimedInventory("bourbon");
-  const CommandParseResult r = parseCopy("pour bourbon 30", s);
-  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kCutoffOpen), static_cast<int>(r.reject));
-}
-
 void test_pour_reject_aggregate_total_ml() {
   TEST_ASSERT_TRUE(g_config.setBinding(0, "bourbon"));
   TEST_ASSERT_TRUE(g_config.setBinding(1, "simple"));
@@ -488,7 +470,8 @@ void test_pour_reject_aggregate_total_ml() {
   TEST_ASSERT_TRUE(g_config.setCalibration(1, 10.0f, 100));
   char line[128];
   snprintf(line, sizeof(line), "pour bourbon 250 simple 251");
-  const CommandParseResult r = parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
+  const CommandParseResult r =
+      parseCommandLine(line, idleStatus(), kNumPumps, g_config, g_inventory);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadMl), static_cast<int>(r.reject));
 }
 
@@ -558,7 +541,6 @@ int main() {
   RUN_TEST(test_bad_ml_over_max);
   RUN_TEST(test_reject_pour_too_long);
   RUN_TEST(test_reject_sub_resolution_ml);
-  RUN_TEST(test_reject_cutoff_open);
   RUN_TEST(test_cancel_then_dispense_same_poll);
   RUN_TEST(test_reject_busy_when_command_pending);
   RUN_TEST(test_reject_scale_not_ready);
@@ -599,7 +581,6 @@ int main() {
   RUN_TEST(test_prime_stop_rejects_during_dispense);
   RUN_TEST(test_prime_stop_ok_during_prime);
   RUN_TEST(test_prime_bad_pump);
-  RUN_TEST(test_prime_reject_cutoff_open);
   RUN_TEST(test_prime_reject_busy);
   RUN_TEST(test_prime_stop_not_bare_stop);
   RUN_TEST(test_prime_usage_missing_args);
@@ -609,7 +590,6 @@ int main() {
   RUN_TEST(test_pour_unbound_ingredient);
   RUN_TEST(test_pour_reject_when_sequence_busy);
   RUN_TEST(test_pour_reject_scale_not_ready);
-  RUN_TEST(test_pour_reject_cutoff_open);
   RUN_TEST(test_pour_reject_aggregate_total_ml);
   RUN_TEST(test_pour_reject_not_primed);
   RUN_TEST(test_pour_reject_low_inventory);

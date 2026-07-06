@@ -90,7 +90,7 @@ bool prefsSetBlob(const char* key, const void* data, std::size_t len) {
   return g_prefs.putBytes(key, data, len) == len;
 }
 bool prefsCommit() {
-  return true;
+  return g_prefs.commit();
 }
 
 const NvsOps kPrefsOps = {
@@ -129,12 +129,8 @@ unsigned freertosQueuePending(void* handle) {
 }
 
 const QueueOps kFreeRtosQueueOps = {
-    freertosQueueCreate,
-    freertosQueueDestroy,
-    freertosQueueSend,
-    freertosQueueReceive,
-    freertosQueueReset,
-    freertosQueuePending,
+    freertosQueueCreate,  freertosQueueDestroy, freertosQueueSend,
+    freertosQueueReceive, freertosQueueReset,   freertosQueuePending,
 };
 
 RuntimeContext& ctx() {
@@ -144,8 +140,7 @@ RuntimeContext& ctx() {
 }  // namespace
 
 void ControlTask::begin() {
-  inputs_.begin();
-  pumps_.begin(inputs_, kArduinoGpioOps);
+  pumps_.begin(kArduinoGpioOps);
   scale_.begin(kHx711Ops);
   ctx().config.begin(kPrefsOps);
   ctx().inventory.begin(kPrefsOps);
@@ -198,9 +193,12 @@ void ControlTask::run() {
 void ControlTask::drainConfigOps() {
   PendingConfigOp pending;
   while (ctx().config_queue.drain(pending)) {
-    const ConfigOpReject reject =
-        applyConfigOp(pending.config, ctx().config, ctx().inventory);
-    config_op_apply_failed_ = (reject != ConfigOpReject::kNone);
+    const ConfigOpReject reject = applyConfigOp(pending.config, ctx().config, ctx().inventory);
+    if (reject != ConfigOpReject::kNone) {
+      config_op_apply_failed_ = true;
+    } else {
+      config_op_apply_failed_ = false;
+    }
   }
 }
 
@@ -306,9 +304,15 @@ void ControlTask::publishConfigAndInventory(StatusSnapshot& snapshot) {
     std::strncpy(b.ingredient_id, ingredient, kIngredientIdMax - 1);
     b.ingredient_id[kIngredientIdMax - 1] = '\0';
     const InventoryEntry* entry = ctx().inventory.find(ingredient);
-    b.remaining_ml = entry != nullptr ? entry->remaining_ml : kDefaultBottleSizeMl;
-    b.bottle_size_ml = entry != nullptr ? entry->bottle_size_ml : kDefaultBottleSizeMl;
-    b.primed = entry != nullptr && entry->primed;
+    if (entry == nullptr) {
+      b.remaining_ml = 0.0f;
+      b.bottle_size_ml = 0.0f;
+      b.primed = false;
+    } else {
+      b.remaining_ml = entry->remaining_ml;
+      b.bottle_size_ml = entry->bottle_size_ml;
+      b.primed = entry->primed;
+    }
     ++count;
   }
   snapshot.published_binding_count = count;
@@ -317,26 +321,29 @@ void ControlTask::publishConfigAndInventory(StatusSnapshot& snapshot) {
 void ControlTask::tick() {
   const unsigned long now = millis();
 
-  inputs_.tick();
+  const bool motion_busy = sequence_.busy() || coordinator_.busy();
+
   StatusSnapshot preflight_status = ctx().status.read();
-  preflight_status.cutoff_open = inputs_.cutoffOpen();
   preflight_status.config_op_pending = ctx().config_queue.hasPending();
 
   serial_.poll(&preflight_status);
 
-  if (ctx().queue.drainCancel()) {
+  if (ctx().queue.drainCancel(motion_busy)) {
     coordinator_.cancel();
     sequence_.cancel();
   }
-  pumps_.tick();
+
   scale_.tick(now);
 
-  drainConfigOps();
+  if (!coordinator_.busy() && !sequence_.busy()) {
+    drainConfigOps();
+  }
 
   Command command;
-  if (ctx().queue.drainCommand(command)) {
+  if (!coordinator_.busy() && !sequence_.busy() && ctx().queue.drainCommand(command)) {
     switch (command.type) {
       case CommandType::kDispensePump:
+        coordinator_.clearTerminalResult();
         sequence_.clearTerminalResult();
         if (coordinator_.startDispense(command.dispense, now)) {
           setPumpJobFromDispense(command.dispense, now);
@@ -345,6 +352,7 @@ void ControlTask::tick() {
         }
         break;
       case CommandType::kPrimePump:
+        coordinator_.clearTerminalResult();
         sequence_.clearTerminalResult();
         if (coordinator_.startPrime(command.prime.channel, now)) {
           setPumpJobFromPrime(command.prime.channel, now);
@@ -358,8 +366,7 @@ void ControlTask::tick() {
       case CommandType::kPourSequence:
         std::strncpy(active_recipe_id_, command.pour_sequence.recipe_id, kRecipeIdMax - 1);
         active_recipe_id_[kRecipeIdMax - 1] = '\0';
-        if (!sequence_.start(command.pour_sequence.steps, command.pour_sequence.step_count,
-                             now)) {
+        if (!sequence_.start(command.pour_sequence.steps, command.pour_sequence.step_count, now)) {
           serial_.emitJobEvent(false, sequence_.lastReject());
           active_recipe_id_[0] = '\0';
         }
@@ -375,7 +382,6 @@ void ControlTask::tick() {
   const bool top_job_busy = sequence_.busy() || coordinator_.busy();
 
   StatusSnapshot snapshot;
-  snapshot.cutoff_open = pumps_.cutoffOpen();
   snapshot.pumps_running = pumps_.anyRunning();
   snapshot.scale_ready = scale_.ready();
   snapshot.grams = scale_.readFilteredGrams();
@@ -439,8 +445,10 @@ void ControlTask::tick() {
       active_recipe_id_[0] = '\0';
     } else if (snapshot.job_cancelled) {
       serial_.emitJobCancelled();
+      coordinator_.clearTerminalResult();
     } else if (snapshot.job_ok || snapshot.job_error) {
       serial_.emitJobEvent(snapshot.job_ok, snapshot.job_reject);
+      coordinator_.clearTerminalResult();
     }
     clearPumpJobContext();
   }
@@ -459,25 +467,14 @@ void ControlTask::tick() {
       if (esp_task_wdt_reset() != ESP_OK) {
         fatalRestart("TWDT reset failed; restarting");
       }
-      bool config_ok = true;
-      bool inventory_ok = true;
-      if (ctx().config.dirty()) {
-        config_ok = ctx().config.commit([]() {
-          if (esp_task_wdt_reset() != ESP_OK) {
-            fatalRestart("TWDT reset failed; restarting");
-          }
-        });
-      }
-      if (ctx().inventory.dirty()) {
-        inventory_ok = ctx().inventory.commit([]() {
-          if (esp_task_wdt_reset() != ESP_OK) {
-            fatalRestart("TWDT reset failed; restarting");
-          }
-        });
-      }
+      const bool stores_ok = commitMachineStores(ctx().config, ctx().inventory, []() {
+        if (esp_task_wdt_reset() != ESP_OK) {
+          fatalRestart("TWDT reset failed; restarting");
+        }
+      });
       const bool had_error = config_persist_error_ || inventory_persist_error_;
-      config_persist_error_ = !config_ok;
-      inventory_persist_error_ = !inventory_ok;
+      config_persist_error_ = !stores_ok;
+      inventory_persist_error_ = !stores_ok;
       if ((config_persist_error_ || inventory_persist_error_) && !had_error) {
         serial_.emitConfigPersistError();
       }

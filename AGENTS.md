@@ -87,7 +87,7 @@ When helping with shopping, sourcing, or substitutions:
 
 Still non-negotiable even while docs are provisional:
 
-- Safety and architecture guardrails below (food-contact intent, pump cutoff, no shared liquid manifold, etc.).
+- Safety and architecture guardrails below (food-contact intent, main power cutoff, no shared liquid manifold, etc.).
 - Wrong pump **motor/voltage/tubing** variants (e.g. stepper/24 V when the bench path assumes 12 V brushed).
 - Skipping fuse/cutoff or guessing beverage-wetted materials.
 
@@ -97,7 +97,7 @@ After measured bench data, update decisions and BOM to reflect what was actually
 
 - Food-contact parts must be intentionally selected, not guessed.
 - Liquids and electronics must be physically separated.
-- Pump power must have a hardware cutoff.
+- Pump power must have a **main power** hardware cutoff (no separate pump-only switch).
 - Tubing is considered a consumable.
 - Fresh juice is a session-only ingredient unless a refrigeration plan is explicitly designed.
 - Carbonated mixers are manual top-off in v1.

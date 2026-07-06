@@ -30,7 +30,7 @@ Rumtime v1 should include:
 - Bottle inventory tracking based on configured bottle size and dispensed usage.
 - Clustered individual nozzles over one fixed glass position.
 - Drip tray.
-- Basic physical controls: pump power cutoff, start/cancel or equivalent, and status indication.
+- Basic physical controls: **main power** cutoff, start/cancel or equivalent, and status indication.
 - Moderate cleaning workflow using water flush and sanitizer.
 - Replaceable tubing.
 - External bottles, not integrated bottle storage.

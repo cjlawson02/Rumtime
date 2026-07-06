@@ -70,7 +70,8 @@ class CommandQueue {
   void enqueueCancel();
 
   // drainCancel() processes any pending cancel first (docs/16 tick order).
-  bool drainCancel();
+  // job_was_busy: only drop a queued command when cancelling an active job.
+  bool drainCancel(bool job_was_busy);
   // Pops at most one command; false when the slot is empty.
   bool drainCommand(Command& out);
 

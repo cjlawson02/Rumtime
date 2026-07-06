@@ -4,7 +4,6 @@
 
 #include "coordinator.h"
 #include "device_status.h"
-#include "machine_inputs.h"
 #include "pump_bus.h"
 #include "scale_platform.h"
 #include "sequence_runner.h"
@@ -28,7 +27,6 @@ class ControlTask {
   void setPumpJobFromDispense(const DispenseCommand& cmd, unsigned long now);
   void setPumpJobFromPrime(uint8_t channel, unsigned long now);
 
-  MachineInputs inputs_;
   PumpBus pumps_;
   ScalePlatform scale_;
   Coordinator coordinator_;

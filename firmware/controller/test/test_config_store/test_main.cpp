@@ -127,10 +127,10 @@ void test_set_calibration_rejects_bad_values() {
   const float nan = std::numeric_limits<float>::quiet_NaN();
   TEST_ASSERT_FALSE(store.setCalibration(0, nan, 100));
   TEST_ASSERT_FALSE(store.setCalibration(0, inf, 100));
-  TEST_ASSERT_FALSE(store.setCalibration(0, 0.0f, 100));                     // <= 0
-  TEST_ASSERT_FALSE(store.setCalibration(0, kMinMlPerSecond * 0.5f, 100));   // below min
-  TEST_ASSERT_FALSE(store.setCalibration(0, kMaxMlPerSecond + 1.0f, 100));   // above max
-  TEST_ASSERT_FALSE(store.setCalibration(0, 2.0f, kMaxAntiDripMs + 1));      // anti-drip too long
+  TEST_ASSERT_FALSE(store.setCalibration(0, 0.0f, 100));                    // <= 0
+  TEST_ASSERT_FALSE(store.setCalibration(0, kMinMlPerSecond * 0.5f, 100));  // below min
+  TEST_ASSERT_FALSE(store.setCalibration(0, kMaxMlPerSecond + 1.0f, 100));  // above max
+  TEST_ASSERT_FALSE(store.setCalibration(0, 2.0f, kMaxAntiDripMs + 1));     // anti-drip too long
   // A rejected write leaves the seed default in place.
   TEST_ASSERT_EQUAL_FLOAT(kDefaultMlPerSecond, store.mlPerSecond(0));
 }

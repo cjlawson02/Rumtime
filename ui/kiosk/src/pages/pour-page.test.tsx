@@ -425,6 +425,32 @@ describe('PourPage', () => {
     expect(view.getByText('Finishing up…')).toBeInTheDocument();
   });
 
+  it('surfaces auto-acknowledge errors when finishing without manual post steps', async () => {
+    routeId.current = 'margarita';
+    fetchDeviceStatus.mockResolvedValue(margaritaDevice);
+    deviceState.status = margaritaDevice;
+    acknowledgePromptMutate.mockRejectedValue(new Error('Prompt failed'));
+
+    const user = userEvent.setup();
+    const view = renderWithProviders(<PourPage />);
+
+    await user.click(view.getByRole('button', { name: 'Done' }));
+
+    deviceState.status = {
+      ...margaritaDevice,
+      job: {
+        recipeId: 'margarita',
+        state: 'prompt',
+        progress: 100,
+        stepLabel: 'Prompt',
+      },
+    };
+    view.rerender(<PourPage />);
+
+    expect(await view.findByText('Prompt failed')).toBeInTheDocument();
+    expect(view.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
   it('completes the flow after the final post-pour manual step', async () => {
     routeId.current = 'gin-tonic';
     fetchDeviceStatus.mockResolvedValue(ginTonicDevice);

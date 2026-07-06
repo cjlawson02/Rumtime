@@ -16,10 +16,9 @@ int clampDuty(int duty) {
 
 }  // namespace
 
-void PumpBus::begin(MachineInputs& inputs, const GpioOps& gpio) {
+void PumpBus::begin(const GpioOps& gpio) {
   initialized_ = false;
   driver_enabled_ = false;
-  inputs_ = &inputs;
   gpio_ = &gpio;
 
   // Safe boot ordering: STBY low first so channel writes cannot drive motors,
@@ -43,9 +42,10 @@ bool PumpBus::run(uint8_t channel, PumpDirection direction, int duty) {
     stop(channel);
     return true;
   }
-  if (cutoffOpen()) {
-    stopAll();
-    return false;
+  for (uint8_t i = 0; i < kNumChannels; ++i) {
+    if (i != channel && channels_[i].direction() != PumpDirection::kStop) {
+      channels_[i].stop();
+    }
   }
   channels_[channel].run(direction, clampDuty(duty));
   enableDriver();
@@ -70,19 +70,6 @@ void PumpBus::stopAll() {
     channels_[i].stop();
   }
   disableDriver();
-}
-
-void PumpBus::tick() {
-  if (cutoffOpen()) {
-    stopAll();
-  }
-}
-
-bool PumpBus::cutoffOpen() const {
-  if (inputs_ == nullptr) {
-    return true;
-  }
-  return inputs_->cutoffOpen();
 }
 
 bool PumpBus::anyRunning() const {

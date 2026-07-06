@@ -116,7 +116,7 @@ Include:
 
 - Pull-downs or safe default states where needed.
 - A module enable or output-enable signal.
-- Main pump power cutoff independent of software.
+- Main pump power cutoff independent of software (single **main power** switch — no separate pump-bus cutoff).
 - Firmware behavior that initializes all pumps off before doing anything else.
 
 ## Power design
@@ -126,7 +126,7 @@ Recommended default:
 ```text
 12 V supply
     -> main fuse
-    -> pump power cutoff
+    -> main power cutoff
     -> module power distribution
     -> buck converter to 5 V
     -> ESP32/dev board/logic
@@ -172,7 +172,7 @@ Bare minimum controls:
 
 | Control                    | Purpose                                    |
 | -------------------------- | ------------------------------------------ |
-| Pump power cutoff / e-stop | Hardware stop for pumps.                   |
+| Main power cutoff / e-stop | Hardware stop for the rig (single switch).                   |
 | Start/confirm button       | Optional physical action button.           |
 | Cancel/stop button         | Stops current operation.                   |
 | Status LED                 | Indicates ready/dispensing/error/cleaning. |

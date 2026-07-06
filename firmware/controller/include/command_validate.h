@@ -19,7 +19,6 @@ enum class CommandReject : uint8_t {
   kBadMl,
   kPourTooLong,
   kSubResolutionMl,
-  kCutoffOpen,
   kScaleNotReady,
   kBusy,
   kLineTooLong,
@@ -55,7 +54,7 @@ struct ConfigOp {
   uint32_t anti_drip_ms = 0;
   bool has_anti_drip = false;  // false -> keep the pump's existing anti-drip
   char ingredient_id[kIngredientIdMax] = {0};
-  float inventory_ml = 0.0f;  // level / bottle-size ops
+  float inventory_ml = 0.0f;    // level / bottle-size ops
   bool inventory_bool = false;  // primed flag
 };
 
@@ -79,8 +78,7 @@ bool validateDispenseCommand(const DispenseCommand& cmd, uint8_t num_pumps, floa
 // Shared pour-duration math for preflight and coordinator drain. On success writes
 // rounded pour_ms (> 0). On failure optionally sets reject_out.
 bool computePourDurationMs(const DispenseCommand& cmd, uint8_t num_pumps, float ml_per_s,
-                             unsigned long* pour_ms_out,
-                             CommandReject* reject_out = nullptr);
+                           unsigned long* pour_ms_out, CommandReject* reject_out = nullptr);
 
 // Map parse-time reject to runtime job reject (shared validation paths).
 JobReject commandRejectToJobReject(CommandReject reject);
@@ -89,30 +87,42 @@ JobReject commandRejectToJobReject(CommandReject reject);
 // cancel_pending_this_poll: same serial poll() already queued cancel — treat as
 // not-busy for parse so "cancel\ndispense" in one burst works (drain order).
 CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusSnapshot& status,
+                                       uint8_t num_pumps, bool cancel_pending_this_poll = false);
+CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusSnapshot& status,
                                        uint8_t num_pumps, const ConfigStore& config,
                                        bool cancel_pending_this_poll = false);
 
-// Enqueue preflight for continuous prime: cutoff + channel + busy gates.
-CommandReject preflightPrimeEnqueue(uint8_t channel, const StatusSnapshot& status, uint8_t num_pumps,
-                                    bool cancel_pending_this_poll = false);
+// Enqueue preflight for continuous prime: channel + busy gates.
+CommandReject preflightPrimeEnqueue(uint8_t channel, const StatusSnapshot& status,
+                                    uint8_t num_pumps, bool cancel_pending_this_poll = false);
 
 // Enqueue preflight for operator prime stop: busy only when a non-prime job runs.
 CommandReject preflightPrimeStopEnqueue(const StatusSnapshot& status);
 
 // Shared step validation: bindings, per-step ml ceilings, aggregate sequence caps.
-// Does not check status gates (cutoff, busy, scale) — callers add those.
 CommandReject validatePourSequenceSteps(const PourSequenceStep* steps, uint8_t step_count,
                                         uint8_t num_pumps, const ConfigStore& config);
+CommandReject validatePourSequenceSteps(const PourSequenceStep* steps, uint8_t step_count,
+                                        uint8_t num_pumps, const StatusSnapshot& status);
 
-// Enqueue preflight for a multi-step pour: cutoff, scale ready, bindings, ml bounds, inventory.
-CommandReject preflightPourSequenceEnqueue(const PourSequenceCommand& cmd, const StatusSnapshot& status,
-                                           uint8_t num_pumps, const ConfigStore& config,
+// Enqueue preflight for a multi-step pour (HTTP — snapshot only).
+CommandReject preflightPourSequenceEnqueue(const PourSequenceCommand& cmd,
+                                           const StatusSnapshot& status, uint8_t num_pumps,
+                                           bool cancel_pending_this_poll = false);
+CommandReject preflightPourSequenceEnqueue(const PourSequenceCommand& cmd,
+                                           const StatusSnapshot& status, uint8_t num_pumps,
+                                           const ConfigStore& config,
                                            const InventoryStore& inventory,
                                            bool cancel_pending_this_poll = false);
 
-// Guest-pour inventory gate: primed + remaining_ml >= step_ml + kInventoryReserveMl.
 CommandReject validatePourSequenceInventory(const PourSequenceStep* steps, uint8_t step_count,
-                                              const InventoryStore& inventory);
+                                            const InventoryStore& inventory);
+CommandReject validatePourSequenceInventory(const PourSequenceStep* steps, uint8_t step_count,
+                                            const StatusSnapshot& status);
+
+// Snapshot helpers for HTTP preflight (reads published rows only — no cross-core store access).
+float snapshotMlPerSecond(const StatusSnapshot& status, uint8_t channel);
+int snapshotChannelForIngredient(const StatusSnapshot& status, const char* ingredient_id);
 
 // Mutates line with strtok (caller owns buffer). Rejects trailing tokens.
 // Pump numbers on the wire are 1-based; DispenseCommand.channel is 0-based.

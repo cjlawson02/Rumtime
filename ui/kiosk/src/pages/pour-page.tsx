@@ -146,6 +146,9 @@ export function PourPage() {
       return;
     }
 
+    if (beginPourAttemptedRef.current) return;
+    beginPourAttemptedRef.current = true;
+
     setStartingPour(true);
     setStartError(null);
     try {
@@ -174,7 +177,6 @@ export function PourPage() {
     if (prePourPhase || pourStarted || beginPourAttemptedRef.current) return;
     if (!recipe || !status) return;
 
-    beginPourAttemptedRef.current = true;
     void beginPour();
   }, [prePourPhase, pourStarted, recipe, status, beginPour]);
 
@@ -186,9 +188,14 @@ export function PourPage() {
 
   useEffect(() => {
     if (jobState !== 'prompt' || postSteps.length > 0 || flowComplete) return;
-    void acknowledgePrompt.mutateAsync().then(() => {
-      setFlowComplete(true);
-    });
+    void acknowledgePrompt
+      .mutateAsync()
+      .then(() => {
+        setFlowComplete(true);
+      })
+      .catch((err: unknown) => {
+        setActionError(deviceErrorMessage(err));
+      });
   }, [jobState, postSteps.length, flowComplete, acknowledgePrompt]);
 
   useEffect(() => {
@@ -395,8 +402,33 @@ export function PourPage() {
         category={recipe.categories[0]}
         className="text-center"
       >
-        <Loader2 className="size-12 animate-spin text-primary" />
-        <p className="text-lg text-muted-foreground">Finishing up…</p>
+        {actionError ? (
+          <>
+            <p className="text-lg text-destructive">{actionError}</p>
+            <Button
+              size="lg"
+              className="kiosk-touch"
+              onClick={() => {
+                setActionError(null);
+                void acknowledgePrompt
+                  .mutateAsync()
+                  .then(() => {
+                    setFlowComplete(true);
+                  })
+                  .catch((err: unknown) => {
+                    setActionError(deviceErrorMessage(err));
+                  });
+              }}
+            >
+              Retry
+            </Button>
+          </>
+        ) : (
+          <>
+            <Loader2 className="size-12 animate-spin text-primary" />
+            <p className="text-lg text-muted-foreground">Finishing up…</p>
+          </>
+        )}
       </PourScreenShell>
     );
   }

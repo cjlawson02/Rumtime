@@ -9,7 +9,6 @@
 enum class JobReject : uint8_t {
   kNone = 0,
   kBusy,
-  kCutoffOpen,
   kBadChannel,
   kBadMl,
   kPourTooLong,
@@ -18,7 +17,6 @@ enum class JobReject : uint8_t {
   kFlowTimeout,
   kScaleFault,
   kScaleNotReady,
-  kCutoffMidJob,
   kPrimeTimeout,
   kUnboundIngredient,
   kBadCalibration,
@@ -46,7 +44,6 @@ struct SnapshotPump {
 // Status snapshot (docs/16). Single writer (ControlTask), tear-free read for
 // HTTP via seqlock publish/read in StatusPublisher.
 struct StatusSnapshot {
-  bool cutoff_open = false;
   bool pumps_running = false;
   bool scale_ready = false;
   float grams = 0.0f;  // filtered

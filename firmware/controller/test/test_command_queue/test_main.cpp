@@ -54,12 +54,7 @@ unsigned fakePending(void* handle) {
 }
 
 const QueueOps kFakeQueueOps = {
-    fakeCreate,
-    fakeDestroy,
-    fakeSend,
-    fakeReceive,
-    fakeReset,
-    fakePending,
+    fakeCreate, fakeDestroy, fakeSend, fakeReceive, fakeReset, fakePending,
 };
 
 }  // namespace
@@ -92,7 +87,7 @@ void test_dispense_then_cancel_flushes_queue() {
   TEST_ASSERT_TRUE(queue.enqueueDispense(cmd));
   queue.enqueueCancel();
 
-  TEST_ASSERT_TRUE(queue.drainCancel());
+  TEST_ASSERT_TRUE(queue.drainCancel(false));
   TEST_ASSERT_FALSE(queue.hasPending());
 
   Command out;
@@ -110,7 +105,7 @@ void test_cancel_then_dispense_preserves_queue() {
   TEST_ASSERT_TRUE(queue.enqueueDispense(cmd));
   queue.markCommandAfterCancel();
 
-  TEST_ASSERT_TRUE(queue.drainCancel());
+  TEST_ASSERT_TRUE(queue.drainCancel(false));
   TEST_ASSERT_TRUE(queue.hasPending());
 
   Command out;
@@ -133,7 +128,7 @@ void test_cancel_without_dispense() {
   CommandQueue queue;
   TEST_ASSERT_TRUE(queue.begin(kFakeQueueOps));
   queue.enqueueCancel();
-  TEST_ASSERT_TRUE(queue.drainCancel());
+  TEST_ASSERT_TRUE(queue.drainCancel(false));
   TEST_ASSERT_FALSE(queue.hasPending());
 }
 
@@ -149,7 +144,7 @@ void test_dispense_then_cancel_preserves_pour() {
   queue.markCommandAfterCancel();
   queue.enqueueCancel();
 
-  TEST_ASSERT_TRUE(queue.drainCancel());
+  TEST_ASSERT_TRUE(queue.drainCancel(false));
   TEST_ASSERT_TRUE(queue.hasPending());
 
   Command out;

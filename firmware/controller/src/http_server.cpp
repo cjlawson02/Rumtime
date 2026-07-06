@@ -25,7 +25,6 @@ WiFiManager* g_wifi = nullptr;
 constexpr size_t kMaxHttpBodyBytes = 2048;
 
 void addCorsHeaders() {
-  g_server.sendHeader("Access-Control-Allow-Origin", "*");
   g_server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   g_server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
 }
@@ -51,6 +50,13 @@ void handleOptions() {
 }
 
 bool rejectOversizedBody() {
+  if (g_server.hasHeader("Content-Length")) {
+    const int content_length = g_server.header("Content-Length").toInt();
+    if (content_length < 0 || static_cast<size_t>(content_length) > kMaxHttpBodyBytes) {
+      sendError(HttpStatus::kBadRequest, "bad_request", "Body too large");
+      return true;
+    }
+  }
   if (g_server.arg("plain").length() > kMaxHttpBodyBytes) {
     sendError(HttpStatus::kBadRequest, "bad_request", "Body too large");
     return true;
@@ -137,8 +143,8 @@ void handlePour() {
   seq.step_count = idx;
 
   const StatusSnapshot status = g_ctx->status.read();
-  const CommandReject reject = preflightPourSequenceEnqueue(
-      seq, status, PumpBus::kNumChannels, g_ctx->config, g_ctx->inventory);
+  const CommandReject reject =
+      preflightPourSequenceEnqueue(seq, status, PumpBus::kNumChannels);
   if (reject != CommandReject::kNone) {
     sendError(httpStatusForReject(reject), httpErrorCode(reject), httpMessageForReject(reject));
     return;
@@ -195,8 +201,7 @@ void handlePumpDispense() {
   }
 
   if (std::strcmp(purpose, "prime") == 0) {
-    const CommandReject reject =
-        preflightPrimeEnqueue(channel, status, PumpBus::kNumChannels);
+    const CommandReject reject = preflightPrimeEnqueue(channel, status, PumpBus::kNumChannels);
     if (reject != CommandReject::kNone) {
       sendError(httpStatusForReject(reject), httpErrorCode(reject), httpMessageForReject(reject));
       return;
@@ -226,7 +231,7 @@ void handlePumpDispense() {
       sendError(HttpStatus::kUnprocessable, "bad_ml", "durationSeconds required");
       return;
     }
-    const float ml_per_s = g_ctx->config.mlPerSecond(channel);
+    const float ml_per_s = snapshotMlPerSecond(status, channel);
     dispense.ml = ml_per_s * duration_s;
     dispense.pump_job_purpose = static_cast<uint8_t>(PumpJobPurposeWire::kCalibration);
     dispense.pump_job_duration_ms = static_cast<unsigned long>(duration_s * 1000.0f);
@@ -235,11 +240,16 @@ void handlePumpDispense() {
     return;
   }
 
-  dispense.ml_per_s = g_ctx->config.mlPerSecond(channel);
-  dispense.anti_drip_ms = g_ctx->config.antiDripMs(channel);
+  dispense.ml_per_s = snapshotMlPerSecond(status, channel);
+  dispense.anti_drip_ms = 0;
+  for (uint8_t i = 0; i < status.published_pump_count; ++i) {
+    if (status.published_pumps[i].pump_id == channel + 1) {
+      dispense.anti_drip_ms = status.published_pumps[i].anti_drip_ms;
+      break;
+    }
+  }
 
-  const CommandReject reject =
-      preflightDispenseEnqueue(dispense, status, PumpBus::kNumChannels, g_ctx->config);
+  const CommandReject reject = preflightDispenseEnqueue(dispense, status, PumpBus::kNumChannels);
   if (reject != CommandReject::kNone) {
     sendError(httpStatusForReject(reject), httpErrorCode(reject), httpMessageForReject(reject));
     return;
@@ -265,7 +275,10 @@ void handlePumpDispenseCancel() {
   }
   const StatusSnapshot status = g_ctx->status.read();
   if (status.job_busy && status.job_phase == static_cast<uint8_t>(Coordinator::Phase::kPrime)) {
-    g_ctx->queue.enqueuePrimeStop();
+    if (!g_ctx->queue.enqueuePrimeStop()) {
+      sendError(HttpStatus::kConflict, "busy", "Device busy");
+      return;
+    }
   } else {
     g_ctx->queue.enqueueCancel();
   }
@@ -282,8 +295,7 @@ void enqueueConfigOp(const ConfigOp& op) {
     return;
   }
   const StatusSnapshot status = g_ctx->status.read();
-  const ConfigOpReject reject =
-      preflightConfigOpEnqueue(op, status, PumpBus::kNumChannels);
+  const ConfigOpReject reject = preflightConfigOpEnqueue(op, status, PumpBus::kNumChannels);
   if (reject != ConfigOpReject::kNone) {
     sendError(httpStatusForConfigReject(reject), httpErrorCodeConfig(reject),
               reject == ConfigOpReject::kBusy ? "Device busy" : "Request rejected");
@@ -316,12 +328,13 @@ void handlePumpBinding() {
     op.type = ConfigOpType::kClearBinding;
   } else {
     const char* ingredient = doc["ingredientId"] | "";
-    if (ingredient[0] == '\0') {
+    const std::size_t len = std::strlen(ingredient);
+    if (len == 0 || len >= kIngredientIdMax) {
       sendError(HttpStatus::kUnprocessable, "bad_ingredient", "Invalid ingredient");
       return;
     }
     op.type = ConfigOpType::kSetBinding;
-    std::strncpy(op.ingredient_id, ingredient, kIngredientIdMax - 1);
+    std::memcpy(op.ingredient_id, ingredient, len);
   }
   enqueueConfigOp(op);
 }
@@ -422,7 +435,7 @@ void handleInventoryPrimed() {
 }
 
 void handleNotFound() {
-  sendError(HttpStatus::kBadRequest, "bad_request", "Not found");
+  sendError(HttpStatus::kNotFound, "not_found", "Not found");
 }
 
 }  // namespace

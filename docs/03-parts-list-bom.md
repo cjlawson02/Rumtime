@@ -13,7 +13,7 @@ Prices are rough planning estimates. Verify price, availability, food-contact su
 | I/O expander   | PCA9685-style I2C PWM expander              |                     2 |                   3 | One per 4-pump module.                                             |
 | Power supply   | 12 V supply, roughly 10 A or higher         |                     1 |                   1 | External brick preferred for v1. Size after pump current is known. |
 | Logic power    | 12 V to 5 V buck converter                  |                     1 |                   1 | Feeds ESP32 and logic as needed.                                   |
-| Safety         | Pump power cutoff / e-stop switch           |                     1 |                   1 | Cuts pump power, not necessarily controller power.                 |
+| Safety         | Main power cutoff / e-stop                  |                     1 |                   1 | Cuts rig power (pumps and supply); not a separate pump-only switch. |
 | Protection     | Main fuse + per-module fuses/polyfuses      |               several |             several | Protects wiring and modules.                                       |
 | Weight sensing | 5 kg load cell + HX711                      |                     1 |                   1 | Required — glass, flow-gate, sanity checks.                        |
 | Tubing         | Food-contact tubing matched to pump head    |              25-50 ft |              50+ ft | Tubing is a consumable.                                            |

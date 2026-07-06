@@ -20,7 +20,7 @@ Verify prices and sellers before ordering. Links are examples, not endorsements.
 |        1 | Barb fittings      | Quickun **1/8" PP barb union** 5-pack                |     $7 | Amazon B08L5DTRCK                                                                                     |
 |        1 | Clamps             | **Koolance CLM-03N-10P** or McMaster **5346K441**    |    $10 | Koolance / McMaster                                                                                   |
 |        1 | Fuse               | Inline ATC holder + **5 A** fuses                    |     $5 | Amazon                                                                                                |
-|        1 | Cutoff switch      | **12 V 20 A SPST** rocker                            |     $3 | Amazon                                                                                                |
+|        1 | Cutoff switch      | **Main power SPST** (mains or PSU input — not a separate pump-bus switch) |     $3 | Amazon / hardware store                                                                               |
 |        1 | Wire               | **12 AWG** red/black + hookup wire kit               |    $10 | Amazon                                                                                                |
 |        1 | Protoboard         | Breadboard + jumpers                                 |     $8 | Amazon                                                                                                |
 |        2 | Test bottles       | Water + syrup/grenadine ingredients                  |    $10 | Grocery                                                                                               |

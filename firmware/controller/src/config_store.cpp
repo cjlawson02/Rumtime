@@ -63,7 +63,8 @@ uint32_t clampAntiDripMs(uint32_t anti_drip_ms) {
 }  // namespace
 
 static_assert(sizeof(PumpConfig) == 36, "PumpConfig layout changed — bump kConfigSchemaVersion");
-static_assert(sizeof(ConfigRecord) == 588, "ConfigRecord layout changed — bump kConfigSchemaVersion");
+static_assert(sizeof(ConfigRecord) == 588,
+              "ConfigRecord layout changed — bump kConfigSchemaVersion");
 
 void ConfigStore::loadDefaults() {
   record_ = ConfigRecord{};  // magic/version/num_pumps + per-pump seed defaults

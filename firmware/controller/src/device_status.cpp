@@ -89,8 +89,7 @@ void appendNotifications(std::string& out, const StatusSnapshot& s) {
   };
 
   if (!s.scale_ready) {
-    add("scale_not_ready", "warning", "Scale not ready",
-        "Place an empty glass on the platform.");
+    add("scale_not_ready", "warning", "Scale not ready", "Place an empty glass on the platform.");
   }
   if (s.config_persist_error) {
     add("config_persist_error", "error", "Config save failed",
@@ -99,9 +98,6 @@ void appendNotifications(std::string& out, const StatusSnapshot& s) {
   if (s.config_op_apply_failed) {
     add("config_op_failed", "error", "Config update failed",
         "The last configuration change was rejected.");
-  }
-  if (s.cutoff_open) {
-    add("cutoff_open", "error", "Pump cutoff open", "Close the hardware cutoff switch.");
   }
   if (s.flow_timed_out) {
     add("flow_timeout", "warning", "Flow not detected", "No flow detected during pour.");
@@ -122,17 +118,15 @@ void appendPumpJobJson(std::string& out, const StatusSnapshot& s, unsigned long 
     appendKeyInt(out, "progress", 0);
     appendKeyString(out, "stepLabel", pumpJobStepLabel(purpose));
     appendKeyBool(out, "continuous", true);
-    const unsigned long elapsed_s =
-        s.pump_job_start_ms > 0 && now_ms >= s.pump_job_start_ms
-            ? (now_ms - s.pump_job_start_ms) / 1000UL
-            : 0UL;
+    const unsigned long elapsed_s = s.pump_job_start_ms > 0 && now_ms >= s.pump_job_start_ms
+                                        ? (now_ms - s.pump_job_start_ms) / 1000UL
+                                        : 0UL;
     appendKeyInt(out, "elapsedSeconds", static_cast<int>(elapsed_s), false);
   } else {
-    const unsigned long elapsed =
-        s.pump_job_start_ms > 0 && now_ms >= s.pump_job_start_ms ? now_ms - s.pump_job_start_ms
-                                                                 : 0UL;
-    appendKeyInt(out, "progress",
-                 computeTimedPumpProgressPercent(elapsed, s.pump_job_duration_ms));
+    const unsigned long elapsed = s.pump_job_start_ms > 0 && now_ms >= s.pump_job_start_ms
+                                      ? now_ms - s.pump_job_start_ms
+                                      : 0UL;
+    appendKeyInt(out, "progress", computeTimedPumpProgressPercent(elapsed, s.pump_job_duration_ms));
     appendKeyString(out, "stepLabel", pumpJobStepLabel(purpose));
     if (purpose == PumpJobPurposeWire::kVerify && s.pump_job_target_ml > 0.0f) {
       appendKeyFloat(out, "targetMl", s.pump_job_target_ml, false);
@@ -207,7 +201,14 @@ std::string buildDeviceStatusJson(const DeviceStatusInputs& in) {
     }
     const SnapshotBinding& b = s.published_bindings[i];
     out.push_back('"');
-    out.append(b.ingredient_id);
+    if (b.ingredient_id[0] != '\0') {
+      for (const char* p = b.ingredient_id; *p != '\0'; ++p) {
+        if (*p == '"' || *p == '\\') {
+          out.push_back('\\');
+        }
+        out.push_back(*p);
+      }
+    }
     out.append("\":{");
     appendKeyString(out, "ingredientId", b.ingredient_id);
     appendKeyFloat(out, "remainingMl", b.remaining_ml);
@@ -238,8 +239,7 @@ std::string buildDeviceStatusJson(const DeviceStatusInputs& in) {
 
   if (s.sequence_busy) {
     out.append("\"job\":{");
-    appendKeyString(out, "recipeId",
-                    s.active_recipe_id[0] != '\0' ? s.active_recipe_id : "pour");
+    appendKeyString(out, "recipeId", s.active_recipe_id[0] != '\0' ? s.active_recipe_id : "pour");
     appendKeyString(out, "state", "pouring");
     appendKeyInt(out, "progress",
                  computeSequenceProgressPercent(s.sequence_step_index, s.sequence_step_count));
@@ -254,10 +254,9 @@ std::string buildDeviceStatusJson(const DeviceStatusInputs& in) {
     appendKeyString(out, "state",
                     s.job_terminal == JobTerminalState::kComplete ? "complete" : "cancelled");
     appendKeyInt(out, "progress", s.job_terminal == JobTerminalState::kComplete ? 100 : 0);
-    appendKeyString(out, "stepLabel",
-                    s.job_terminal == JobTerminalState::kComplete ? "Pour complete"
-                                                                  : "Pour cancelled",
-                    false);
+    appendKeyString(
+        out, "stepLabel",
+        s.job_terminal == JobTerminalState::kComplete ? "Pour complete" : "Pour cancelled", false);
     out.append("},");
     out.append("\"pumpJob\":null,");
   } else if (s.job_busy && s.pump_job_pump_id > 0) {

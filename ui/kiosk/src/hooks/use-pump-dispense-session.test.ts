@@ -7,14 +7,19 @@ import {
   createPumpPourTracker,
   markPumpPourDispenseStarted,
 } from '@/lib/pump-pour-lifecycle';
+import { createWrapper } from '@/test/render';
 
 const startMutateAsync = vi.fn();
 const cancelMutateAsync = vi.fn();
+const { fetchDeviceStatus } = vi.hoisted(() => ({
+  fetchDeviceStatus: vi.fn(),
+}));
 
 let deviceStatus: DeviceStatus | undefined;
 
 vi.mock('@/hooks/use-device-status', () => ({
   useDeviceStatus: () => ({ status: deviceStatus }),
+  fetchDeviceStatus,
 }));
 
 vi.mock('@/hooks/use-device-mutations', () => ({
@@ -32,17 +37,21 @@ const runningJob: PumpJob = {
 };
 
 describe('usePumpDispenseSession', () => {
+  const wrapper = createWrapper();
+
   beforeEach(() => {
     startMutateAsync.mockReset();
     cancelMutateAsync.mockReset();
+    fetchDeviceStatus.mockReset();
     startMutateAsync.mockResolvedValue(undefined);
     cancelMutateAsync.mockResolvedValue(undefined);
+    fetchDeviceStatus.mockResolvedValue({ connected: true, bindings: {} });
     deviceStatus = { connected: true, bindings: {}, pumpJob: null };
   });
 
   it('starts a dispense run and marks the tracker on success', async () => {
     const trackerRef = { current: createPumpPourTracker() };
-    const { result } = renderHook(() => usePumpDispenseSession());
+    const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
 
     await act(async () => {
       await result.current.startRun({
@@ -59,7 +68,8 @@ describe('usePumpDispenseSession', () => {
       durationSeconds: 20,
     });
     expect(trackerRef.current.pending).toBe(true);
-    expect(trackerRef.current.seenRunning).toBe(true);
+    expect(trackerRef.current.seenRunning).toBe(false);
+    expect(fetchDeviceStatus).toHaveBeenCalledOnce();
     expect(result.current.error).toBeNull();
   });
 
@@ -67,7 +77,7 @@ describe('usePumpDispenseSession', () => {
     startMutateAsync.mockRejectedValue(new Error('Device offline'));
     const trackerRef = { current: createPumpPourTracker() };
     markPumpPourDispenseStarted(trackerRef.current);
-    const { result } = renderHook(() => usePumpDispenseSession());
+    const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
 
     await act(async () => {
       await result.current.startRun({
@@ -84,7 +94,7 @@ describe('usePumpDispenseSession', () => {
   it('calls cancel and optionally resets the tracker on stop', async () => {
     const trackerRef = { current: createPumpPourTracker() };
     markPumpPourDispenseStarted(trackerRef.current);
-    const { result } = renderHook(() => usePumpDispenseSession());
+    const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
 
     await act(async () => {
       await result.current.stopRun({ tracker: trackerRef });
@@ -101,7 +111,7 @@ describe('usePumpDispenseSession', () => {
       pumpJob: runningJob,
     };
     const onCancelRequested = vi.fn();
-    const { result } = renderHook(() => usePumpDispenseSession());
+    const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
 
     await act(async () => {
       await result.current.emergencyStop(2, onCancelRequested);
@@ -119,7 +129,7 @@ describe('usePumpDispenseSession', () => {
     };
     const onOpenChange = vi.fn();
     const resetLocalState = vi.fn();
-    const { result } = renderHook(() => usePumpDispenseSession());
+    const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
 
     act(() => {
       result.current.closeWizard(onOpenChange, resetLocalState, { pumpId: 2 });

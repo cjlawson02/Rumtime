@@ -24,7 +24,7 @@ class SequenceRunner {
              PumpBus& pumps, ScalePlatform& scale);
 
   // Preflight all steps, then start step 0. Returns false without motion when
-  // busy, cutoff open, unbound ingredient, bad ml, or pour-ceiling violation.
+  // busy, unbound ingredient, bad ml, or pour-ceiling violation.
   bool start(const PourSequenceStep* steps, uint8_t step_count, unsigned long now_ms);
 
   // Abort the sequence immediately (coordinator cancel + stopAll). Safe when idle.

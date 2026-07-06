@@ -142,7 +142,6 @@ Example firmware mappings (when HTTP ships):
 | `scale_ready == false` during guest pour window | `scale_not_ready` | `warning` |
 | `config_persist_error` | `config_persist_error` | `error` |
 | `flow_timed_out` on last job | `flow_timeout` | `warning` |
-| Cutoff open / unsafe | `cutoff_open` | `error` |
 
 Kiosk-computed menu alerts (hidden drinks, low inventory) are **not** echoed in this array — the kiosk derives them from recipes + `bindings` / `pumps`.
 

@@ -128,7 +128,7 @@ Notes:
 
 - External 12 V brick is simpler and safer for v1.
 - Include a main fuse.
-- Include a pump power cutoff.
+- Include a **main power** cutoff (no separate pump-bus switch).
 - Keep electronics dry and isolated from liquid path.
 
 ## Mechanical parts

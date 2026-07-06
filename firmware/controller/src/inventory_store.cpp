@@ -31,10 +31,35 @@ bool ingredientIdValid(const char* ingredient_id) {
   return len > 0 && len < kIngredientIdMax;
 }
 
+void sanitizeEntry(InventoryEntry& entry, bool& changed) {
+  if (!entry.active) {
+    return;
+  }
+  if (!ingredientIdValid(entry.ingredient_id)) {
+    entry = InventoryEntry{};
+    changed = true;
+    return;
+  }
+  if (!std::isfinite(entry.bottle_size_ml) || entry.bottle_size_ml <= 0.0f) {
+    entry.bottle_size_ml = kDefaultBottleSizeMl;
+    changed = true;
+  }
+  if (!std::isfinite(entry.remaining_ml) || entry.remaining_ml < 0.0f) {
+    entry.remaining_ml = entry.bottle_size_ml;
+    changed = true;
+  }
+  if (entry.remaining_ml > entry.bottle_size_ml) {
+    entry.remaining_ml = entry.bottle_size_ml;
+    changed = true;
+  }
+}
+
 }  // namespace
 
-static_assert(sizeof(InventoryEntry) == 40, "InventoryEntry layout changed — bump kInventorySchemaVersion");
-static_assert(sizeof(InventoryRecord) == 652, "InventoryRecord layout changed — bump kInventorySchemaVersion");
+static_assert(sizeof(InventoryEntry) == 40,
+              "InventoryEntry layout changed — bump kInventorySchemaVersion");
+static_assert(sizeof(InventoryRecord) == 652,
+              "InventoryRecord layout changed — bump kInventorySchemaVersion");
 
 void InventoryStore::begin(const NvsOps& ops) {
   ops_ = &ops;
@@ -65,7 +90,13 @@ void InventoryStore::begin(const NvsOps& ops) {
     record_ = InventoryRecord{};
     record_.crc32 = recordCrc(record_);
     dirty_ = true;
+    return;
   }
+  bool sanitized = false;
+  for (uint8_t i = 0; i < kMaxInventoryEntries; ++i) {
+    sanitizeEntry(record_.entries[i], sanitized);
+  }
+  dirty_ = sanitized;
 }
 
 const InventoryEntry* InventoryStore::findEntry(const char* ingredient_id) const {
@@ -74,8 +105,7 @@ const InventoryEntry* InventoryStore::findEntry(const char* ingredient_id) const
   }
   for (uint8_t i = 0; i < kMaxInventoryEntries; ++i) {
     const InventoryEntry& e = record_.entries[i];
-    if (e.active &&
-        std::strncmp(e.ingredient_id, ingredient_id, kIngredientIdMax) == 0) {
+    if (e.active && std::strncmp(e.ingredient_id, ingredient_id, kIngredientIdMax) == 0) {
       return &e;
     }
   }
@@ -121,6 +151,10 @@ InventoryEntry* InventoryStore::findMutable(const char* ingredient_id) {
 }
 
 bool InventoryStore::seedOnBinding(const char* ingredient_id) {
+  InventoryEntry* existing = findEntryMutable(ingredient_id);
+  if (existing != nullptr) {
+    return true;
+  }
   InventoryEntry* e = allocEntry(ingredient_id);
   if (e == nullptr) {
     return false;
@@ -144,7 +178,7 @@ bool InventoryStore::setRemainingMl(const char* ingredient_id, float remaining_m
   if (!ingredientIdValid(ingredient_id) || !std::isfinite(remaining_ml) || remaining_ml < 0.0f) {
     return false;
   }
-  InventoryEntry* e = allocEntry(ingredient_id);
+  InventoryEntry* e = findEntryMutable(ingredient_id);
   if (e == nullptr) {
     return false;
   }
@@ -154,10 +188,11 @@ bool InventoryStore::setRemainingMl(const char* ingredient_id, float remaining_m
 }
 
 bool InventoryStore::setBottleSizeMl(const char* ingredient_id, float bottle_size_ml) {
-  if (!ingredientIdValid(ingredient_id) || !std::isfinite(bottle_size_ml) || bottle_size_ml <= 0.0f) {
+  if (!ingredientIdValid(ingredient_id) || !std::isfinite(bottle_size_ml) ||
+      bottle_size_ml <= 0.0f) {
     return false;
   }
-  InventoryEntry* e = allocEntry(ingredient_id);
+  InventoryEntry* e = findEntryMutable(ingredient_id);
   if (e == nullptr) {
     return false;
   }
@@ -177,7 +212,7 @@ bool InventoryStore::refill(const char* ingredient_id) {
 }
 
 bool InventoryStore::setPrimed(const char* ingredient_id, bool primed) {
-  InventoryEntry* e = allocEntry(ingredient_id);
+  InventoryEntry* e = findEntryMutable(ingredient_id);
   if (e == nullptr) {
     return false;
   }

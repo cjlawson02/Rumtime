@@ -40,7 +40,8 @@ bool g_queue_has_item = false;
 void* fakeQueueCreate(std::size_t) {
   return reinterpret_cast<void*>(1);
 }
-void fakeQueueDestroy(void*) {}
+void fakeQueueDestroy(void*) {
+}
 bool fakeQueueSend(void*, const void* item, std::size_t len) {
   if (g_queue_has_item) {
     return false;
@@ -64,8 +65,8 @@ unsigned fakeQueuePending(void*) {
   return g_queue_has_item ? 1U : 0U;
 }
 
-const QueueOps kFakeQueueOps = {fakeQueueCreate, fakeQueueDestroy, fakeQueueSend,
-                                fakeQueueReceive, fakeQueueReset, fakeQueuePending};
+const QueueOps kFakeQueueOps = {fakeQueueCreate,  fakeQueueDestroy, fakeQueueSend,
+                                fakeQueueReceive, fakeQueueReset,   fakeQueuePending};
 
 ConfigOpQueue g_config_queue;
 
@@ -220,14 +221,12 @@ void test_preflight_calibration_zero_rejects() {
   op.anti_drip_ms = 100;
   StatusSnapshot status;
   const ConfigOpReject reject = preflightConfigOpEnqueue(op, status, kNumPumps);
-  TEST_ASSERT_EQUAL(static_cast<int>(ConfigOpReject::kBadCalibration),
-                    static_cast<int>(reject));
+  TEST_ASSERT_EQUAL(static_cast<int>(ConfigOpReject::kBadCalibration), static_cast<int>(reject));
   TEST_ASSERT_EQUAL(422, static_cast<int>(httpStatusForConfigReject(reject)));
 }
 
 void test_http_status_codes() {
   TEST_ASSERT_EQUAL(409, static_cast<int>(httpStatusForReject(CommandReject::kBusy)));
-  TEST_ASSERT_EQUAL(503, static_cast<int>(httpStatusForReject(CommandReject::kCutoffOpen)));
   TEST_ASSERT_EQUAL(422, static_cast<int>(httpStatusForReject(CommandReject::kNotPrimed)));
 }
 
@@ -237,7 +236,8 @@ void setUp() {
   resetStores();
 }
 
-void tearDown() {}
+void tearDown() {
+}
 
 int main() {
   UNITY_BEGIN();

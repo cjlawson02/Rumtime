@@ -7,6 +7,7 @@ import {
 import { deviceClient } from '@/api';
 import type {
   BottleSizeCommand,
+  DeviceStatus,
   InventoryLevelCommand,
   PourCommand,
   PrimedCommand,
@@ -21,6 +22,22 @@ import {
 
 function invalidateDeviceStatus(queryClient: QueryClient) {
   return queryClient.invalidateQueries({ queryKey: deviceStatusQueryKeyPrefix });
+}
+
+function getCachedDeviceStatus(
+  queryClient: QueryClient,
+): DeviceStatus | undefined {
+  const matches = queryClient.getQueriesData<DeviceStatus>({
+    queryKey: deviceStatusQueryKeyPrefix,
+  });
+  return matches.map(([, data]) => data).find((data) => data !== undefined);
+}
+
+function bindingPrimed(
+  status: DeviceStatus | undefined,
+  ingredientId: string,
+): boolean | undefined {
+  return status?.bindings[ingredientId]?.primed;
 }
 
 function useDeviceStatusInvalidator() {
@@ -136,6 +153,10 @@ export function useApplyIngredientSwap() {
       fromIngredientId,
       toIngredientId,
     }: IngredientSwapInput) => {
+      const cachedStatus = getCachedDeviceStatus(queryClient);
+      const primedRollback: Array<{ ingredientId: string; primed: boolean }> =
+        [];
+
       await deviceClient.updatePumpBinding({
         pumpId,
         ingredientId: toIngredientId,
@@ -143,17 +164,31 @@ export function useApplyIngredientSwap() {
 
       try {
         if (toIngredientId) {
+          const priorPrimed = bindingPrimed(cachedStatus, toIngredientId);
           await deviceClient.updatePrimed({
             ingredientId: toIngredientId,
             primed: false,
           });
+          if (priorPrimed !== undefined) {
+            primedRollback.push({
+              ingredientId: toIngredientId,
+              primed: priorPrimed,
+            });
+          }
         }
 
         if (fromIngredientId && fromIngredientId !== toIngredientId) {
+          const priorPrimed = bindingPrimed(cachedStatus, fromIngredientId);
           await deviceClient.updatePrimed({
             ingredientId: fromIngredientId,
             primed: false,
           });
+          if (priorPrimed !== undefined) {
+            primedRollback.push({
+              ingredientId: fromIngredientId,
+              primed: priorPrimed,
+            });
+          }
         }
       } catch (error) {
         try {
@@ -161,6 +196,9 @@ export function useApplyIngredientSwap() {
             pumpId,
             ingredientId: fromIngredientId,
           });
+          for (const snapshot of primedRollback.reverse()) {
+            await deviceClient.updatePrimed(snapshot);
+          }
         } catch {
           // Best-effort rollback; surface original failure.
         }

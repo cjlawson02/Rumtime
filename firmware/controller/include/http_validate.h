@@ -9,6 +9,7 @@
 enum class HttpStatus : uint16_t {
   kOkNoContent = 204,
   kBadRequest = 400,
+  kNotFound = 404,
   kConflict = 409,
   kUnprocessable = 422,
   kNotImplemented = 501,

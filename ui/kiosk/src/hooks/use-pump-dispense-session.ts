@@ -4,9 +4,10 @@ import {
   useState,
   type MutableRefObject,
 } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import type { PumpJobPurpose } from '@/api/types';
-import { useDeviceStatus } from '@/hooks/use-device-status';
+import { fetchDeviceStatus, useDeviceStatus } from '@/hooks/use-device-status';
 import {
   useCancelPumpDispense,
   useStartPumpDispense,
@@ -29,6 +30,7 @@ export type StartRunOptions = {
 };
 
 export function usePumpDispenseSession() {
+  const queryClient = useQueryClient();
   const { status } = useDeviceStatus();
   const startPumpDispense = useStartPumpDispense();
   const cancelPumpDispense = useCancelPumpDispense();
@@ -60,6 +62,7 @@ export function usePumpDispenseSession() {
           }),
           ...(options.ml !== undefined && { ml: options.ml }),
         });
+        await fetchDeviceStatus(queryClient);
         markPumpPourDispenseStarted(trackerRef.current);
       } catch (err) {
         resetPumpPourTracker(trackerRef.current);
@@ -68,7 +71,7 @@ export function usePumpDispenseSession() {
         setStarting(false);
       }
     },
-    [resolveTracker, startPumpDispense],
+    [queryClient, resolveTracker, startPumpDispense],
   );
 
   const stopRun = useCallback(

@@ -164,7 +164,7 @@ After a real ingredient session:
 
 Before using with ingredients:
 
-1. Activate pump power cutoff during pump operation.
+1. Activate **main power** cutoff during pump operation.
    - Verify: pumps stop.
 2. Reset ESP32 during operation.
    - Verify: pumps stop or remain off.
@@ -186,4 +186,4 @@ Before using with ingredients:
 - Load cell flow-gate validation (or documented fallback).
 - PCA9685 I2C bench test before PCB fab.
 - Leak test with water before alcohol/sugar.
-- Hardware pump power cutoff.
+- Hardware **main power** cutoff.

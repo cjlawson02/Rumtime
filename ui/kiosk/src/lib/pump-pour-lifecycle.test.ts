@@ -76,13 +76,24 @@ describe('resolvePumpPourOutcome', () => {
     ).toBeNull();
   });
 
-  it('resolves finished when dispense started but running was never polled', () => {
+  it('does not resolve finished from idle status immediately after dispense', () => {
     const tracker = createPumpPourTracker();
     markPumpPourDispenseStarted(tracker);
 
-    expect(resolvePumpPourOutcome(tracker, 1, 'calibration', null)).toBe(
-      'finished',
-    );
+    expect(resolvePumpPourOutcome(tracker, 1, 'calibration', null)).toBeNull();
+  });
+
+  it('resolves finished from a complete snapshot without observing running', () => {
+    const tracker = createPumpPourTracker();
+    markPumpPourDispenseStarted(tracker);
+
+    expect(
+      resolvePumpPourOutcome(tracker, 1, 'calibration', {
+        ...runningJob,
+        state: 'complete',
+        progress: 100,
+      }),
+    ).toBe('finished');
   });
 
   it('resolves cancelled from an explicit cancelled snapshot', () => {

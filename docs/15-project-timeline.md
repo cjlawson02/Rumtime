@@ -39,7 +39,7 @@ gantt
     Test 3 flow calibration         :done, t3, 2026-06-27, 1d
     Test 4 pour repeatability       :active, t4, 2026-06-27, 14d
     Test 5 anti-drip tuning         :done, t5, 2026-06-27, 1d
-    Fuse and SPST cutoff install    :active, safe, 2026-06-27, 14d
+    Fuse and main power cutoff install    :active, safe, 2026-06-27, 14d
     Test 6 syrup and grenadine      :t6, 2026-07-11, 7d
     Tests 7 to 9 load cell gating   :t79, 2026-07-11, 14d
     Test 10 PCA9685 I2C path        :t10, 2026-07-25, 7d
@@ -93,7 +93,7 @@ Fill **ordered** and **received** as you go. Sourced from [`13-phase-0-mini-bom.
 | 3×5 mm FDA silicone tubing | 2 rolls × 5 m | 2026-06-27 | OK | **10 m** total; 3×5 mm class (caliper waived — fit OK on bench) |
 | PP barb unions (Quickun B08L5DTRCK class) | 1 set | 2026-06-27 | **Wrong SKU — return pending** | Shipped as **smooth silicone couplers** (slip join, not barbed). **Not yet returned** (post office pending). Operator measured **1.8 mm ID** bore vs **3 mm** line tubing. **Not** a barb union; on outlet (tube in one end, pour from other) narrows orifice vs open 3 mm tube. Food-contact rating not verified. Sessions 01–02 used **open ~3 mm outlet** (no restriction at tip). |
 | Spring clamps | 1 set | 2026-06-27 | OK | |
-| Inline fuse + 5 A + SPST cutoff | 1 | 2026-06-27 | OK | Not installed yet |
+| Inline fuse + main power cutoff | 1 | 2026-06-27 | OK | Not installed yet |
 | Estardyn 5 kg load cell bar + HX711 | 1 set | — | **Pending** | Ordered **2026-06-23**; bundled kit **ships together** — not in hand as of 2026-06-27; blocks Tests 7–9 |
 | Graduated cylinder (250 ml) | 1 | 2026-06-27 | OK | In use session 02 |
 | Breadboard + jumpers | 1 | 2026-06-27 | OK | |

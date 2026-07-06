@@ -163,4 +163,17 @@ describe('MenuPage', () => {
 
     expect(getByText('Connecting…')).toBeInTheDocument();
   });
+
+  it('keeps the last known menu visible when status polling fails', () => {
+    deviceError = 'Network error';
+    connected = false;
+
+    const { getByText } = renderWithProviders(<MenuPage />, {
+      withMenuCategory: true,
+      withSetupReturn: true,
+    });
+
+    expect(getByText('Showing last known menu')).toBeInTheDocument();
+    expect(getByText('Old Fashioned')).toBeInTheDocument();
+  });
 });

@@ -46,6 +46,8 @@ struct ConfigRecord {
   PumpConfig pumps[kMaxPumps];
 };
 
+class InventoryStore;
+
 class ConfigStore {
  public:
   // Loads the record from NVS via ops; seeds defaults when absent/invalid.
@@ -66,7 +68,7 @@ class ConfigStore {
   uint32_t antiDripMs(uint8_t channel) const;
 
   bool bound(uint8_t channel) const;
-  const char* ingredient(uint8_t channel) const;  // "" when unbound / out of range
+  const char* ingredient(uint8_t channel) const;              // "" when unbound / out of range
   int channelForIngredient(const char* ingredient_id) const;  // -1 when none
 
   // Mutators — RAM only, set dirty(). Return false (no change) on a bad channel
@@ -85,6 +87,10 @@ class ConfigStore {
   // Clears dirty on success. Returns false if not begun or the NVS write failed.
   bool commit(void (*feed_wdt)() = nullptr);
 
+  // Combined NVS transaction when both stores are dirty (power-loss safe).
+  friend bool commitMachineStores(ConfigStore& config, InventoryStore& inventory,
+                                  void (*feed_wdt)());
+
  private:
   bool valid(uint8_t channel) const {
     return channel < kMaxPumps;
@@ -94,3 +100,6 @@ class ConfigStore {
   ConfigRecord record_;
   bool dirty_ = false;
 };
+
+bool commitMachineStores(ConfigStore& config, InventoryStore& inventory,
+                         void (*feed_wdt)() = nullptr);

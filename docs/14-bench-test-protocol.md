@@ -31,7 +31,7 @@ Before first liquid test:
 | 1.4  | Repeat 1.2–1.3b for P2                                 | **N/A (waived)** | P2 matches P1 @ 1.75 ml/s; dual wet ~0.4 A — stall not repeated |
 | 1.5  | Run P1 + P2 together 10 s                              | I ≈ **0.4 A** wet | 2026-06-27; ~2× single-pump ~0.2 A |
 | 1.5b | **Simultaneous dispense:** P1+P2 each 30 ml; log bus V | **Deferred** | Large bench DC supply — no measurable sag; **retest on GST60A12** + fuse/cutoff bus |
-| 1.6  | Toggle pump power cutoff during run                    | Pumps stop immediately |                                    |
+| 1.6  | Toggle **main power** cutoff during run                | Pumps stop immediately |                                    |
 
 **Pass:** Running current documented; stall current acceptable for TB6612; cutoff works. **P2 stall (1.4) waived** when same pump SKU and P2 run/dispense match P1 — document equivalence in bench log.
 

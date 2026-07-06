@@ -9,15 +9,14 @@
 #include "config.h"
 #include "config_store.h"
 #include "coordinator.h"
-#include "inventory_store.h"
 #include "gpio_ops.h"
-#include "machine_inputs.h"
+#include "inventory_store.h"
+#include "job_status.h"
 #include "pump_bus.h"
 #include "scale_ops.h"
 #include "scale_platform.h"
 #include "sequence_runner.h"
 #include "status_snapshot.h"
-#include "job_status.h"
 
 namespace {
 
@@ -138,7 +137,6 @@ NvsOps makeNvsOps() {
 struct Harness {
   FakeGpio gpio;
   FakeScale scale_fake;
-  MachineInputs inputs;
   PumpBus pumps;
   ScalePlatform scale;
   ConfigStore config;
@@ -155,7 +153,7 @@ struct Harness {
     gpio_ops = makeGpioOps();
     scale_ops = makeScaleOps();
     nvs_ops = makeNvsOps();
-    pumps.begin(inputs, gpio_ops);
+    pumps.begin(gpio_ops);
     scale.begin(scale_ops);
     config.begin(nvs_ops);
     inventory.begin(nvs_ops);
@@ -171,7 +169,6 @@ struct Harness {
   }
 
   void step(unsigned long now_ms) {
-    pumps.tick();
     scale.tick(now_ms);
     coordinator.tick(now_ms);
     sequence.tick(now_ms);
@@ -197,7 +194,8 @@ bool pumpStoppedCh(const FakeGpio& g, int in1, int in2, int pwm) {
          g.lastAnalogDuty(pwm) == 0;
 }
 
-void runUntilStepIndex(Harness& h, uint8_t target_index, unsigned long& now, unsigned long limit_ms) {
+void runUntilStepIndex(Harness& h, uint8_t target_index, unsigned long& now,
+                       unsigned long limit_ms) {
   while (h.sequence.busy() && h.sequence.stepIndex() < target_index && now < limit_ms) {
     now += 5;
     h.step(now);

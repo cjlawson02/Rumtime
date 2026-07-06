@@ -8,6 +8,15 @@
 #include "pump_bus.h"
 #include "scale_platform.h"
 
+namespace {
+
+unsigned long clampAntiDripMs(uint32_t anti_drip_ms) {
+  return anti_drip_ms > kMaxAntiDripMs ? static_cast<unsigned long>(kMaxAntiDripMs)
+                                       : static_cast<unsigned long>(anti_drip_ms);
+}
+
+}  // namespace
+
 void Coordinator::begin(PumpBus& pumps, ScalePlatform& scale, ConfigStore& config) {
   pumps_ = &pumps;
   scale_ = &scale;
@@ -18,20 +27,21 @@ void Coordinator::begin(PumpBus& pumps, ScalePlatform& scale, ConfigStore& confi
   last_reject_ = JobReject::kNone;
 }
 
+void Coordinator::clearTerminalResult() {
+  if (state_ != JobState::kIdle) {
+    return;
+  }
+  result_ = JobResult::kNone;
+  last_reject_ = JobReject::kNone;
+}
+
 bool Coordinator::startDispense(const DispenseCommand& command, unsigned long now_ms) {
   if (pumps_ == nullptr || scale_ == nullptr || config_ == nullptr) {
     return false;
   }
-  // Reject when busy so a duplicate dispense does not disturb the running job.
   if (state_ != JobState::kIdle) {
     last_reject_ = JobReject::kBusy;
     result_ = JobResult::kNone;
-    return false;
-  }
-  // Preconditions: cutoff closed and valid channel.
-  if (pumps_->cutoffOpen()) {
-    last_reject_ = JobReject::kCutoffOpen;
-    result_ = JobResult::kError;
     return false;
   }
   if (command.channel >= PumpBus::kNumChannels) {
@@ -45,10 +55,9 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
     return false;
   }
 
-  const float ml_per_s =
-      (command.ml_per_s > 0.0f && std::isfinite(command.ml_per_s))
-          ? command.ml_per_s
-          : config_->mlPerSecond(command.channel);
+  const float ml_per_s = (command.ml_per_s > 0.0f && std::isfinite(command.ml_per_s))
+                             ? command.ml_per_s
+                             : config_->mlPerSecond(command.channel);
   unsigned long pour_ms = 0;
   CommandReject reject = CommandReject::kNone;
   if (!computePourDurationMs(command, PumpBus::kNumChannels, ml_per_s, &pour_ms, &reject)) {
@@ -65,9 +74,9 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
   channel_ = command.channel;
   pour_ms_ = pour_ms;
   flow_gated_ = command.flow_gate;
-  anti_drip_ms_ = (command.ml_per_s > 0.0f && std::isfinite(command.ml_per_s))
-                      ? command.anti_drip_ms
-                      : config_->antiDripMs(command.channel);
+  anti_drip_ms_ = clampAntiDripMs((command.ml_per_s > 0.0f && std::isfinite(command.ml_per_s))
+                                      ? command.anti_drip_ms
+                                      : config_->antiDripMs(command.channel));
   result_ = JobResult::kNone;
   last_reject_ = JobReject::kNone;
 
@@ -75,10 +84,11 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
 
   if (gated) {
     scale_->resetFlowDetect(now_ms);
+    flow_wait_start_ms_ = now_ms;
+    flow_wait_max_ms_ = pour_ms_ < kFlowDetectTimeoutMs ? pour_ms_ : kFlowDetectTimeoutMs;
   }
 
   if (!pumps_->run(channel_, PumpDirection::kForward)) {
-    // Cutoff opened between the check and run(), or bus refused for safety.
     last_reject_ = JobReject::kPumpRefused;
     finish(JobResult::kError);
     return false;
@@ -100,11 +110,6 @@ bool Coordinator::startPrime(uint8_t channel, unsigned long now_ms) {
   if (state_ != JobState::kIdle) {
     last_reject_ = JobReject::kBusy;
     result_ = JobResult::kNone;
-    return false;
-  }
-  if (pumps_->cutoffOpen()) {
-    last_reject_ = JobReject::kCutoffOpen;
-    result_ = JobResult::kError;
     return false;
   }
   if (channel >= PumpBus::kNumChannels) {
@@ -133,7 +138,6 @@ void Coordinator::stopPrime() {
   if (state_ != JobState::kPriming || phase_ != Phase::kPrime) {
     return;
   }
-  // Operator success: stop forward run, no anti-drip reverse.
   finish(JobResult::kOk);
 }
 
@@ -141,7 +145,6 @@ void Coordinator::cancel() {
   if (state_ == JobState::kIdle) {
     return;
   }
-  // Immediate abort: stop motion, clear job, no success flag, no anti-drip.
   if (pumps_ != nullptr) {
     pumps_->stopAll();
   }
@@ -155,17 +158,14 @@ void Coordinator::tick(unsigned long now_ms) {
   if (state_ == JobState::kIdle) {
     return;
   }
-  // Cutoff opening mid-job is a hard abort (PumpBus::tick() already stopped the
-  // motor this tick; reflect it in the job result).
-  if (pumps_ == nullptr || scale_ == nullptr || pumps_->cutoffOpen()) {
-    last_reject_ = JobReject::kCutoffMidJob;
+  if (pumps_ == nullptr || scale_ == nullptr) {
+    last_reject_ = JobReject::kScaleFault;
     finish(JobResult::kError);
     return;
   }
 
   if (state_ == JobState::kPriming) {
-    if (phase_ == Phase::kPrime &&
-        (now_ms - prime_start_ms_) >= kMaxPrimeDurationMs) {
+    if (phase_ == Phase::kPrime && (now_ms - prime_start_ms_) >= kMaxPrimeDurationMs) {
       last_reject_ = JobReject::kPrimeTimeout;
       finish(JobResult::kError);
     }
@@ -175,10 +175,12 @@ void Coordinator::tick(unsigned long now_ms) {
   switch (phase_) {
     case Phase::kFlowWait:
       if (scale_->flowDetected()) {
-        beginPour(now_ms);  // pour timer starts at flow onset (matches bench rig)
-      } else if (scale_->flowTimedOut() || !scale_->ready()) {
-        // No-flow timeout, or the scale went not-ready during the wait -> abort.
-        last_reject_ = scale_->flowTimedOut() ? JobReject::kFlowTimeout : JobReject::kScaleFault;
+        beginPour(now_ms);
+      } else if (scale_->flowTimedOut() || !scale_->ready() ||
+                 (now_ms - flow_wait_start_ms_) >= flow_wait_max_ms_) {
+        last_reject_ = scale_->flowTimedOut() || (now_ms - flow_wait_start_ms_) >= flow_wait_max_ms_
+                           ? JobReject::kFlowTimeout
+                           : JobReject::kScaleFault;
         finish(JobResult::kError);
       }
       break;

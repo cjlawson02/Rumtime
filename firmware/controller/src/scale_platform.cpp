@@ -65,6 +65,11 @@ void ScalePlatform::begin(const ScaleOps& ops) {
   ops_->setScale(calibrationFactor_);
   // begin()/setup() is the only place a bounded HX711 wait is allowed (docs/16).
   initialized_ = ops_->waitReady(kScaleBeginTimeoutMs);
+#if defined(ARDUINO)
+  if (initialized_) {
+    last_conv_ms_ = millis();
+  }
+#endif
 }
 
 void ScalePlatform::setCalibrationFactor(float factor) {

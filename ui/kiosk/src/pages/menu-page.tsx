@@ -109,12 +109,12 @@ export function MenuPage() {
       ];
 
       return {
-        menuEntries: error ? [] : entries,
+        menuEntries: entries,
         notifications: collectKioskNotifications({
           status,
           unavailableRecipes: unavailable,
         }),
-        unavailableCount: error ? 0 : unavailable.length,
+        unavailableCount: unavailable.length,
         staleStatus: Boolean(error),
       };
     }, [filtered, status, error]);

@@ -107,13 +107,12 @@ Size final fuse/cutoff after measured max current. Do not assume 0.5 A rated equ
 
 | Item              | Decision                                                                            |
 | ----------------- | ----------------------------------------------------------------------------------- |
-| Pump power cutoff | **Inline ATC fuse** (5 A Phase 0) → **12 V 20 A SPST rocker** on pump + feed        |
+| Main power cutoff | **Single SPST (or equivalent) on mains/PSU input** — cuts 12 V pump feed and logic together unless a later revision splits rails |
 | Wiring            | Strip GST60 barrel plug to terminal block; **12 AWG** pump bus; logic ground common |
-| Default state     | Pumps off when cutoff open; firmware initializes all outputs off at boot            |
+| Default state     | Rig off when main power open; firmware initializes all outputs off at boot            |
 
 ```text
-Wall AC → GST60A12-P1J → inline 5 A fuse → rocker switch → TB6612 VM / pump bus
-ESP32: USB (or buck from unswitched 12 V for logic-on when pumps off)
+Wall AC → main power cutoff → GST60A12-P1J → inline 5 A fuse → TB6612 VM / pump bus
 ```
 
 ## PCB toolchain

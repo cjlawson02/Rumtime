@@ -15,7 +15,7 @@ External bottles/jars
 
 ESP32-S3 main controller
     -> I2C bus to pump modules
-    -> pump power enable/cutoff path
+    -> main power cutoff (single hardware disable for pumps + supply)
     -> HX711/load cell (required for v1)
     -> basic physical controls/status LEDs
 ```
@@ -33,7 +33,7 @@ Module C: pumps 9-12, empty slot or later upgrade
 Each module should be physically removable. It does not need to be safe to unplug while powered. The safe procedure is:
 
 1. Stop all pump activity.
-2. Disable pump power with the hardware cutoff or software-controlled enable.
+2. Disable **main power** (or wait for pumps to stop via software).
 3. Disconnect the module.
 4. Reconnect or replace the module.
 5. Re-enable pump power.
@@ -93,7 +93,7 @@ Do not start there unless I2C fails defined tests.
 ```text
 12 V external power supply
     -> main fuse
-    -> pump power cutoff / e-stop
+    -> main power cutoff / e-stop
     -> pump module power bus
         -> module A fuse -> H-bridges -> pumps 1-4
         -> module B fuse -> H-bridges -> pumps 5-8
@@ -152,7 +152,7 @@ Kindle Fire kiosk (browser, home LAN)
 ESP32-S3 firmware
     NVS: pump↔ingredient bindings, calibration, inventory
     sequence runner: recipe steps, cleaning, manual pour
-    HAL: pumps (I2C modules), scale (HX711), rocker on pump VM + STBY
+    HAL: pumps (I2C modules), scale (HX711), main-power-fed 12 V bus + STBY
 ```
 
 Captured decisions and firmware layer detail: [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md).

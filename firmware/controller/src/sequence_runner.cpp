@@ -56,7 +56,8 @@ bool SequenceRunner::resolveSteps(const PourSequenceStep* steps, uint8_t step_co
   return true;
 }
 
-bool SequenceRunner::start(const PourSequenceStep* steps, uint8_t step_count, unsigned long now_ms) {
+bool SequenceRunner::start(const PourSequenceStep* steps, uint8_t step_count,
+                           unsigned long now_ms) {
   if (state_ == State::kRunning) {
     last_reject_ = JobReject::kBusy;
     return false;
@@ -87,11 +88,6 @@ bool SequenceRunner::start(const PourSequenceStep* steps, uint8_t step_count, un
     return false;
   }
 
-  if (pumps_->cutoffOpen()) {
-    last_reject_ = JobReject::kCutoffOpen;
-    result_ = Coordinator::JobResult::kError;
-    return false;
-  }
   if (coordinator_->busy()) {
     last_reject_ = JobReject::kBusy;
     result_ = Coordinator::JobResult::kError;
@@ -163,14 +159,6 @@ void SequenceRunner::tick(unsigned long now_ms) {
     return;
   }
 
-  if (pumps_ != nullptr && pumps_->cutoffOpen()) {
-    if (coordinator_ != nullptr && coordinator_->busy()) {
-      coordinator_->cancel();
-    }
-    finish(Coordinator::JobResult::kError, JobReject::kCutoffMidJob);
-    return;
-  }
-
   if (!step_in_progress_) {
     return;
   }
@@ -195,8 +183,10 @@ void SequenceRunner::tick(unsigned long now_ms) {
       return;
     }
 
-    if (inventory_ != nullptr) {
-      inventory_->subtractMl(steps_[step_index_].ingredient_id, steps_[step_index_].ml);
+    if (inventory_ != nullptr &&
+        !inventory_->subtractMl(steps_[step_index_].ingredient_id, steps_[step_index_].ml)) {
+      finish(Coordinator::JobResult::kError, JobReject::kBadMl);
+      return;
     }
 
     step_in_progress_ = false;

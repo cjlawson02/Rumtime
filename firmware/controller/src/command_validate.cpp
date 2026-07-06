@@ -11,7 +11,8 @@
 
 namespace {
 
-CommandReject validateDispenseParams(const DispenseCommand& cmd, uint8_t num_pumps, float ml_per_s) {
+CommandReject validateDispenseParams(const DispenseCommand& cmd, uint8_t num_pumps,
+                                     float ml_per_s) {
   unsigned long pour_ms = 0;
   CommandReject reject = CommandReject::kNone;
   if (!computePourDurationMs(cmd, num_pumps, ml_per_s, &pour_ms, &reject)) {
@@ -40,8 +41,6 @@ const char* commandRejectText(CommandReject reject) {
       return "Error:pour too long";
     case CommandReject::kSubResolutionMl:
       return "Error:sub-resolution ml";
-    case CommandReject::kCutoffOpen:
-      return "Error:cutoff open";
     case CommandReject::kScaleNotReady:
       return "Error:scale not ready";
     case CommandReject::kBusy:
@@ -72,8 +71,6 @@ const char* jobRejectText(JobReject reject) {
       return "none";
     case JobReject::kBusy:
       return "busy";
-    case JobReject::kCutoffOpen:
-      return "cutoff-open";
     case JobReject::kBadChannel:
       return "bad-channel";
     case JobReject::kBadMl:
@@ -90,8 +87,6 @@ const char* jobRejectText(JobReject reject) {
       return "scale-fault";
     case JobReject::kScaleNotReady:
       return "scale-not-ready";
-    case JobReject::kCutoffMidJob:
-      return "cutoff-mid-job";
     case JobReject::kPrimeTimeout:
       return "prime-timeout";
     case JobReject::kUnboundIngredient:
@@ -113,7 +108,7 @@ bool validateDispenseCommand(const DispenseCommand& cmd, uint8_t num_pumps, floa
 }
 
 bool computePourDurationMs(const DispenseCommand& cmd, uint8_t num_pumps, float ml_per_s,
-                             unsigned long* pour_ms_out, CommandReject* reject_out) {
+                           unsigned long* pour_ms_out, CommandReject* reject_out) {
   auto fail = [&](CommandReject reject) {
     if (reject_out != nullptr) {
       *reject_out = reject;
@@ -160,8 +155,6 @@ JobReject commandRejectToJobReject(CommandReject reject) {
       return JobReject::kPourTooLong;
     case CommandReject::kSubResolutionMl:
       return JobReject::kSubResolutionMl;
-    case CommandReject::kCutoffOpen:
-      return JobReject::kCutoffOpen;
     case CommandReject::kScaleNotReady:
       return JobReject::kScaleNotReady;
     case CommandReject::kBadIngredient:
@@ -181,11 +174,73 @@ JobReject commandRejectToJobReject(CommandReject reject) {
   }
 }
 
+float snapshotMlPerSecond(const StatusSnapshot& status, uint8_t channel) {
+  for (uint8_t i = 0; i < status.published_pump_count; ++i) {
+    const SnapshotPump& pump = status.published_pumps[i];
+    if (pump.pump_id == channel + 1) {
+      return pump.ml_per_second;
+    }
+  }
+  return kDefaultMlPerSecond;
+}
+
+int snapshotChannelForIngredient(const StatusSnapshot& status, const char* ingredient_id) {
+  if (ingredient_id == nullptr || ingredient_id[0] == '\0') {
+    return -1;
+  }
+  for (uint8_t i = 0; i < status.published_pump_count; ++i) {
+    const SnapshotPump& pump = status.published_pumps[i];
+    if (pump.bound && std::strcmp(pump.ingredient_id, ingredient_id) == 0) {
+      return static_cast<int>(pump.pump_id) - 1;
+    }
+  }
+  return -1;
+}
+
+CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusSnapshot& status,
+                                       uint8_t num_pumps, bool cancel_pending_this_poll) {
+  if (status.config_op_pending) {
+    return CommandReject::kBusy;
+  }
+  if (cmd.flow_gate && !status.scale_ready) {
+    return CommandReject::kScaleNotReady;
+  }
+  const float ml_per_s = snapshotMlPerSecond(status, cmd.channel);
+  const CommandReject params = validateDispenseParams(cmd, num_pumps, ml_per_s);
+  if (params != CommandReject::kNone) {
+    return params;
+  }
+  if ((status.job_busy || status.command_pending) && !cancel_pending_this_poll) {
+    return CommandReject::kBusy;
+  }
+  if (status.sequence_busy && !cancel_pending_this_poll) {
+    return CommandReject::kBusy;
+  }
+  return CommandReject::kNone;
+}
+
+CommandReject preflightPrimeEnqueue(uint8_t channel, const StatusSnapshot& status,
+                                    uint8_t num_pumps, bool cancel_pending_this_poll) {
+  if (status.config_op_pending) {
+    return CommandReject::kBusy;
+  }
+  if (channel >= num_pumps) {
+    return CommandReject::kBadPump;
+  }
+  if ((status.job_busy || status.command_pending) && !cancel_pending_this_poll) {
+    return CommandReject::kBusy;
+  }
+  if (status.sequence_busy && !cancel_pending_this_poll) {
+    return CommandReject::kBusy;
+  }
+  return CommandReject::kNone;
+}
+
 CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusSnapshot& status,
                                        uint8_t num_pumps, const ConfigStore& config,
                                        bool cancel_pending_this_poll) {
-  if (status.cutoff_open) {
-    return CommandReject::kCutoffOpen;
+  if (status.config_op_pending) {
+    return CommandReject::kBusy;
   }
   if (cmd.flow_gate && !status.scale_ready) {
     return CommandReject::kScaleNotReady;
@@ -204,29 +259,11 @@ CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusS
   return CommandReject::kNone;
 }
 
-CommandReject preflightPrimeEnqueue(uint8_t channel, const StatusSnapshot& status, uint8_t num_pumps,
-                                    bool cancel_pending_this_poll) {
-  if (status.cutoff_open) {
-    return CommandReject::kCutoffOpen;
-  }
-  if (channel >= num_pumps) {
-    return CommandReject::kBadPump;
-  }
-  if ((status.job_busy || status.command_pending) && !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
-  }
-  if (status.sequence_busy && !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
-  }
-  return CommandReject::kNone;
-}
-
 CommandReject preflightPrimeStopEnqueue(const StatusSnapshot& status) {
   if (status.sequence_busy) {
     return CommandReject::kBusy;
   }
-  if (status.job_busy &&
-      status.job_phase != static_cast<uint8_t>(Coordinator::Phase::kPrime)) {
+  if (status.job_busy && status.job_phase != static_cast<uint8_t>(Coordinator::Phase::kPrime)) {
     return CommandReject::kBusy;
   }
   return CommandReject::kNone;
@@ -268,6 +305,7 @@ CommandReject validatePourSequenceSteps(const PourSequenceStep* steps, uint8_t s
     }
     total_ml += step.ml;
     total_pour_ms += pour_ms;
+    total_pour_ms += kFlowDetectTimeoutMs;
   }
 
   if (total_ml > kMaxSequenceTotalMl) {
@@ -280,7 +318,7 @@ CommandReject validatePourSequenceSteps(const PourSequenceStep* steps, uint8_t s
 }
 
 CommandReject validatePourSequenceInventory(const PourSequenceStep* steps, uint8_t step_count,
-                                              const InventoryStore& inventory) {
+                                            const InventoryStore& inventory) {
   if (steps == nullptr || step_count == 0) {
     return CommandReject::kBadArgs;
   }
@@ -313,13 +351,126 @@ CommandReject validatePourSequenceInventory(const PourSequenceStep* steps, uint8
   return CommandReject::kNone;
 }
 
-CommandReject preflightPourSequenceEnqueue(const PourSequenceCommand& cmd, const StatusSnapshot& status,
-                                           uint8_t num_pumps, const ConfigStore& config,
+CommandReject validatePourSequenceSteps(const PourSequenceStep* steps, uint8_t step_count,
+                                        uint8_t num_pumps, const StatusSnapshot& status) {
+  if (steps == nullptr || step_count == 0 || step_count > kMaxPourSequenceSteps) {
+    return CommandReject::kBadArgs;
+  }
+
+  float total_ml = 0.0f;
+  unsigned long total_pour_ms = 0;
+
+  for (uint8_t i = 0; i < step_count; ++i) {
+    const PourSequenceStep& step = steps[i];
+    if (step.ingredient_id[0] == '\0') {
+      return CommandReject::kBadIngredient;
+    }
+    const int channel = snapshotChannelForIngredient(status, step.ingredient_id);
+    if (channel < 0 || static_cast<uint8_t>(channel) >= num_pumps) {
+      return CommandReject::kBadIngredient;
+    }
+
+    DispenseCommand dispense;
+    dispense.channel = static_cast<uint8_t>(channel);
+    dispense.ml = step.ml;
+    dispense.flow_gate = true;
+
+    const float ml_per_s = snapshotMlPerSecond(status, dispense.channel);
+    const CommandReject params = validateDispenseParams(dispense, num_pumps, ml_per_s);
+    if (params != CommandReject::kNone) {
+      return params;
+    }
+
+    unsigned long pour_ms = 0;
+    if (!computePourDurationMs(dispense, num_pumps, ml_per_s, &pour_ms, nullptr)) {
+      return CommandReject::kBadMl;
+    }
+    total_ml += step.ml;
+    total_pour_ms += pour_ms;
+    total_pour_ms += kFlowDetectTimeoutMs;
+  }
+
+  if (total_ml > kMaxSequenceTotalMl) {
+    return CommandReject::kBadMl;
+  }
+  if (total_pour_ms > kMaxSequenceDurationMs) {
+    return CommandReject::kPourTooLong;
+  }
+  return CommandReject::kNone;
+}
+
+CommandReject validatePourSequenceInventory(const PourSequenceStep* steps, uint8_t step_count,
+                                            const StatusSnapshot& status) {
+  if (steps == nullptr || step_count == 0) {
+    return CommandReject::kBadArgs;
+  }
+  for (uint8_t i = 0; i < step_count; ++i) {
+    const PourSequenceStep& step = steps[i];
+    bool first_for_ingredient = true;
+    for (uint8_t k = 0; k < i; ++k) {
+      if (std::strcmp(steps[k].ingredient_id, step.ingredient_id) == 0) {
+        first_for_ingredient = false;
+        break;
+      }
+    }
+    if (!first_for_ingredient) {
+      continue;
+    }
+    const SnapshotBinding* entry = nullptr;
+    for (uint8_t b = 0; b < status.published_binding_count; ++b) {
+      if (std::strcmp(status.published_bindings[b].ingredient_id, step.ingredient_id) == 0) {
+        entry = &status.published_bindings[b];
+        break;
+      }
+    }
+    if (entry == nullptr || !entry->primed) {
+      return CommandReject::kNotPrimed;
+    }
+    float total_ml = 0.0f;
+    for (uint8_t j = 0; j < step_count; ++j) {
+      if (std::strcmp(steps[j].ingredient_id, step.ingredient_id) == 0) {
+        total_ml += steps[j].ml;
+      }
+    }
+    if (entry->remaining_ml < (total_ml + kInventoryReserveMl)) {
+      return CommandReject::kLowInventory;
+    }
+  }
+  return CommandReject::kNone;
+}
+
+CommandReject preflightPourSequenceEnqueue(const PourSequenceCommand& cmd,
+                                           const StatusSnapshot& status, uint8_t num_pumps,
+                                           bool cancel_pending_this_poll) {
+  if (!status.scale_ready) {
+    return CommandReject::kScaleNotReady;
+  }
+
+  const CommandReject validated =
+      validatePourSequenceSteps(cmd.steps, cmd.step_count, num_pumps, status);
+  if (validated != CommandReject::kNone) {
+    return validated;
+  }
+
+  const CommandReject inventory_reject =
+      validatePourSequenceInventory(cmd.steps, cmd.step_count, status);
+  if (inventory_reject != CommandReject::kNone) {
+    return inventory_reject;
+  }
+
+  if ((status.job_busy || status.command_pending || status.sequence_busy ||
+       status.config_op_pending) &&
+      !cancel_pending_this_poll) {
+    return CommandReject::kBusy;
+  }
+  return CommandReject::kNone;
+}
+
+CommandReject preflightPourSequenceEnqueue(const PourSequenceCommand& cmd,
+                                           const StatusSnapshot& status, uint8_t num_pumps,
+                                           const ConfigStore& config,
                                            const InventoryStore& inventory,
                                            bool cancel_pending_this_poll) {
-  if (status.cutoff_open) {
-    return CommandReject::kCutoffOpen;
-  }
   if (!status.scale_ready) {
     return CommandReject::kScaleNotReady;
   }
@@ -417,7 +568,8 @@ CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, ui
     cmd.ml = ml;
     cmd.flow_gate = flow_gate;
 
-    result.reject = preflightDispenseEnqueue(cmd, status, num_pumps, config, cancel_pending_this_poll);
+    result.reject =
+        preflightDispenseEnqueue(cmd, status, num_pumps, config, cancel_pending_this_poll);
     if (result.reject != CommandReject::kNone) {
       return result;
     }
@@ -464,8 +616,7 @@ CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, ui
     }
 
     const uint8_t channel = static_cast<uint8_t>(pump - 1);
-    result.reject =
-        preflightPrimeEnqueue(channel, status, num_pumps, cancel_pending_this_poll);
+    result.reject = preflightPrimeEnqueue(channel, status, num_pumps, cancel_pending_this_poll);
     if (result.reject != CommandReject::kNone) {
       return result;
     }
@@ -510,8 +661,8 @@ CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, ui
       return result;
     }
 
-    result.reject =
-        preflightPourSequenceEnqueue(seq, status, num_pumps, config, inventory, cancel_pending_this_poll);
+    result.reject = preflightPourSequenceEnqueue(seq, status, num_pumps, config, inventory,
+                                                 cancel_pending_this_poll);
     if (result.reject != CommandReject::kNone) {
       return result;
     }

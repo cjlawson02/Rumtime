@@ -1,9 +1,8 @@
 #include "wifi_manager.h"
 
 #include <Arduino.h>
-#include <Preferences.h>
-#include <WiFi.h>
 #include <ESPmDNS.h>
+#include <Preferences.h>
 
 #include <cstring>
 
@@ -13,9 +12,35 @@ Preferences g_wifi_prefs;
 
 }  // namespace
 
+WiFiManager* WiFiManager::instance_ = nullptr;
+
+void WiFiManager::onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+  (void)info;
+  if (instance_ == nullptr) {
+    return;
+  }
+  switch (event) {
+#if defined(ARDUINO_EVENT_WIFI_STA_DISCONNECTED)
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+      instance_->disconnect_pending_.store(true, std::memory_order_release);
+      break;
+#elif defined(WIFI_EVENT_STA_DISCONNECTED)
+    case WIFI_EVENT_STA_DISCONNECTED:
+      instance_->disconnect_pending_.store(true, std::memory_order_release);
+      break;
+#endif
+    default:
+      break;
+  }
+}
+
 void WiFiManager::begin() {
+  instance_ = this;
   WiFi.mode(WIFI_STA);
+  WiFi.persistent(false);
+  WiFi.setAutoReconnect(false);
   WiFi.setHostname(kMdnsHostname);
+  WiFi.onEvent(onWiFiEvent);
   loadCredentialsFromNvs();
   if (status_.has_credentials) {
     startConnect();
@@ -24,16 +49,20 @@ void WiFiManager::begin() {
 
 void WiFiManager::loadCredentialsFromNvs() {
   status_ = WiFiStatus{};
+  staged_ssid_[0] = '\0';
+  staged_pass_[0] = '\0';
   if (!g_wifi_prefs.begin(kWifiCredNamespace, /*readOnly=*/true)) {
     return;
   }
   const String ssid = g_wifi_prefs.getString(kWifiSsidKey, "");
+  const String pass = g_wifi_prefs.getString(kWifiPassKey, "");
   g_wifi_prefs.end();
   if (ssid.length() == 0) {
     return;
   }
   std::strncpy(status_.ssid, ssid.c_str(), sizeof(status_.ssid) - 1);
   std::strncpy(staged_ssid_, status_.ssid, sizeof(staged_ssid_) - 1);
+  std::strncpy(staged_pass_, pass.c_str(), sizeof(staged_pass_) - 1);
   status_.has_credentials = true;
 }
 
@@ -44,7 +73,6 @@ void WiFiManager::stageSsid(const char* ssid) {
     std::strncpy(staged_ssid_, ssid, sizeof(staged_ssid_) - 1);
     staged_ssid_[sizeof(staged_ssid_) - 1] = '\0';
   }
-  staged_dirty_ = true;
 }
 
 void WiFiManager::stagePassword(const char* password) {
@@ -54,7 +82,6 @@ void WiFiManager::stagePassword(const char* password) {
     std::strncpy(staged_pass_, password, sizeof(staged_pass_) - 1);
     staged_pass_[sizeof(staged_pass_) - 1] = '\0';
   }
-  staged_dirty_ = true;
 }
 
 bool WiFiManager::saveCredentials() {
@@ -82,7 +109,6 @@ bool WiFiManager::saveCredentials() {
 void WiFiManager::clearCredentials() {
   staged_ssid_[0] = '\0';
   staged_pass_[0] = '\0';
-  staged_dirty_ = false;
   if (g_wifi_prefs.begin(kWifiCredNamespace, /*readOnly=*/false)) {
     g_wifi_prefs.remove(kWifiSsidKey);
     g_wifi_prefs.remove(kWifiPassKey);
@@ -90,6 +116,11 @@ void WiFiManager::clearCredentials() {
   }
   status_.has_credentials = false;
   status_.ssid[0] = '\0';
+  reconnect_requested_.store(false, std::memory_order_relaxed);
+  disconnect_pending_.store(false, std::memory_order_relaxed);
+  connect_in_progress_ = false;
+  prefer_immediate_reconnect_ = false;
+  last_reconnect_attempt_ms_ = 0;
   WiFi.disconnect(true);
   mdns_started_ = false;
   updateStatus();
@@ -110,7 +141,22 @@ void WiFiManager::startConnect() {
   }
   WiFi.disconnect(true);
   WiFi.begin(ssid.c_str(), pass.c_str());
-  last_reconnect_attempt_ms_ = millis();
+  connect_in_progress_ = true;
+  connect_started_ms_ = millis();
+  last_reconnect_attempt_ms_ = connect_started_ms_;
+}
+
+void WiFiManager::tryReconnect(bool immediate) {
+  if (!status_.has_credentials || connect_in_progress_) {
+    return;
+  }
+
+  const unsigned long now = millis();
+  const unsigned long min_gap = immediate ? kWifiReconnectCooldownMs : kWifiReconnectBackoffMs;
+  if (last_reconnect_attempt_ms_ != 0 && (now - last_reconnect_attempt_ms_) < min_gap) {
+    return;
+  }
+  startConnect();
 }
 
 void WiFiManager::startMdns() {
@@ -135,13 +181,24 @@ void WiFiManager::updateStatus() {
 }
 
 void WiFiManager::tick() {
+  const unsigned long now = millis();
+
   if (reconnect_requested_.exchange(false, std::memory_order_acq_rel)) {
+    mdns_started_ = false;
+    connect_in_progress_ = false;
     startConnect();
+  }
+
+  if (disconnect_pending_.exchange(false, std::memory_order_acq_rel)) {
+    mdns_started_ = false;
+    connect_in_progress_ = false;
+    prefer_immediate_reconnect_ = true;
   }
 
   updateStatus();
 
-  if (status_.connected) {
+  if (status_.connected && !connect_in_progress_) {
+    prefer_immediate_reconnect_ = false;
     startMdns();
     return;
   }
@@ -150,13 +207,18 @@ void WiFiManager::tick() {
     return;
   }
 
-  const unsigned long now = millis();
-  if (WiFi.status() == WL_CONNECTED) {
-    return;
+  if (connect_in_progress_) {
+    if ((now - connect_started_ms_) >= kWifiConnectTimeoutMs) {
+      WiFi.disconnect(true);
+      connect_in_progress_ = false;
+      last_reconnect_attempt_ms_ = now;
+      prefer_immediate_reconnect_ = false;
+    } else {
+      return;
+    }
   }
-  if ((now - last_reconnect_attempt_ms_) >= 10000UL) {
-    startConnect();
-  }
+
+  tryReconnect(prefer_immediate_reconnect_);
 }
 
 WiFiStatus WiFiManager::status() const {

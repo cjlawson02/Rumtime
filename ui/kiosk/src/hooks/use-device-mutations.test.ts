@@ -17,6 +17,7 @@ import {
   useUpdatePumpCalibration,
 } from '@/hooks/use-device-mutations';
 import { deviceStatusQueryKeyPrefix } from '@/hooks/use-device-status';
+import { deviceStatusQueryKey } from '@/lib/device-query-keys';
 import { createWrapper } from '@/test/render';
 
 const {
@@ -229,6 +230,53 @@ describe('useDeviceMutations', () => {
     expect(updatePumpBinding).toHaveBeenNthCalledWith(2, {
       pumpId: 2,
       ingredientId: 'bourbon',
+    });
+  });
+
+  it('restores primed flags when a later primed update fails', async () => {
+    updatePrimed
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('422: line not primed'));
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(deviceStatusQueryKey(), {
+      connected: true,
+      bindings: {
+        bourbon: {
+          ingredientId: 'bourbon',
+          remainingMl: 750,
+          bottleSizeMl: 750,
+          primed: true,
+        },
+        gin: {
+          ingredientId: 'gin',
+          remainingMl: 750,
+          bottleSizeMl: 750,
+          primed: true,
+        },
+      },
+      pumps: [],
+    });
+    const { result } = renderHook(() => useApplyIngredientSwap(), {
+      wrapper: createWrapper({ queryClient }),
+    });
+
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({
+          pumpId: 2,
+          fromIngredientId: 'bourbon',
+          toIngredientId: 'gin',
+        }),
+      ).rejects.toThrow(/primed/i);
+    });
+
+    expect(updatePrimed).toHaveBeenCalledWith({
+      ingredientId: 'gin',
+      primed: true,
+    });
+    expect(updatePrimed).not.toHaveBeenCalledWith({
+      ingredientId: 'bourbon',
+      primed: true,
     });
   });
 

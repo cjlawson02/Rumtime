@@ -13,8 +13,6 @@ const char* httpErrorCode(CommandReject reject) {
       return "ok";
     case CommandReject::kBusy:
       return "busy";
-    case CommandReject::kCutoffOpen:
-      return "unsafe";
     case CommandReject::kBadArgs:
     case CommandReject::kUsage:
     case CommandReject::kPrimeUsage:
@@ -71,8 +69,6 @@ HttpStatus httpStatusForReject(CommandReject reject) {
       return HttpStatus::kOkNoContent;
     case CommandReject::kBusy:
       return HttpStatus::kConflict;
-    case CommandReject::kCutoffOpen:
-      return HttpStatus::kServiceUnavailable;
     default:
       return HttpStatus::kUnprocessable;
   }
@@ -93,8 +89,6 @@ const char* httpMessageForReject(CommandReject reject) {
   switch (reject) {
     case CommandReject::kBusy:
       return "Device busy";
-    case CommandReject::kCutoffOpen:
-      return "Cutoff open — unsafe to dispense";
     case CommandReject::kScaleNotReady:
       return "Scale not ready";
     case CommandReject::kNotPrimed:
@@ -167,8 +161,7 @@ ConfigOpReject preflightConfigOpEnqueue(const ConfigOp& op, const StatusSnapshot
 ConfigOpReject applyConfigOp(const ConfigOp& op, ConfigStore& config, InventoryStore& inventory) {
   switch (op.type) {
     case ConfigOpType::kSetCalibration: {
-      const uint32_t anti_drip =
-          op.has_anti_drip ? op.anti_drip_ms : config.antiDripMs(op.channel);
+      const uint32_t anti_drip = op.has_anti_drip ? op.anti_drip_ms : config.antiDripMs(op.channel);
       if (!config.setCalibration(op.channel, op.ml_per_s, anti_drip)) {
         return ConfigOpReject::kBadCalibration;
       }
@@ -186,7 +179,14 @@ ConfigOpReject applyConfigOp(const ConfigOp& op, ConfigStore& config, InventoryS
       if (prev_id[0] != '\0' && std::strcmp(prev_id, op.ingredient_id) != 0) {
         inventory.clearIngredient(prev_id);
       }
-      inventory.seedOnBinding(op.ingredient_id);
+      if (!inventory.seedOnBinding(op.ingredient_id)) {
+        config.clearBinding(op.channel);
+        if (prev_id[0] != '\0') {
+          config.setBinding(op.channel, prev_id);
+          inventory.seedOnBinding(prev_id);
+        }
+        return ConfigOpReject::kBadIngredient;
+      }
       return ConfigOpReject::kNone;
     }
     case ConfigOpType::kClearBinding: {

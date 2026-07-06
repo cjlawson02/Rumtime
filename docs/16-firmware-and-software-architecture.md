@@ -15,8 +15,7 @@ Kindle Fire (browser kiosk, home LAN)
 ESP32-S3 product firmware
     -> I2C pump modules (up to four 4-pump cartridges, 16 pumps max)
     -> HX711 load cell
-    -> hardware rocker on pump 12 V (VM)
-    -> optional GPIO cutoff sense (software coherence only)
+    -> 12 V pump bus (main power only — no separate pump cutoff)
     -> optional local display / status LEDs
 ```
 
@@ -40,9 +39,9 @@ Pour commands, calibration, bindings, and inventory updates happen on the device
 | Device discovery | **mDNS** (e.g. `rumtime.local`); DHCP reservation as fallback |
 | Offline operation | **Bundled recipes + PWA cache** (v1); optional KV sync or ESP32 favorites later |
 | Manual pours | **Software only** — always available; no rear-panel test jumper |
-| Software modes enum | **Not required for v1** — hardware cutoff is the real disable; avoid heavy FRC-style mode machinery early |
+| Software modes enum | **Not required for v1** — main power cutoff is the hardware disable; avoid heavy FRC-style mode machinery early |
 | Control pattern | Periodic **ControlTask** tick + thin **sequence runner** (FRC Timed Robot + command-scheduler pattern, not WPILib) |
-| Pump safety (hardware) | **Rocker on pump 12 V VM** + driver **STBY** / safe GPIO defaults. **No software bus MOSFET for v1.** |
+| Pump safety (hardware) | **Main power cutoff** upstream of 12 V feed; driver **STBY** + safe GPIO at boot. **No separate pump-bus switch; no software bus MOSFET v1.** |
 | Pump safety (software) | **Distributed** — each subsystem refuses unsafe work; no central safety pipeline. |
 | Runtime model | PlatformIO + Arduino; explicit `ControlTask` + command queue; see below |
 | Concurrency | **0 mutexes on motion path**; command queue + status snapshot at HTTP boundary |
@@ -103,13 +102,12 @@ ESP32 already runs FreeRTOS under Arduino. Product firmware **uses it explicitly
 ControlTask (Core 1, priority ~10–12, default 5 ms period)
   vTaskDelayUntil fixed period:
     1. drain cancel messages (before other queue work)
-    2. read machine inputs (cutoff sense GPIO if wired)
-    3. pumpModuleBus.tick()       # stopAll() if cutoff open; sole motor output path
-    4. scale.tick()               # non-blocking HX711 FSM only
-    5. drain command queue (depth 1)
-    6. coordinator.tick() + sequence runner
-    7. publish status snapshot
-    8. esp_task_wdt_reset()       # if subscribed
+    2. scale.tick()               # non-blocking HX711 FSM only
+    3. drain config ops when idle (never during active pour/sequence)
+    4. drain command queue (depth 1) when idle
+    5. coordinator.tick() + sequence runner
+    6. publish status snapshot (includes published config/inventory rows for HTTP preflight)
+    7. esp_task_wdt_reset()       # if subscribed
 
 HTTP / async Wi-Fi task(s) (Core 0, priority ~3–5)
   parse JSON → xQueueSend(command) → return immediately
@@ -155,15 +153,13 @@ Bench rig today (`firmware/bench-rig/`) uses blocking `benchPollSerial()` during
 ```text
 Layer 0 — Hardware abstraction (HAL)
     PumpChannel, PumpModule (I2C/PCA9685), ScalePlatform (HX711)
-    MachineInputs (cutoff sense GPIO if wired — read once per tick)
 
 Layer 1 — ControlTask periodic tick (~5 ms)
-    machine inputs → pumpModuleBus.tick() → scale.tick()
-    coordinator.tick() + sequence runner
+    scale.tick() → coordinator.tick() + sequence runner
 
 Layer 2 — Activity coordinator
     At most one "job" at a time: recipe pour, cleaning sequence, manual pour, calibrate
-    rejects new work when cutoff open; cancel processed before sequence advance
+    rejects new work when busy; cancel processed before sequence advance
 
 Layer 3 — Transport adapters (deferred API detail)
     HTTP / serial: enqueue commands only; read status snapshot
@@ -173,7 +169,7 @@ Layer 4 — Persistence (optional PersistTask)
     NVS commit when idle or after job success — not during pour
 ```
 
-**Safety is not a central pipeline.** Hardware rocker on pump VM is the real disable. Software safety lives in the components that already own the behavior: pumps refuse to run, scale aborts bad pours, coordinator refuses jobs. Optional cutoff sense GPIO keeps firmware state aligned with the rocker.
+**Safety is not a central pipeline.** Main power cutoff is the only hardware disable. Software safety lives in the components that already own the behavior: coordinator refuses overlapping jobs, scale aborts bad pours, pump bus stops other channels before starting a new run.
 
 ### Subsystems and exclusivity
 
@@ -181,17 +177,16 @@ Each pump is owned by at most one activity at a time. Parallel recipe steps acqu
 
 | Component | Owns |
 | --------- | ---- |
-| `PumpChannel` / `PumpModuleBus` | Motor outputs (sole GPIO/I2C writers); `stopAll()`; refuses `run()` when cutoff open |
+| `PumpChannel` / `PumpModuleBus` | Motor outputs (sole GPIO/I2C writers); `stopAll()`; one channel at a time |
 | `ScalePlatform` | HX711, tare, glass detect, flow-gate, flow timeout / no-flow abort |
-| Activity coordinator | One job at a time; rejects enqueue when cutoff open; cancel clears job |
+| Activity coordinator | One job at a time; rejects enqueue when busy; cancel clears job |
 | Dispense / sequence steps | Pour preconditions (binding, glass policy, session ingredients) |
-| `MachineInputs` | Debounced cutoff sense (if wired); read once per tick, not a policy engine |
 
 ### Dispense step behavior (v1)
 
 Aligns with [`06-flow-calibration-and-inventory.md`](06-flow-calibration-and-inventory.md):
 
-1. Preconditions: cutoff closed, no fault, binding exists, optional glass-present check.
+1. Preconditions: no fault, binding exists, optional glass-present check.
 2. Start implicated pump(s) forward.
 3. **Flow-gated timer start** when glass on scale; timed-from-motor-on fallback if scale fault policy allows.
 4. Run until per-pump ml timer expires (open-loop v1).
@@ -208,7 +203,7 @@ Sequence runner step types (illustrative): `dispense`, `parallel`, `wait_until`,
 Always available in software (no hardware test switch).
 
 - **Manual pour:** specified `ml` for an ingredient or pump; uses same dispense path as recipe steps (calibration, anti-drip, flow-gate policy as configured).
-- **Raw run/stop** (bench-style): optional debug path; still respects hardware cutoff.
+- **Raw run/stop** (bench-style): optional debug path; operator can still drop main power.
 
 Manual and recipe dispense share `PumpChannel` and dispense state machine code.
 
@@ -221,25 +216,25 @@ Cleaning steps do not subtract ingredient inventory unless intentionally dispens
 ### Safety
 
 ```text
-Hardware (v1):  fuse → rocker cutoff → pump VM → TB6612 (STBY + IN1/IN2/PWM)
-                No software-controlled bus MOSFET for v1.
+Hardware (v1):  main power → 12 V PSU → (inline fuse) → pump VM → TB6612 (STBY + IN1/IN2/PWM)
+                No separate pump-bus cutoff. No software-controlled bus MOSFET for v1.
 
 Boot:           STBY low, IN1/IN2 low before Wi-Fi or pours.
 
 Distributed software checks (examples):
-  PumpChannel:     no motor writes if cutoff open; stopAll() clears STBY/PWM
-  Coordinator:     no new job if cutoff open; cancel drains in-flight work
+  PumpChannel:     sole motor output path; stop other channel before new run
+  Coordinator:     one job at a time; cancel drains in-flight work
   DispenseStep:      binding exists; scale flow-gate / timeout per docs/06
   ScalePlatform:     no-flow abort during gated pour
 
-HTTP/serial:    enqueue only — never motor GPIO or I2C directly.
+HTTP/serial:    enqueue only — never motor GPIO or I2C directly. HTTP preflight reads the published status snapshot (not live NVS stores).
 ```
 
-The rocker removes pump energy. STBY and `stopAll()` stop motion when the rocker is closed. Cutoff sense GPIO (optional, when wired) lets firmware report state and refuse work — it does not replace the rocker. The worst-case software cutoff-reaction latency is one control period (~5 ms): `MachineInputs::tick()` → `PumpBus::tick()` → `stopAll()`; the hardware rocker is instantaneous and is the real disable.
+Main power removes energy to the rig. Firmware does not sense mains position. STBY and `stopAll()` provide software stop while power is on.
 
 An external pull-down (e.g. 10 kΩ to GND) on the TB6612 STBY line is recommended: firmware cannot assert GPIO before `setup()` runs, so the pin floats during the early boot window and a pull-down ensures the driver stays disabled until `PumpBus::begin()` takes control.
 
-A software bus switch in series with the rocker is **out of scope for v1** unless a later hardware revision wants it.
+A software bus switch downstream of main power is **out of scope for v1** unless a later hardware revision wants it.
 
 ### Persistence
 
@@ -310,14 +305,13 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 | **PsychicHttp** or similar named as HTTP direction | Example only; library not chosen |
 | Glass on scale for recipe pours | **Required** (flow-gate); **manual bypass** for timed-from-motor-on — see [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md) |
 | **Flow-gated** pour remains v1 default; timed fallback on scale fault | From existing docs 06/12; bench Tests 7–9 still gating |
-| Cutoff sense via **GPIO** (DPDT aux or VM divider) | Optional for firmware coherence; rocker on VM is required |
 | Cancel **aborts pour** immediately (may skip anti-drip) | **Locked** — acceptable UX; see doc 17 |
 | Inventory subtract on **job success only** in RAM; NVS after | You confirmed ESP32 authoritative; commit timing was reviewer-added |
 | Recipe JSON step schema (`parallel`, `prompt`, etc.) | Illustrative; not a locked contract |
 | Session-ingredient blocking | Kiosk **confirm** on drink detail before pour; firmware validator TBD |
 | `prompt` steps block new dispense until kiosk ACK | UI flow locked in doc 17 |
 | WebSocket for status later uses same snapshot model | Mentioned as compatible; transport not decided |
-| No dedicated safety FreeRTOS task for v1 | Hardware rocker + distributed checks sufficient |
+| No dedicated safety FreeRTOS task for v1 | Main power cutoff + distributed software checks sufficient |
 | Arduino stays through v1; ESP-IDF migration deferred | Your alignment with bench-rig toolchain |
 
 ## Open questions
@@ -327,7 +321,6 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 | HTTP/API contract (`/dispense`, `/config`, status poll vs WebSocket) | **Implemented** — [`18-kiosk-device-api.md`](18-kiosk-device-api.md); poll-only v1 |
 | Offline pour (kiosk cache vs ESP32 favorites) | Deferred by you |
 | LAN auth (PIN, pairing) | Deferred; home-trusted LAN assumed |
-| Cutoff sense wiring (aux pole vs VM divider) | Optional hardware; rocker on VM is required |
 | Cancel during anti-drip: stop now vs complete reverse | **Locked:** stop now; skip anti-drip OK |
 | Manual pour: require glass / flow-gate or bypass | **Locked:** bypass available — doc 17 |
 | Glass-present required for all recipe pours? | **Locked:** yes, with manual bypass — doc 17 |

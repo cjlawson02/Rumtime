@@ -126,12 +126,10 @@ void SerialTransport::handleLine(char* line, const StatusSnapshot* status_overri
     return;
   }
 
-  const StatusSnapshot status =
-      status_override != nullptr ? *status_override : status_->read();
+  const StatusSnapshot status = status_override != nullptr ? *status_override : status_->read();
 
-  const CommandParseResult parsed =
-      parseCommandLine(line, status, PumpBus::kNumChannels, *config_, *inventory_,
-                       cancel_pending_this_poll_);
+  const CommandParseResult parsed = parseCommandLine(line, status, PumpBus::kNumChannels, *config_,
+                                                     *inventory_, cancel_pending_this_poll_);
 
   if (parsed.is_cancel) {
     if (command_enqueued_this_poll_) {
@@ -267,8 +265,8 @@ void SerialTransport::printConfig() {
 
 void SerialTransport::printStatus() {
   const StatusSnapshot s = status_->read();
-  Serial.print("status cutoff_open=");
-  Serial.print(s.cutoff_open ? 1 : 0);
+  Serial.print("status pumps_running=");
+  Serial.print(s.pumps_running ? 1 : 0);
   Serial.print(" pumps_running=");
   Serial.print(s.pumps_running ? 1 : 0);
   Serial.print(" scale_ready=");

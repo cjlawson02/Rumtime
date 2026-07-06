@@ -132,7 +132,7 @@ Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. M
 | Pump voltage        | 12 V recommended by default.                                 |
 | Pump control        | On/off acceptable; H-bridge allows reverse and optional PWM. |
 | Physical controls   | Bare minimum.                                                |
-| Safety cutoff       | Include pump power cutoff/emergency stop.                    |
+| Safety cutoff       | Include **main power** cutoff/emergency stop (no separate pump-bus switch).                    |
 | Custom PCB          | Expected and acceptable.                                     |
 | PCB toolchain       | **Altium Designer** for 4-pump module and future boards.     |
 | Phase 0 electronics | TB6612FNG breakout + ESP32-S3-DevKitC-1 on breadboard.       |
@@ -193,11 +193,11 @@ Rationale: Physical reality (bindings, calibration, inventory) must survive rebo
 | Blocking dispense     | Not in product firmware — bench rig blocking model is bring-up only.                                  |
 | Control period        | **5 ms default** (1–10 ms); HX711 non-blocking FSM inside `ScalePlatform`.                          |
 | Concurrency           | **0 mutexes on motion path**; queue + snapshot at HTTP boundary.                                      |
-| Software mode enum    | **Not required v1** — hardware cutoff is disable.                                                       |
+| Software mode enum    | **Not required v1** — main power cutoff is hardware disable.                                                       |
 | Manual pours          | **Always available in software**; no rear-panel test jumper.                                          |
 | Job concurrency       | One coordinator job; command queue depth 1; **409 busy** on duplicate dispense.                         |
-| Pump exclusivity      | Coordinator policy; `PumpChannel` refuses run when cutoff open.                                        |
-| Pump safety (hardware) | Rocker on pump VM + TB6612 **STBY**; safe GPIO at boot. **No bus MOSFET v1.**                          |
+| Pump exclusivity      | Coordinator policy; `PumpChannel` refuses overlap via bus policy.                                        |
+| Pump safety (hardware) | **Main power cutoff** + TB6612 **STBY**; safe GPIO at boot. **No separate pump-bus switch. No bus MOSFET v1.** |
 | Pump safety (software) | **Distributed** in pumps, scale, coordinator, steps — no central safety pipeline.                        |
 | JSON on device        | **ArduinoJson v7** (`WebServer` on Core 0). |
 

@@ -67,14 +67,13 @@ void CommandQueue::markCommandAfterCancel() {
   preserve_queued_dispense_on_drain_ = true;
 }
 
-bool CommandQueue::drainCancel() {
+bool CommandQueue::drainCancel(bool job_was_busy) {
   if (!cancel_pending_.exchange(false, std::memory_order_acq_rel)) {
     return false;
   }
-  // Drop a dispense queued *before* cancel in the same burst. When cancel is
-  // followed by a command in one poll(), markCommandAfterCancel() skips reset.
-  if (!preserve_queued_dispense_on_drain_ && ops_ != nullptr && handle_ != nullptr &&
-      ops_->reset != nullptr) {
+  const bool drop_queued = job_was_busy || hasPending();
+  if (drop_queued && !preserve_queued_dispense_on_drain_ && ops_ != nullptr &&
+      handle_ != nullptr && ops_->reset != nullptr) {
     ops_->reset(handle_);
   }
   preserve_queued_dispense_on_drain_ = false;

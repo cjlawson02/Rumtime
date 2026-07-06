@@ -58,6 +58,9 @@ class InventoryStore {
   // Serialize to NVS (flash write). Call only when idle.
   bool commit(void (*feed_wdt)() = nullptr);
 
+  friend bool commitMachineStores(ConfigStore& config, InventoryStore& inventory,
+                                  void (*feed_wdt)());
+
  private:
   InventoryEntry* allocEntry(const char* ingredient_id);
   const InventoryEntry* findEntry(const char* ingredient_id) const;
