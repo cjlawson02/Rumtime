@@ -1,40 +1,7 @@
 #include "config_store.h"
 
+#include "crc32.h"
 #include "inventory_store.h"
-
-namespace {
-
-uint32_t inventoryRecordCrc(const InventoryRecord& record) {
-  InventoryRecord copy = record;
-  copy.crc32 = 0;
-  uint32_t crc = ~0U;
-  const auto* data = reinterpret_cast<const uint8_t*>(&copy);
-  for (std::size_t i = 0; i < sizeof(copy); ++i) {
-    crc ^= data[i];
-    for (int bit = 0; bit < 8; ++bit) {
-      const uint32_t mask = -(crc & 1U);
-      crc = (crc >> 1) ^ (0xEDB88320U & mask);
-    }
-  }
-  return ~crc;
-}
-
-uint32_t configRecordCrc(const ConfigRecord& record) {
-  ConfigRecord copy = record;
-  copy.crc32 = 0;
-  uint32_t crc = ~0U;
-  const auto* data = reinterpret_cast<const uint8_t*>(&copy);
-  for (std::size_t i = 0; i < sizeof(copy); ++i) {
-    crc ^= data[i];
-    for (int bit = 0; bit < 8; ++bit) {
-      const uint32_t mask = -(crc & 1U);
-      crc = (crc >> 1) ^ (0xEDB88320U & mask);
-    }
-  }
-  return ~crc;
-}
-
-}  // namespace
 
 bool commitMachineStores(ConfigStore& config, InventoryStore& inventory, void (*feed_wdt)()) {
   const bool config_dirty = config.dirty();
@@ -57,8 +24,8 @@ bool commitMachineStores(ConfigStore& config, InventoryStore& inventory, void (*
     return false;
   }
 
-  config.record_.crc32 = configRecordCrc(config.record_);
-  inventory.record_.crc32 = inventoryRecordCrc(inventory.record_);
+  config.record_.crc32 = crc32OfRecord(config.record_);
+  inventory.record_.crc32 = crc32OfRecord(inventory.record_);
 
   if (feed_wdt != nullptr) {
     feed_wdt();

@@ -12,7 +12,7 @@ bool ConfigOpQueue::begin(const QueueOps& ops) {
     ops_->destroy(handle_);
     handle_ = nullptr;
   }
-  handle_ = ops_->create(sizeof(PendingConfigOp));
+  handle_ = ops_->create(sizeof(ConfigOp));
   return handle_ != nullptr;
 }
 
@@ -23,10 +23,7 @@ bool ConfigOpQueue::enqueue(const ConfigOp& op) {
   if (ops_->pending(handle_) > 0) {
     return false;
   }
-  PendingConfigOp pending;
-  pending.config = op;
-  pending.reject = ConfigOpReject::kNone;
-  return ops_->send(handle_, &pending, sizeof(pending));
+  return ops_->send(handle_, &op, sizeof(op));
 }
 
 bool ConfigOpQueue::hasPending() const {
@@ -36,7 +33,7 @@ bool ConfigOpQueue::hasPending() const {
   return ops_->pending(handle_) > 0;
 }
 
-bool ConfigOpQueue::drain(PendingConfigOp& out) {
+bool ConfigOpQueue::drain(ConfigOp& out) {
   if (handle_ == nullptr || ops_ == nullptr) {
     return false;
   }

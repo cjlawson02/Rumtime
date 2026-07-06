@@ -191,9 +191,9 @@ void ControlTask::run() {
 }
 
 void ControlTask::drainConfigOps() {
-  PendingConfigOp pending;
+  ConfigOp pending;
   while (ctx().config_queue.drain(pending)) {
-    const ConfigOpReject reject = applyConfigOp(pending.config, ctx().config, ctx().inventory);
+    const ConfigOpReject reject = applyConfigOp(pending, ctx().config, ctx().inventory);
     if (reject != ConfigOpReject::kNone) {
       config_op_apply_failed_ = true;
     } else {
@@ -425,7 +425,7 @@ void ControlTask::tick() {
   fillJobStatusFields(job_in, &snapshot.job_ok, &snapshot.job_error, &snapshot.job_cancelled,
                       &snapshot.job_phase, &snapshot.job_reject);
   snapshot.config_dirty = ctx().config.dirty() || ctx().inventory.dirty();
-  snapshot.config_persist_error = config_persist_error_ || inventory_persist_error_;
+  snapshot.config_persist_error = store_persist_error_;
   ctx().status.publish(snapshot);
 
   if (prev_top_job_busy_ && !top_job_busy) {
@@ -472,23 +472,20 @@ void ControlTask::tick() {
           fatalRestart("TWDT reset failed; restarting");
         }
       });
-      const bool had_error = config_persist_error_ || inventory_persist_error_;
-      config_persist_error_ = !stores_ok;
-      inventory_persist_error_ = !stores_ok;
-      if ((config_persist_error_ || inventory_persist_error_) && !had_error) {
+      const bool had_error = store_persist_error_;
+      store_persist_error_ = !stores_ok;
+      if (store_persist_error_ && !had_error) {
         serial_.emitConfigPersistError();
       }
       if (esp_task_wdt_reset() != ESP_OK) {
         fatalRestart("TWDT reset failed; restarting");
       }
       snapshot.config_dirty = ctx().config.dirty() || ctx().inventory.dirty();
-      snapshot.config_persist_error = config_persist_error_ || inventory_persist_error_;
+      snapshot.config_persist_error = store_persist_error_;
       ctx().status.publish(snapshot);
     }
-  } else if ((config_persist_error_ || inventory_persist_error_) && !ctx().config.dirty() &&
-             !ctx().inventory.dirty()) {
-    config_persist_error_ = false;
-    inventory_persist_error_ = false;
+  } else if (store_persist_error_ && !ctx().config.dirty() && !ctx().inventory.dirty()) {
+    store_persist_error_ = false;
   }
 
   if (esp_task_wdt_reset() != ESP_OK) {

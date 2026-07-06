@@ -34,7 +34,7 @@ ConfigStore g_config;
 InventoryStore g_inventory;
 const NvsOps kTestNvsOps = {nvsBegin, nvsGetBlob, nvsSetBlob, nvsCommit};
 
-PendingConfigOp g_queue_slot;
+ConfigOp g_queue_slot;
 bool g_queue_has_item = false;
 
 void* fakeQueueCreate(std::size_t) {
@@ -193,10 +193,10 @@ void test_config_op_queue_enqueue_drain() {
   op.inventory_bool = true;
   TEST_ASSERT_TRUE(g_config_queue.enqueue(op));
   TEST_ASSERT_FALSE(g_config_queue.enqueue(op));
-  PendingConfigOp pending;
+  ConfigOp pending;
   TEST_ASSERT_TRUE(g_config_queue.drain(pending));
   TEST_ASSERT_EQUAL(static_cast<int>(ConfigOpType::kInventoryPrimed),
-                    static_cast<int>(pending.config.type));
+                    static_cast<int>(pending.type));
 }
 
 void test_apply_binding_seeds_inventory() {

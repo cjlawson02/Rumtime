@@ -61,7 +61,7 @@ class CommandQueue {
   // Returns false if ops is incomplete or the backend could not allocate.
   bool begin(const QueueOps& ops);
 
-  // Enqueue APIs — used by SerialTransport only for now (docs/16: enqueue only).
+  // Enqueue APIs — serial and HTTP (Core 0) enqueue; ControlTask drains.
   // Returns false when the single slot is already full (busy / duplicate).
   bool enqueueDispense(const DispenseCommand& command);
   bool enqueuePrime(const PrimeCommand& command);

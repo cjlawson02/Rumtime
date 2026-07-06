@@ -308,6 +308,69 @@ void enqueueConfigOp(const ConfigOp& op) {
   sendNoContent();
 }
 
+bool parseInventoryBody(JsonDocument& doc) {
+  if (rejectOversizedBody()) {
+    return false;
+  }
+  if (deserializeJson(doc, g_server.arg("plain"))) {
+    sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
+    return false;
+  }
+  return true;
+}
+
+void copyIngredientId(ConfigOp& op, const char* ingredient) {
+  std::strncpy(op.ingredient_id, ingredient, kIngredientIdMax - 1);
+  op.ingredient_id[kIngredientIdMax - 1] = '\0';
+}
+
+void handleInventoryRefill() {
+  JsonDocument doc;
+  if (!parseInventoryBody(doc)) {
+    return;
+  }
+  ConfigOp op = {};
+  op.type = ConfigOpType::kInventoryRefill;
+  copyIngredientId(op, doc["ingredientId"] | "");
+  enqueueConfigOp(op);
+}
+
+void handleInventoryBottleSize() {
+  JsonDocument doc;
+  if (!parseInventoryBody(doc)) {
+    return;
+  }
+  ConfigOp op = {};
+  op.type = ConfigOpType::kInventoryBottleSize;
+  copyIngredientId(op, doc["ingredientId"] | "");
+  op.inventory_ml = doc["bottleSizeMl"] | 0.0f;
+  enqueueConfigOp(op);
+}
+
+void handleInventoryLevel() {
+  JsonDocument doc;
+  if (!parseInventoryBody(doc)) {
+    return;
+  }
+  ConfigOp op = {};
+  op.type = ConfigOpType::kInventoryLevel;
+  copyIngredientId(op, doc["ingredientId"] | "");
+  op.inventory_ml = doc["remainingMl"] | -1.0f;
+  enqueueConfigOp(op);
+}
+
+void handleInventoryPrimed() {
+  JsonDocument doc;
+  if (!parseInventoryBody(doc)) {
+    return;
+  }
+  ConfigOp op = {};
+  op.type = ConfigOpType::kInventoryPrimed;
+  copyIngredientId(op, doc["ingredientId"] | "");
+  op.inventory_bool = doc["primed"] | false;
+  enqueueConfigOp(op);
+}
+
 void handlePumpBinding() {
   if (rejectOversizedBody()) {
     return;
@@ -361,76 +424,6 @@ void handlePumpCalibration() {
   op.ml_per_s = ml_per_s;
   op.anti_drip_ms = anti_drip;
   op.has_anti_drip = true;
-  enqueueConfigOp(op);
-}
-
-void handleInventoryRefill() {
-  if (rejectOversizedBody()) {
-    return;
-  }
-  JsonDocument doc;
-  if (deserializeJson(doc, g_server.arg("plain"))) {
-    sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
-    return;
-  }
-  const char* ingredient = doc["ingredientId"] | "";
-  ConfigOp op = {};
-  op.type = ConfigOpType::kInventoryRefill;
-  std::strncpy(op.ingredient_id, ingredient, kIngredientIdMax - 1);
-  enqueueConfigOp(op);
-}
-
-void handleInventoryBottleSize() {
-  if (rejectOversizedBody()) {
-    return;
-  }
-  JsonDocument doc;
-  if (deserializeJson(doc, g_server.arg("plain"))) {
-    sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
-    return;
-  }
-  const char* ingredient = doc["ingredientId"] | "";
-  const float size = doc["bottleSizeMl"] | 0.0f;
-  ConfigOp op = {};
-  op.type = ConfigOpType::kInventoryBottleSize;
-  std::strncpy(op.ingredient_id, ingredient, kIngredientIdMax - 1);
-  op.inventory_ml = size;
-  enqueueConfigOp(op);
-}
-
-void handleInventoryLevel() {
-  if (rejectOversizedBody()) {
-    return;
-  }
-  JsonDocument doc;
-  if (deserializeJson(doc, g_server.arg("plain"))) {
-    sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
-    return;
-  }
-  const char* ingredient = doc["ingredientId"] | "";
-  const float level = doc["remainingMl"] | -1.0f;
-  ConfigOp op = {};
-  op.type = ConfigOpType::kInventoryLevel;
-  std::strncpy(op.ingredient_id, ingredient, kIngredientIdMax - 1);
-  op.inventory_ml = level;
-  enqueueConfigOp(op);
-}
-
-void handleInventoryPrimed() {
-  if (rejectOversizedBody()) {
-    return;
-  }
-  JsonDocument doc;
-  if (deserializeJson(doc, g_server.arg("plain"))) {
-    sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
-    return;
-  }
-  const char* ingredient = doc["ingredientId"] | "";
-  const bool primed = doc["primed"] | false;
-  ConfigOp op = {};
-  op.type = ConfigOpType::kInventoryPrimed;
-  std::strncpy(op.ingredient_id, ingredient, kIngredientIdMax - 1);
-  op.inventory_bool = primed;
   enqueueConfigOp(op);
 }
 

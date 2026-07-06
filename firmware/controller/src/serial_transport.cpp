@@ -267,8 +267,6 @@ void SerialTransport::printStatus() {
   const StatusSnapshot s = status_->read();
   Serial.print("status pumps_running=");
   Serial.print(s.pumps_running ? 1 : 0);
-  Serial.print(" pumps_running=");
-  Serial.print(s.pumps_running ? 1 : 0);
   Serial.print(" scale_ready=");
   Serial.print(s.scale_ready ? 1 : 0);
   Serial.print(" grams=");

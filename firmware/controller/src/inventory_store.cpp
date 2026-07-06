@@ -3,25 +3,10 @@
 #include <cmath>
 #include <cstring>
 
+#include "crc32.h"
+#include "inventory_policy.h"
+
 namespace {
-
-uint32_t crc32Update(uint32_t crc, const uint8_t* data, std::size_t len) {
-  crc = ~crc;
-  for (std::size_t i = 0; i < len; ++i) {
-    crc ^= data[i];
-    for (int bit = 0; bit < 8; ++bit) {
-      const uint32_t mask = -(crc & 1U);
-      crc = (crc >> 1) ^ (0xEDB88320U & mask);
-    }
-  }
-  return ~crc;
-}
-
-uint32_t recordCrc(const InventoryRecord& record) {
-  InventoryRecord copy = record;
-  copy.crc32 = 0;
-  return crc32Update(0, reinterpret_cast<const uint8_t*>(&copy), sizeof(copy));
-}
 
 bool ingredientIdValid(const char* ingredient_id) {
   if (ingredient_id == nullptr || ingredient_id[0] == '\0') {
@@ -68,27 +53,27 @@ void InventoryStore::begin(const NvsOps& ops) {
   if (ops_->begin == nullptr || ops_->getBlob == nullptr || ops_->setBlob == nullptr ||
       ops_->commit == nullptr) {
     record_ = InventoryRecord{};
-    record_.crc32 = recordCrc(record_);
+    record_.crc32 = crc32OfRecord(record_);
     dirty_ = true;
     return;
   }
   if (!ops_->begin(kNvsNamespace)) {
     record_ = InventoryRecord{};
-    record_.crc32 = recordCrc(record_);
+    record_.crc32 = crc32OfRecord(record_);
     dirty_ = true;
     return;
   }
 
   if (!ops_->getBlob(kInventoryBlobKey, &record_, sizeof(record_))) {
     record_ = InventoryRecord{};
-    record_.crc32 = recordCrc(record_);
+    record_.crc32 = crc32OfRecord(record_);
     dirty_ = true;
     return;
   }
   if (record_.magic != kInventoryMagic || record_.version != kInventorySchemaVersion ||
-      record_.crc32 != recordCrc(record_)) {
+      record_.crc32 != crc32OfRecord(record_)) {
     record_ = InventoryRecord{};
-    record_.crc32 = recordCrc(record_);
+    record_.crc32 = crc32OfRecord(record_);
     dirty_ = true;
     return;
   }
@@ -236,20 +221,17 @@ bool InventoryStore::subtractMl(const char* ingredient_id, float ml) {
 
 bool InventoryStore::pourAllowed(const char* ingredient_id, float step_ml) const {
   const InventoryEntry* e = findEntry(ingredient_id);
-  if (e == nullptr || !e->primed) {
+  if (e == nullptr) {
     return false;
   }
-  if (!std::isfinite(step_ml) || step_ml <= 0.0f) {
-    return false;
-  }
-  return e->remaining_ml >= (step_ml + kInventoryReserveMl);
+  return inventoryPourAllowed(e->primed, e->remaining_ml, step_ml);
 }
 
 bool InventoryStore::commit(void (*feed_wdt)()) {
   if (ops_ == nullptr || ops_->setBlob == nullptr || ops_->commit == nullptr) {
     return false;
   }
-  record_.crc32 = recordCrc(record_);
+  record_.crc32 = crc32OfRecord(record_);
   if (feed_wdt != nullptr) {
     feed_wdt();
   }

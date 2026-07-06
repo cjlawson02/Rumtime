@@ -18,11 +18,6 @@ enum class ConfigOpReject : uint8_t {
   kBadArgs,
 };
 
-struct PendingConfigOp {
-  ConfigOp config;
-  ConfigOpReject reject = ConfigOpReject::kNone;
-};
-
 class ConfigOpQueue {
  public:
   bool begin(const QueueOps& ops);
@@ -31,7 +26,7 @@ class ConfigOpQueue {
   bool enqueue(const ConfigOp& op);
 
   bool hasPending() const;
-  bool drain(PendingConfigOp& out);
+  bool drain(ConfigOp& out);
 
  private:
   const QueueOps* ops_ = nullptr;

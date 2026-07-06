@@ -35,8 +35,7 @@ class ControlTask {
   TaskHandle_t handle_ = nullptr;
   bool prev_top_job_busy_ = false;
   bool prev_sequence_busy_ = false;
-  bool config_persist_error_ = false;
-  bool inventory_persist_error_ = false;
+  bool store_persist_error_ = false;
   unsigned long last_config_commit_attempt_ms_ = 0;
 
   char active_recipe_id_[kRecipeIdMax] = {0};

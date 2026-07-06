@@ -7,6 +7,7 @@
 #include "config.h"
 #include "config_store.h"
 #include "coordinator.h"
+#include "inventory_policy.h"
 #include "inventory_store.h"
 
 namespace {
@@ -19,6 +20,176 @@ CommandReject validateDispenseParams(const DispenseCommand& cmd, uint8_t num_pum
     return reject;
   }
   return CommandReject::kNone;
+}
+
+CommandReject preflightMotionBusy(const StatusSnapshot& status, bool cancel_pending_this_poll,
+                                  bool check_config_op = true) {
+  if (check_config_op && status.config_op_pending) {
+    return CommandReject::kBusy;
+  }
+  if ((status.job_busy || status.command_pending) && !cancel_pending_this_poll) {
+    return CommandReject::kBusy;
+  }
+  if (status.sequence_busy && !cancel_pending_this_poll) {
+    return CommandReject::kBusy;
+  }
+  return CommandReject::kNone;
+}
+
+CommandReject validatePourSequenceStepsImpl(const PourSequenceStep* steps, uint8_t step_count,
+                                            uint8_t num_pumps, const ConfigStore* config,
+                                            const StatusSnapshot* status) {
+  if (steps == nullptr || step_count == 0 || step_count > kMaxPourSequenceSteps) {
+    return CommandReject::kBadArgs;
+  }
+
+  float total_ml = 0.0f;
+  unsigned long total_pour_ms = 0;
+
+  for (uint8_t i = 0; i < step_count; ++i) {
+    const PourSequenceStep& step = steps[i];
+    if (step.ingredient_id[0] == '\0') {
+      return CommandReject::kBadIngredient;
+    }
+
+    int channel = -1;
+    if (config != nullptr) {
+      channel = config->channelForIngredient(step.ingredient_id);
+    } else if (status != nullptr) {
+      channel = snapshotChannelForIngredient(*status, step.ingredient_id);
+    } else {
+      return CommandReject::kBadArgs;
+    }
+    if (channel < 0 || static_cast<uint8_t>(channel) >= num_pumps) {
+      return CommandReject::kBadIngredient;
+    }
+
+    DispenseCommand dispense;
+    dispense.channel = static_cast<uint8_t>(channel);
+    dispense.ml = step.ml;
+    dispense.flow_gate = true;
+
+    const float ml_per_s = config != nullptr ? config->mlPerSecond(dispense.channel)
+                                             : snapshotMlPerSecond(*status, dispense.channel);
+    const CommandReject params = validateDispenseParams(dispense, num_pumps, ml_per_s);
+    if (params != CommandReject::kNone) {
+      return params;
+    }
+
+    unsigned long pour_ms = 0;
+    if (!computePourDurationMs(dispense, num_pumps, ml_per_s, &pour_ms, nullptr)) {
+      return CommandReject::kBadMl;
+    }
+    total_ml += step.ml;
+    total_pour_ms += pour_ms;
+    total_pour_ms += kFlowDetectTimeoutMs;
+  }
+
+  if (total_ml > kMaxSequenceTotalMl) {
+    return CommandReject::kBadMl;
+  }
+  if (total_pour_ms > kMaxSequenceDurationMs) {
+    return CommandReject::kPourTooLong;
+  }
+  return CommandReject::kNone;
+}
+
+CommandReject validatePourSequenceInventoryImpl(const PourSequenceStep* steps, uint8_t step_count,
+                                                const InventoryStore* inventory,
+                                                const StatusSnapshot* status) {
+  if (steps == nullptr || step_count == 0) {
+    return CommandReject::kBadArgs;
+  }
+  for (uint8_t i = 0; i < step_count; ++i) {
+    const PourSequenceStep& step = steps[i];
+    bool first_for_ingredient = true;
+    for (uint8_t k = 0; k < i; ++k) {
+      if (std::strcmp(steps[k].ingredient_id, step.ingredient_id) == 0) {
+        first_for_ingredient = false;
+        break;
+      }
+    }
+    if (!first_for_ingredient) {
+      continue;
+    }
+
+    float total_ml = 0.0f;
+    for (uint8_t j = 0; j < step_count; ++j) {
+      if (std::strcmp(steps[j].ingredient_id, step.ingredient_id) == 0) {
+        total_ml += steps[j].ml;
+      }
+    }
+
+    if (inventory != nullptr) {
+      const InventoryEntry* entry = inventory->find(step.ingredient_id);
+      if (entry == nullptr || !entry->primed) {
+        return CommandReject::kNotPrimed;
+      }
+      if (!inventoryPourAllowed(entry->primed, entry->remaining_ml, total_ml)) {
+        return CommandReject::kLowInventory;
+      }
+    } else if (status != nullptr) {
+      const SnapshotBinding* entry = nullptr;
+      for (uint8_t b = 0; b < status->published_binding_count; ++b) {
+        if (std::strcmp(status->published_bindings[b].ingredient_id, step.ingredient_id) == 0) {
+          entry = &status->published_bindings[b];
+          break;
+        }
+      }
+      if (entry == nullptr || !entry->primed) {
+        return CommandReject::kNotPrimed;
+      }
+      if (!inventoryPourAllowed(entry->primed, entry->remaining_ml, total_ml)) {
+        return CommandReject::kLowInventory;
+      }
+    } else {
+      return CommandReject::kBadArgs;
+    }
+  }
+  return CommandReject::kNone;
+}
+
+CommandReject preflightDispenseEnqueueImpl(const DispenseCommand& cmd, const StatusSnapshot& status,
+                                           uint8_t num_pumps, const ConfigStore* config,
+                                           bool cancel_pending_this_poll) {
+  const CommandReject busy = preflightMotionBusy(status, cancel_pending_this_poll);
+  if (busy != CommandReject::kNone) {
+    return busy;
+  }
+  if (cmd.flow_gate && !status.scale_ready) {
+    return CommandReject::kScaleNotReady;
+  }
+  const float ml_per_s = config != nullptr ? config->mlPerSecond(cmd.channel)
+                                           : snapshotMlPerSecond(status, cmd.channel);
+  return validateDispenseParams(cmd, num_pumps, ml_per_s);
+}
+
+CommandReject preflightPourSequenceEnqueueImpl(const PourSequenceCommand& cmd,
+                                               const StatusSnapshot& status, uint8_t num_pumps,
+                                               const ConfigStore* config,
+                                               const InventoryStore* inventory,
+                                               bool cancel_pending_this_poll) {
+  if (!status.scale_ready) {
+    return CommandReject::kScaleNotReady;
+  }
+
+  const CommandReject validated =
+      validatePourSequenceStepsImpl(cmd.steps, cmd.step_count, num_pumps, config,
+                                    config == nullptr ? &status : nullptr);
+  if (validated != CommandReject::kNone) {
+    return validated;
+  }
+
+  const CommandReject inventory_reject = validatePourSequenceInventoryImpl(
+      cmd.steps, cmd.step_count, inventory, inventory == nullptr ? &status : nullptr);
+  if (inventory_reject != CommandReject::kNone) {
+    return inventory_reject;
+  }
+
+  if (status.config_op_pending) {
+    return CommandReject::kBusy;
+  }
+  return preflightMotionBusy(status, cancel_pending_this_poll, false);
 }
 
 }  // namespace
@@ -199,39 +370,17 @@ int snapshotChannelForIngredient(const StatusSnapshot& status, const char* ingre
 
 CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusSnapshot& status,
                                        uint8_t num_pumps, bool cancel_pending_this_poll) {
-  if (status.config_op_pending) {
-    return CommandReject::kBusy;
-  }
-  if (cmd.flow_gate && !status.scale_ready) {
-    return CommandReject::kScaleNotReady;
-  }
-  const float ml_per_s = snapshotMlPerSecond(status, cmd.channel);
-  const CommandReject params = validateDispenseParams(cmd, num_pumps, ml_per_s);
-  if (params != CommandReject::kNone) {
-    return params;
-  }
-  if ((status.job_busy || status.command_pending) && !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
-  }
-  if (status.sequence_busy && !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
-  }
-  return CommandReject::kNone;
+  return preflightDispenseEnqueueImpl(cmd, status, num_pumps, nullptr, cancel_pending_this_poll);
 }
 
 CommandReject preflightPrimeEnqueue(uint8_t channel, const StatusSnapshot& status,
                                     uint8_t num_pumps, bool cancel_pending_this_poll) {
-  if (status.config_op_pending) {
-    return CommandReject::kBusy;
+  const CommandReject busy = preflightMotionBusy(status, cancel_pending_this_poll);
+  if (busy != CommandReject::kNone) {
+    return busy;
   }
   if (channel >= num_pumps) {
     return CommandReject::kBadPump;
-  }
-  if ((status.job_busy || status.command_pending) && !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
-  }
-  if (status.sequence_busy && !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
   }
   return CommandReject::kNone;
 }
@@ -239,24 +388,7 @@ CommandReject preflightPrimeEnqueue(uint8_t channel, const StatusSnapshot& statu
 CommandReject preflightDispenseEnqueue(const DispenseCommand& cmd, const StatusSnapshot& status,
                                        uint8_t num_pumps, const ConfigStore& config,
                                        bool cancel_pending_this_poll) {
-  if (status.config_op_pending) {
-    return CommandReject::kBusy;
-  }
-  if (cmd.flow_gate && !status.scale_ready) {
-    return CommandReject::kScaleNotReady;
-  }
-  const float ml_per_s = config.mlPerSecond(cmd.channel);
-  const CommandReject params = validateDispenseParams(cmd, num_pumps, ml_per_s);
-  if (params != CommandReject::kNone) {
-    return params;
-  }
-  if ((status.job_busy || status.command_pending) && !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
-  }
-  if (status.sequence_busy && !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
-  }
-  return CommandReject::kNone;
+  return preflightDispenseEnqueueImpl(cmd, status, num_pumps, &config, cancel_pending_this_poll);
 }
 
 CommandReject preflightPrimeStopEnqueue(const StatusSnapshot& status) {
@@ -271,199 +403,29 @@ CommandReject preflightPrimeStopEnqueue(const StatusSnapshot& status) {
 
 CommandReject validatePourSequenceSteps(const PourSequenceStep* steps, uint8_t step_count,
                                         uint8_t num_pumps, const ConfigStore& config) {
-  if (steps == nullptr || step_count == 0 || step_count > kMaxPourSequenceSteps) {
-    return CommandReject::kBadArgs;
-  }
-
-  float total_ml = 0.0f;
-  unsigned long total_pour_ms = 0;
-
-  for (uint8_t i = 0; i < step_count; ++i) {
-    const PourSequenceStep& step = steps[i];
-    if (step.ingredient_id[0] == '\0') {
-      return CommandReject::kBadIngredient;
-    }
-    const int channel = config.channelForIngredient(step.ingredient_id);
-    if (channel < 0 || static_cast<uint8_t>(channel) >= num_pumps) {
-      return CommandReject::kBadIngredient;
-    }
-
-    DispenseCommand dispense;
-    dispense.channel = static_cast<uint8_t>(channel);
-    dispense.ml = step.ml;
-    dispense.flow_gate = true;
-
-    const float ml_per_s = config.mlPerSecond(dispense.channel);
-    const CommandReject params = validateDispenseParams(dispense, num_pumps, ml_per_s);
-    if (params != CommandReject::kNone) {
-      return params;
-    }
-
-    unsigned long pour_ms = 0;
-    if (!computePourDurationMs(dispense, num_pumps, ml_per_s, &pour_ms, nullptr)) {
-      return CommandReject::kBadMl;
-    }
-    total_ml += step.ml;
-    total_pour_ms += pour_ms;
-    total_pour_ms += kFlowDetectTimeoutMs;
-  }
-
-  if (total_ml > kMaxSequenceTotalMl) {
-    return CommandReject::kBadMl;
-  }
-  if (total_pour_ms > kMaxSequenceDurationMs) {
-    return CommandReject::kPourTooLong;
-  }
-  return CommandReject::kNone;
+  return validatePourSequenceStepsImpl(steps, step_count, num_pumps, &config, nullptr);
 }
 
 CommandReject validatePourSequenceInventory(const PourSequenceStep* steps, uint8_t step_count,
                                             const InventoryStore& inventory) {
-  if (steps == nullptr || step_count == 0) {
-    return CommandReject::kBadArgs;
-  }
-  for (uint8_t i = 0; i < step_count; ++i) {
-    const PourSequenceStep& step = steps[i];
-    bool first_for_ingredient = true;
-    for (uint8_t k = 0; k < i; ++k) {
-      if (std::strcmp(steps[k].ingredient_id, step.ingredient_id) == 0) {
-        first_for_ingredient = false;
-        break;
-      }
-    }
-    if (!first_for_ingredient) {
-      continue;
-    }
-    const InventoryEntry* entry = inventory.find(step.ingredient_id);
-    if (entry == nullptr || !entry->primed) {
-      return CommandReject::kNotPrimed;
-    }
-    float total_ml = 0.0f;
-    for (uint8_t j = 0; j < step_count; ++j) {
-      if (std::strcmp(steps[j].ingredient_id, step.ingredient_id) == 0) {
-        total_ml += steps[j].ml;
-      }
-    }
-    if (!inventory.pourAllowed(step.ingredient_id, total_ml)) {
-      return CommandReject::kLowInventory;
-    }
-  }
-  return CommandReject::kNone;
+  return validatePourSequenceInventoryImpl(steps, step_count, &inventory, nullptr);
 }
 
 CommandReject validatePourSequenceSteps(const PourSequenceStep* steps, uint8_t step_count,
                                         uint8_t num_pumps, const StatusSnapshot& status) {
-  if (steps == nullptr || step_count == 0 || step_count > kMaxPourSequenceSteps) {
-    return CommandReject::kBadArgs;
-  }
-
-  float total_ml = 0.0f;
-  unsigned long total_pour_ms = 0;
-
-  for (uint8_t i = 0; i < step_count; ++i) {
-    const PourSequenceStep& step = steps[i];
-    if (step.ingredient_id[0] == '\0') {
-      return CommandReject::kBadIngredient;
-    }
-    const int channel = snapshotChannelForIngredient(status, step.ingredient_id);
-    if (channel < 0 || static_cast<uint8_t>(channel) >= num_pumps) {
-      return CommandReject::kBadIngredient;
-    }
-
-    DispenseCommand dispense;
-    dispense.channel = static_cast<uint8_t>(channel);
-    dispense.ml = step.ml;
-    dispense.flow_gate = true;
-
-    const float ml_per_s = snapshotMlPerSecond(status, dispense.channel);
-    const CommandReject params = validateDispenseParams(dispense, num_pumps, ml_per_s);
-    if (params != CommandReject::kNone) {
-      return params;
-    }
-
-    unsigned long pour_ms = 0;
-    if (!computePourDurationMs(dispense, num_pumps, ml_per_s, &pour_ms, nullptr)) {
-      return CommandReject::kBadMl;
-    }
-    total_ml += step.ml;
-    total_pour_ms += pour_ms;
-    total_pour_ms += kFlowDetectTimeoutMs;
-  }
-
-  if (total_ml > kMaxSequenceTotalMl) {
-    return CommandReject::kBadMl;
-  }
-  if (total_pour_ms > kMaxSequenceDurationMs) {
-    return CommandReject::kPourTooLong;
-  }
-  return CommandReject::kNone;
+  return validatePourSequenceStepsImpl(steps, step_count, num_pumps, nullptr, &status);
 }
 
 CommandReject validatePourSequenceInventory(const PourSequenceStep* steps, uint8_t step_count,
                                             const StatusSnapshot& status) {
-  if (steps == nullptr || step_count == 0) {
-    return CommandReject::kBadArgs;
-  }
-  for (uint8_t i = 0; i < step_count; ++i) {
-    const PourSequenceStep& step = steps[i];
-    bool first_for_ingredient = true;
-    for (uint8_t k = 0; k < i; ++k) {
-      if (std::strcmp(steps[k].ingredient_id, step.ingredient_id) == 0) {
-        first_for_ingredient = false;
-        break;
-      }
-    }
-    if (!first_for_ingredient) {
-      continue;
-    }
-    const SnapshotBinding* entry = nullptr;
-    for (uint8_t b = 0; b < status.published_binding_count; ++b) {
-      if (std::strcmp(status.published_bindings[b].ingredient_id, step.ingredient_id) == 0) {
-        entry = &status.published_bindings[b];
-        break;
-      }
-    }
-    if (entry == nullptr || !entry->primed) {
-      return CommandReject::kNotPrimed;
-    }
-    float total_ml = 0.0f;
-    for (uint8_t j = 0; j < step_count; ++j) {
-      if (std::strcmp(steps[j].ingredient_id, step.ingredient_id) == 0) {
-        total_ml += steps[j].ml;
-      }
-    }
-    if (entry->remaining_ml < (total_ml + kInventoryReserveMl)) {
-      return CommandReject::kLowInventory;
-    }
-  }
-  return CommandReject::kNone;
+  return validatePourSequenceInventoryImpl(steps, step_count, nullptr, &status);
 }
 
 CommandReject preflightPourSequenceEnqueue(const PourSequenceCommand& cmd,
                                            const StatusSnapshot& status, uint8_t num_pumps,
                                            bool cancel_pending_this_poll) {
-  if (!status.scale_ready) {
-    return CommandReject::kScaleNotReady;
-  }
-
-  const CommandReject validated =
-      validatePourSequenceSteps(cmd.steps, cmd.step_count, num_pumps, status);
-  if (validated != CommandReject::kNone) {
-    return validated;
-  }
-
-  const CommandReject inventory_reject =
-      validatePourSequenceInventory(cmd.steps, cmd.step_count, status);
-  if (inventory_reject != CommandReject::kNone) {
-    return inventory_reject;
-  }
-
-  if ((status.job_busy || status.command_pending || status.sequence_busy ||
-       status.config_op_pending) &&
-      !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
-  }
-  return CommandReject::kNone;
+  return preflightPourSequenceEnqueueImpl(cmd, status, num_pumps, nullptr, nullptr,
+                                          cancel_pending_this_poll);
 }
 
 CommandReject preflightPourSequenceEnqueue(const PourSequenceCommand& cmd,
@@ -471,28 +433,8 @@ CommandReject preflightPourSequenceEnqueue(const PourSequenceCommand& cmd,
                                            const ConfigStore& config,
                                            const InventoryStore& inventory,
                                            bool cancel_pending_this_poll) {
-  if (!status.scale_ready) {
-    return CommandReject::kScaleNotReady;
-  }
-
-  const CommandReject validated =
-      validatePourSequenceSteps(cmd.steps, cmd.step_count, num_pumps, config);
-  if (validated != CommandReject::kNone) {
-    return validated;
-  }
-
-  const CommandReject inventory_reject =
-      validatePourSequenceInventory(cmd.steps, cmd.step_count, inventory);
-  if (inventory_reject != CommandReject::kNone) {
-    return inventory_reject;
-  }
-
-  if ((status.job_busy || status.command_pending || status.sequence_busy ||
-       status.config_op_pending) &&
-      !cancel_pending_this_poll) {
-    return CommandReject::kBusy;
-  }
-  return CommandReject::kNone;
+  return preflightPourSequenceEnqueueImpl(cmd, status, num_pumps, &config, &inventory,
+                                          cancel_pending_this_poll);
 }
 
 CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, uint8_t num_pumps,

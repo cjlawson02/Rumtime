@@ -2,7 +2,6 @@
 
 #include <cstring>
 
-#include "command_validate.h"
 #include "config_store.h"
 #include "coordinator.h"
 #include "inventory_store.h"
@@ -68,22 +67,6 @@ bool SequenceRunner::start(const PourSequenceStep* steps, uint8_t step_count,
 
   if (coordinator_ == nullptr || config_ == nullptr || inventory_ == nullptr || pumps_ == nullptr ||
       scale_ == nullptr) {
-    result_ = Coordinator::JobResult::kError;
-    return false;
-  }
-
-  const CommandReject validated =
-      validatePourSequenceSteps(steps, step_count, PumpBus::kNumChannels, *config_);
-  if (validated != CommandReject::kNone) {
-    last_reject_ = commandRejectToJobReject(validated);
-    result_ = Coordinator::JobResult::kError;
-    return false;
-  }
-
-  const CommandReject inventory_validated =
-      validatePourSequenceInventory(steps, step_count, *inventory_);
-  if (inventory_validated != CommandReject::kNone) {
-    last_reject_ = commandRejectToJobReject(inventory_validated);
     result_ = Coordinator::JobResult::kError;
     return false;
   }
