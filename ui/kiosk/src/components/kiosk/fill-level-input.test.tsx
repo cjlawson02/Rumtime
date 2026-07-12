@@ -10,6 +10,12 @@ vi.mock('@/hooks/use-device-mutations', () => ({
   useUpdateInventoryLevel: () => ({ mutateAsync: updateInventoryLevel }),
 }));
 
+function getFillTrigger(container: HTMLElement) {
+  const trigger = container.querySelector<HTMLElement>('#fill-bourbon');
+  if (!trigger) throw new Error('Missing fill level trigger');
+  return trigger;
+}
+
 describe('FillLevelInput', () => {
   beforeEach(() => {
     updateInventoryLevel.mockReset();
@@ -27,7 +33,7 @@ describe('FillLevelInput', () => {
       />,
     );
 
-    await user.click(container.querySelector('#fill-bourbon')!);
+    await user.click(getFillTrigger(container));
 
     expect(getByRole('dialog', { name: 'Fill level' })).toBeInTheDocument();
   });
@@ -45,7 +51,7 @@ describe('FillLevelInput', () => {
       />,
     );
 
-    await user.click(container.querySelector('#fill-bourbon')!);
+    await user.click(getFillTrigger(container));
     await user.click(getByRole('button', { name: 'Clear' }));
     await user.click(getByRole('button', { name: '6' }));
     await user.click(getByRole('button', { name: '0' }));
@@ -73,7 +79,7 @@ describe('FillLevelInput', () => {
       />,
     );
 
-    await user.click(container.querySelector('#fill-bourbon')!);
+    await user.click(getFillTrigger(container));
     await user.click(getByRole('button', { name: 'Clear' }));
     await user.click(getByRole('button', { name: '4' }));
     await user.click(getByRole('button', { name: '0' }));
@@ -94,7 +100,7 @@ describe('FillLevelInput', () => {
       />,
     );
 
-    await user.click(container.querySelector('#fill-bourbon')!);
+    await user.click(getFillTrigger(container));
     await user.click(getByRole('button', { name: 'Save' }));
 
     expect(updateInventoryLevel).not.toHaveBeenCalled();
@@ -104,7 +110,7 @@ describe('FillLevelInput', () => {
   it('does not open the editor while disabled', async () => {
     const user = userEvent.setup();
 
-    const { container, getByRole, queryByRole } = renderWithProviders(
+    const { container, queryByRole } = renderWithProviders(
       <FillLevelInput
         ingredientId="bourbon"
         remainingMl={500}
@@ -113,7 +119,7 @@ describe('FillLevelInput', () => {
       />,
     );
 
-    await user.click(container.querySelector('#fill-bourbon')!);
+    await user.click(getFillTrigger(container));
 
     expect(queryByRole('dialog', { name: 'Fill level' })).not.toBeInTheDocument();
   });

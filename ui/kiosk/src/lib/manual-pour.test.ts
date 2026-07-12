@@ -9,59 +9,61 @@ import {
   prePourStepInstruction,
 } from '@/lib/manual-pour';
 
+function getRecipeOrThrow(recipeId: string) {
+  const recipe = getRecipeById(recipeId);
+  if (!recipe) throw new Error(`Missing test recipe ${recipeId}`);
+  return recipe;
+}
+
 describe('manual-pour', () => {
   it('places ice first when recipe needs it', () => {
-    const recipe = getRecipeById('moscow-mule');
-    expect(recipe).toBeDefined();
-    const steps = buildPrePourSteps(recipe!);
+    const recipe = getRecipeOrThrow('moscow-mule');
+    const steps = buildPrePourSteps(recipe);
     expect(steps[0]).toEqual({ kind: 'ice' });
     expect(steps[1]).toMatchObject({ kind: 'manual', ingredient: { id: 'lime' } });
   });
 
   it('splits manual ingredients before and after the pour', () => {
-    const recipe = getRecipeById('moscow-mule');
-    expect(recipe).toBeDefined();
+    const recipe = getRecipeOrThrow('moscow-mule');
 
-    expect(buildPrePourSteps(recipe!).map((step) => step.kind)).toEqual([
+    expect(buildPrePourSteps(recipe).map((step) => step.kind)).toEqual([
       'ice',
       'manual',
     ]);
-    expect(buildPostPourSteps(recipe!).map((i) => i.id)).toEqual([
+    expect(buildPostPourSteps(recipe).map((i) => i.id)).toEqual([
       'ginger_beer',
     ]);
   });
 
   it('defaults carbonated mixers to after-pour timing', () => {
-    const recipe = getRecipeById('gin-tonic');
-    expect(recipe).toBeDefined();
-    const tonic = recipe!.ingredients.find((i) => i.id === 'tonic');
-    expect(tonic).toBeDefined();
-    expect(manualIngredientTiming(tonic!)).toBe('after');
+    const recipe = getRecipeOrThrow('gin-tonic');
+    const tonic = recipe.ingredients.find((i) => i.id === 'tonic');
+    if (!tonic) throw new Error('Missing tonic ingredient');
+    expect(manualIngredientTiming(tonic)).toBe('after');
   });
 
   it('formats guest instructions', () => {
-    const recipe = getRecipeById('old-fashioned');
-    expect(recipe).toBeDefined();
-    const steps = buildPrePourSteps(recipe!);
+    const recipe = getRecipeOrThrow('old-fashioned');
+    const steps = buildPrePourSteps(recipe);
     expect(steps).toEqual([{ kind: 'ice' }]);
     expect(prePourStepInstruction(steps[0])).toMatch(/ice/i);
 
-    const bitters = buildPostPourSteps(recipe!)[0];
+    const bitters = buildPostPourSteps(recipe)[0];
     expect(bitters.id).toBe('bitters');
     expect(postPourStepInstruction(bitters)).toBe(
       'Dash Angostura bitters on top, then tap Done.',
     );
 
-    const margarita = getRecipeById('margarita');
-    const limeStep = buildPrePourSteps(margarita!).find(
+    const margarita = getRecipeOrThrow('margarita');
+    const limeStep = buildPrePourSteps(margarita).find(
       (step) => step.kind === 'manual',
     );
-    expect(limeStep).toBeDefined();
-    expect(prePourStepInstruction(limeStep!)).toBe(
+    if (!limeStep) throw new Error('Missing margarita lime step');
+    expect(prePourStepInstruction(limeStep)).toBe(
       'Add ~0.5 oz (15 ml) of fresh lime juice to the glass, then tap Done.',
     );
 
-    const post = buildPostPourSteps(getRecipeById('amf')!);
+    const post = buildPostPourSteps(getRecipeOrThrow('amf'));
     expect(postPourStepInstruction(post[0])).toBe(
       'Top with Sprite or 7-Up, then tap Done.',
     );

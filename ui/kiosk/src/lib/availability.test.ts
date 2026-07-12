@@ -139,8 +139,8 @@ describe('availability', () => {
   it('labels issues for menu chips and blocking messages', () => {
     const issues = getDrinkAvailability(recipe, device).issues;
     expect(isPourBlocked(issues)).toBe(true);
-    expect(issueLabel(issues[0]!)).toMatch(/White rum/);
-    expect(issueStatusChipLabel(issues[0]!)).toBe('Needs refill');
+    expect(issueLabel(issues[0])).toMatch(/White rum/);
+    expect(issueStatusChipLabel(issues[0])).toBe('Needs refill');
   });
 
   it('partitions menu recipes into available and unavailable buckets', () => {

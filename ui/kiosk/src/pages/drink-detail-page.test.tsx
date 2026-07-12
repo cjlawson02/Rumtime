@@ -258,7 +258,7 @@ describe('DrinkDetailPage', () => {
     await user.click(getByRole('button', { name: 'Pour anyway' }));
 
     const pourFailedAlert = getAllByRole('alert').find((alert) =>
-      alert.textContent?.includes('Pour failed'),
+      alert.textContent.includes('Pour failed'),
     );
     expect(pourFailedAlert).toHaveTextContent('Connection lost');
     expect(navigate).not.toHaveBeenCalled();

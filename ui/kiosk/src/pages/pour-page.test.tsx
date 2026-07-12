@@ -313,7 +313,7 @@ describe('PourPage', () => {
 
     expect(view.getByText('Waiting for pour to start…')).toBeInTheDocument();
 
-    await act(async () => {
+    act(() => {
       vi.advanceTimersByTime(15000);
     });
     view.rerender(<PourPage />);
@@ -355,7 +355,7 @@ describe('PourPage', () => {
     expect(view.getByText('Enjoy your Margarita')).toBeInTheDocument();
     expect(view.getByText('Returning to menu…')).toBeInTheDocument();
 
-    await act(async () => {
+    act(() => {
       vi.advanceTimersByTime(3000);
     });
 

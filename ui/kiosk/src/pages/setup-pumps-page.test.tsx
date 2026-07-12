@@ -142,7 +142,7 @@ describe('SetupPumpsPage', () => {
 
   it('opens the prime wizard after assigning an ingredient to an empty line', async () => {
     const user = userEvent.setup();
-    const { getByLabelText, getByRole, getByTestId } = renderWithProviders(
+    const { getByRole, getByTestId } = renderWithProviders(
       <SetupPumpsPage />,
       { withSetupReturn: true },
     );
@@ -164,7 +164,7 @@ describe('SetupPumpsPage', () => {
 
   it('opens the line swap wizard when changing an assigned ingredient', async () => {
     const user = userEvent.setup();
-    const { getByLabelText, getByRole, getByTestId } = renderWithProviders(
+    const { getByRole, getByTestId } = renderWithProviders(
       <SetupPumpsPage />,
       { withSetupReturn: true },
     );
@@ -250,7 +250,7 @@ describe('SetupPumpsPage', () => {
 
   it('unassigns a line after confirming in the swap dialog', async () => {
     const user = userEvent.setup();
-    const { getByLabelText, getByRole } = renderWithProviders(
+    const { getByRole } = renderWithProviders(
       <SetupPumpsPage />,
       { withSetupReturn: true },
     );
@@ -273,7 +273,7 @@ describe('SetupPumpsPage', () => {
 
   it('assigns a new ingredient without cleaning when chosen in the swap dialog', async () => {
     const user = userEvent.setup();
-    const { getByLabelText, getByRole } = renderWithProviders(
+    const { getByRole } = renderWithProviders(
       <SetupPumpsPage />,
       { withSetupReturn: true },
     );
@@ -296,7 +296,7 @@ describe('SetupPumpsPage', () => {
 
   it('dismisses the prime prompt when Later is chosen', async () => {
     const user = userEvent.setup();
-    const { getByLabelText, getByRole, queryByTestId } = renderWithProviders(
+    const { getByRole, queryByTestId } = renderWithProviders(
       <SetupPumpsPage />,
       { withSetupReturn: true },
     );
@@ -342,7 +342,7 @@ describe('SetupPumpsPage', () => {
     applyIngredientSwap.mockRejectedValue(new Error('Swap failed'));
 
     const user = userEvent.setup();
-    const { getByLabelText, getByRole, findByText } = renderWithProviders(
+    const { getByRole, findByText } = renderWithProviders(
       <SetupPumpsPage />,
       { withSetupReturn: true },
     );
@@ -361,7 +361,7 @@ describe('SetupPumpsPage', () => {
 
   it('applies the swap from the line swap wizard', async () => {
     const user = userEvent.setup();
-    const { getByLabelText, getByRole, getByTestId } = renderWithProviders(
+    const { getByRole, getByTestId } = renderWithProviders(
       <SetupPumpsPage />,
       { withSetupReturn: true },
     );
@@ -383,7 +383,7 @@ describe('SetupPumpsPage', () => {
 
   it('closes the swap dialog when cancelled', async () => {
     const user = userEvent.setup();
-    const { getByLabelText, getByRole, queryByRole } = renderWithProviders(
+    const { getByRole, queryByRole } = renderWithProviders(
       <SetupPumpsPage />,
       { withSetupReturn: true },
     );
@@ -402,7 +402,7 @@ describe('SetupPumpsPage', () => {
 
   it('closes the prime wizard from the mocked panel', async () => {
     const user = userEvent.setup();
-    const { getByLabelText, getByRole, getByTestId, queryByTestId } =
+    const { getByRole, getByTestId, queryByTestId } =
       renderWithProviders(<SetupPumpsPage />, { withSetupReturn: true });
 
     await user.selectOptions(

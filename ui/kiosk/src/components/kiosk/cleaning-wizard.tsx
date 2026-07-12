@@ -469,7 +469,7 @@ function CleaningWizardSession({
           <WizardFooterActions
             backLabel="Emergency stop"
             backVariant="destructive"
-            onBack={() => void handleEmergencyStop()}
+            onBack={() => { handleEmergencyStop(); }}
             onNext={() => {
               void (async () => {
                 await stopRun();
@@ -523,7 +523,7 @@ function CleaningWizardSession({
                 }); }
               }
               backLabel="Flush again"
-              onNext={() => void startTimedExtraFlush()}
+              onNext={() => { startTimedExtraFlush(); }}
               nextLabel={
                 starting
                   ? 'Starting…'
@@ -549,7 +549,7 @@ function CleaningWizardSession({
             const prev = retreatPhase(phase, lineCount);
             if (prev) setPhase(prev);
           }}
-          onNext={() => void startContinuousRun('flush')}
+          onNext={() => { startContinuousRun('flush'); }}
           nextLabel={starting ? 'Starting…' : 'Start flush'}
           nextDisabled={starting}
         />
@@ -562,7 +562,7 @@ function CleaningWizardSession({
           <WizardFooterActions
             backLabel="Emergency stop"
             backVariant="destructive"
-            onBack={() => void handleEmergencyStop()}
+            onBack={() => { handleEmergencyStop(); }}
             onNext={() => {
               void (async () => {
                 await stopRun();
@@ -581,7 +581,7 @@ function CleaningWizardSession({
             const prev = retreatPhase(phase, lineCount);
             if (prev) setPhase(prev);
           }}
-          onNext={() => void startContinuousRun('sanitize')}
+          onNext={() => { startContinuousRun('sanitize'); }}
           nextLabel={starting ? 'Starting…' : 'Start sanitizer run'}
           nextDisabled={starting}
         />
@@ -612,7 +612,7 @@ function CleaningWizardSession({
           <WizardFooterActions
             backLabel="Emergency stop"
             backVariant="destructive"
-            onBack={() => void handleEmergencyStop()}
+            onBack={() => { handleEmergencyStop(); }}
             onNext={() => {
               void (async () => {
                 await stopRun();
@@ -631,7 +631,7 @@ function CleaningWizardSession({
             const prev = retreatPhase(phase, lineCount);
             if (prev) setPhase(prev);
           }}
-          onNext={() => void startContinuousRun('drain')}
+          onNext={() => { startContinuousRun('drain'); }}
           nextLabel={starting ? 'Starting…' : 'Start drain'}
           nextDisabled={starting}
         />

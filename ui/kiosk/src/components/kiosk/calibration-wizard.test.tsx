@@ -6,7 +6,10 @@ import {
   DEFAULT_CALIBRATION_RUN_SECONDS,
   VERIFICATION_VOLUMES_ML,
 } from '@/lib/calibration';
-import { markPumpPourDispenseStarted } from '@/lib/pump-pour-lifecycle';
+import {
+  markPumpPourDispenseStarted,
+  type PumpPourTracker,
+} from '@/lib/pump-pour-lifecycle';
 import { renderWithProviders } from '@/test/render';
 import {
   createMockPumpDispenseSession,
@@ -97,10 +100,11 @@ describe('CalibrationWizard', () => {
     dispenseSession.emergencyStop.mockClear();
     dispenseSession.closeWizard.mockClear();
     updatePumpCalibration.mockResolvedValue(undefined);
-    dispenseSession.startRun.mockImplementation(async (options) => {
+    dispenseSession.startRun.mockImplementation((options) => {
       if (options.tracker) {
         markPumpPourDispenseStarted(options.tracker.current);
       }
+      return Promise.resolve();
     });
   });
 
@@ -127,7 +131,9 @@ describe('CalibrationWizard', () => {
       pumpId: 1,
       purpose: 'calibration',
       durationSeconds: DEFAULT_CALIBRATION_RUN_SECONDS,
-      tracker: expect.objectContaining({ current: expect.any(Object) }),
+      tracker: expect.objectContaining({
+        current: expect.any(Object) as PumpPourTracker,
+      }) as { current: PumpPourTracker },
     });
   });
 
@@ -267,7 +273,9 @@ describe('CalibrationWizard', () => {
       pumpId: 1,
       purpose: 'verify',
       ml: 30,
-      tracker: expect.objectContaining({ current: expect.any(Object) }),
+      tracker: expect.objectContaining({
+        current: expect.any(Object) as PumpPourTracker,
+      }) as { current: PumpPourTracker },
     });
   });
 
@@ -368,6 +376,7 @@ describe('CalibrationWizard', () => {
     const user = userEvent.setup();
     dispenseSession.emergencyStop.mockImplementation((_pumpId, callback) => {
       callback?.();
+      return Promise.resolve();
     });
     const view = renderCalibrationWizard();
 
@@ -401,6 +410,7 @@ describe('CalibrationWizard', () => {
     const user = userEvent.setup();
     dispenseSession.emergencyStop.mockImplementation((_pumpId, callback) => {
       callback?.();
+      return Promise.resolve();
     });
     const view = renderCalibrationWizard();
 

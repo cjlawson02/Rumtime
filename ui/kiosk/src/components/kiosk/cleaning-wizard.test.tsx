@@ -4,7 +4,10 @@ import { waitFor } from '@testing-library/react';
 
 import { CleaningWizard } from '@/components/kiosk/cleaning-wizard';
 import { SANITIZER_CONTACT_SECONDS } from '@/lib/cleaning';
-import { markPumpPourDispenseStarted } from '@/lib/pump-pour-lifecycle';
+import {
+  markPumpPourDispenseStarted,
+  type PumpPourTracker,
+} from '@/lib/pump-pour-lifecycle';
 import { renderWithProviders } from '@/test/render';
 import {
   createMockPumpDispenseSession,
@@ -17,6 +20,8 @@ const updatePumpBinding = vi.fn();
 const dispenseSession = createMockPumpDispenseSession();
 
 let deviceStatus = wizardPumpStatus;
+
+type CleaningWizardTestProps = Parameters<typeof CleaningWizard>[0];
 
 vi.mock('@/hooks/use-device-status', () => ({
   useDeviceStatus: () => ({ status: deviceStatus }),
@@ -31,7 +36,7 @@ vi.mock('@/hooks/use-pump-dispense-session', () => ({
   usePumpDispenseSession: () => dispenseSession,
 }));
 
-const cleaningWizardProps = {
+const cleaningWizardProps: CleaningWizardTestProps = {
   open: true,
   pumpIds: [1],
   mode: 'line' as const,
@@ -39,7 +44,7 @@ const cleaningWizardProps = {
   ingredientName: () => 'Bourbon',
 };
 
-const sessionWizardProps = {
+const sessionWizardProps: CleaningWizardTestProps = {
   open: true,
   pumpIds: [1, 2],
   mode: 'session' as const,
@@ -49,14 +54,14 @@ const sessionWizardProps = {
 };
 
 function renderCleaningWizard(
-  props: typeof cleaningWizardProps = cleaningWizardProps,
+  props: CleaningWizardTestProps = cleaningWizardProps,
 ) {
   return renderWithProviders(<CleaningWizard {...props} />);
 }
 
 async function advanceToFlushIntro(
   user: ReturnType<typeof userEvent.setup>,
-  props: typeof cleaningWizardProps = cleaningWizardProps,
+  props: CleaningWizardTestProps = cleaningWizardProps,
 ) {
   const view = renderCleaningWizard(props);
   await user.click(view.getByRole('button', { name: 'Start cleaning' }));
@@ -71,7 +76,7 @@ async function completeContinuousRun(
     startLabel: string;
     completeLabel: string;
     pumpId?: number;
-    wizardProps?: typeof cleaningWizardProps;
+    wizardProps?: CleaningWizardTestProps;
   },
 ) {
   const props = options.wizardProps ?? cleaningWizardProps;
@@ -98,7 +103,7 @@ async function completeContinuousRun(
 async function completeSingleLineCleaningCycle(
   view: ReturnType<typeof renderCleaningWizard>,
   user: ReturnType<typeof userEvent.setup>,
-  props: typeof cleaningWizardProps = cleaningWizardProps,
+  props: CleaningWizardTestProps = cleaningWizardProps,
 ) {
   await user.click(view.getByRole('button', { name: 'Start cleaning' }));
   await user.click(view.getByRole('button', { name: 'Continue' }));
@@ -135,10 +140,11 @@ describe('CleaningWizard', () => {
     dispenseSession.stopRun.mockClear();
     updatePrimed.mockResolvedValue(undefined);
     updatePumpBinding.mockResolvedValue(undefined);
-    dispenseSession.startRun.mockImplementation(async (options) => {
+    dispenseSession.startRun.mockImplementation((options) => {
       if (options.tracker) {
         markPumpPourDispenseStarted(options.tracker.current);
       }
+      return Promise.resolve();
     });
   });
 
@@ -196,7 +202,9 @@ describe('CleaningWizard', () => {
     expect(dispenseSession.startRun).toHaveBeenCalledWith({
       pumpId: 1,
       purpose: 'flush',
-      tracker: expect.objectContaining({ current: expect.any(Object) }),
+      tracker: expect.objectContaining({
+        current: expect.any(Object) as PumpPourTracker,
+      }) as { current: PumpPourTracker },
     });
     expect(getByText(/Flush until the line runs clear/i)).toBeInTheDocument();
   });
@@ -280,7 +288,9 @@ describe('CleaningWizard', () => {
     expect(dispenseSession.startRun).toHaveBeenCalledWith({
       pumpId: 1,
       purpose: 'drain',
-      tracker: expect.objectContaining({ current: expect.any(Object) }),
+      tracker: expect.objectContaining({
+        current: expect.any(Object) as PumpPourTracker,
+      }) as { current: PumpPourTracker },
     });
   });
 
@@ -330,6 +340,7 @@ describe('CleaningWizard', () => {
     const user = userEvent.setup();
     dispenseSession.emergencyStop.mockImplementation((_pumpId, callback) => {
       callback?.();
+      return Promise.resolve();
     });
     const view = await advanceToFlushIntro(user);
 
@@ -454,6 +465,7 @@ describe('CleaningWizard', () => {
     const user = userEvent.setup();
     dispenseSession.emergencyStop.mockImplementation((_pumpId, callback) => {
       callback?.();
+      return Promise.resolve();
     });
     const view = await advanceToFlushIntro(user);
 

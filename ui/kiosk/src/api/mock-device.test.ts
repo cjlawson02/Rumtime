@@ -424,8 +424,10 @@ describe('MockDeviceClient', () => {
     const client = new MockDeviceClient();
     await client.startPour(pourCommand('old-fashioned'));
 
-    while (getMockDeviceStatus().job?.progress !== undefined &&
-      getMockDeviceStatus().job!.progress < 60) {
+    while (
+      getMockDeviceStatus().job?.progress !== undefined &&
+      (getMockDeviceStatus().job?.progress ?? 0) < 60
+    ) {
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
 
@@ -481,7 +483,7 @@ describe('MockDeviceClient', () => {
 
     while (
       getMockDeviceStatus().job?.progress !== undefined &&
-      getMockDeviceStatus().job!.progress < 55
+      (getMockDeviceStatus().job?.progress ?? 0) < 55
     ) {
       await new Promise((resolve) => setTimeout(resolve, 150));
     }

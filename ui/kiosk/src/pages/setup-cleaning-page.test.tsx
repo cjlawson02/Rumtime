@@ -31,19 +31,19 @@ vi.mock('@/components/kiosk/cleaning-wizard', () => ({
         {mode} clean for lines {pumpIds.join(', ')}
         <button
           type="button"
-          onClick={() => onComplete?.({ [pumpIds[0]!]: 'flushed' })}
+          onClick={() => onComplete?.({ [pumpIds[0]]: 'flushed' })}
         >
           Complete flush
         </button>
         <button
           type="button"
-          onClick={() => onComplete?.({ [pumpIds[0]!]: 'sanitized' })}
+          onClick={() => onComplete?.({ [pumpIds[0]]: 'sanitized' })}
         >
           Complete sanitize
         </button>
         <button
           type="button"
-          onClick={() => onComplete?.({ [pumpIds[0]!]: 'done' })}
+          onClick={() => onComplete?.({ [pumpIds[0]]: 'done' })}
         >
           Complete clean
         </button>
@@ -118,7 +118,7 @@ describe('SetupCleaningPage', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getAllByRole('button', { name: 'Clean line' })[1]!);
+    await user.click(getAllByRole('button', { name: 'Clean line' })[1]);
 
     expect(getByTestId('cleaning-wizard')).toHaveTextContent(
       'line clean for lines 2',
@@ -132,7 +132,7 @@ describe('SetupCleaningPage', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getAllByRole('button', { name: 'Clean line' })[0]!);
+    await user.click(getAllByRole('button', { name: 'Clean line' })[0]);
     await user.click(getByRole('button', { name: 'Complete flush' }));
 
     expect(getByText('Flushed')).toBeInTheDocument();
@@ -145,11 +145,11 @@ describe('SetupCleaningPage', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getAllByRole('button', { name: 'Clean line' })[0]!);
+    await user.click(getAllByRole('button', { name: 'Clean line' })[0]);
     await user.click(getByRole('button', { name: 'Complete flush' }));
     expect(getAllByText('Flushed').length).toBeGreaterThan(0);
 
-    await user.click(getAllByRole('button', { name: 'Clean line' })[0]!);
+    await user.click(getAllByRole('button', { name: 'Clean line' })[0]);
     await user.click(getByRole('button', { name: 'Complete sanitize' }));
     expect(getAllByText('Sanitized').length).toBeGreaterThan(0);
   });

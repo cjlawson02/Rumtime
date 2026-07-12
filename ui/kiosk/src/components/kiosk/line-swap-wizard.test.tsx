@@ -2,7 +2,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LineSwapWizard } from '@/components/kiosk/line-swap-wizard';
-import { markPumpPourDispenseStarted } from '@/lib/pump-pour-lifecycle';
+import {
+  markPumpPourDispenseStarted,
+  type PumpPourTracker,
+} from '@/lib/pump-pour-lifecycle';
 import { renderWithProviders } from '@/test/render';
 import {
   createMockPumpDispenseSession,
@@ -17,6 +20,8 @@ const dispenseSession = createMockPumpDispenseSession();
 
 let deviceStatus = wizardPumpStatus;
 
+type LineSwapWizardTestProps = Parameters<typeof LineSwapWizard>[0];
+
 vi.mock('@/hooks/use-device-status', () => ({
   useDeviceStatus: () => ({ status: deviceStatus }),
 }));
@@ -29,7 +34,7 @@ vi.mock('@/hooks/use-pump-dispense-session', () => ({
   usePumpDispenseSession: () => dispenseSession,
 }));
 
-const swapWizardProps = {
+const swapWizardProps: LineSwapWizardTestProps = {
   open: true,
   pumpId: 1,
   fromIngredientId: 'bourbon',
@@ -40,7 +45,7 @@ const swapWizardProps = {
 };
 
 function renderLineSwapWizard(
-  overrides: Partial<typeof swapWizardProps> = {},
+  overrides: Partial<LineSwapWizardTestProps> = {},
 ) {
   return renderWithProviders(
     <LineSwapWizard {...swapWizardProps} {...overrides} />,
@@ -50,7 +55,7 @@ function renderLineSwapWizard(
 async function completeContinuousRun(
   view: ReturnType<typeof renderLineSwapWizard>,
   user: ReturnType<typeof userEvent.setup>,
-  props: typeof swapWizardProps,
+  props: LineSwapWizardTestProps,
   options: {
     purpose: 'drain' | 'flush' | 'prime';
     startLabel: string;
@@ -87,10 +92,11 @@ describe('LineSwapWizard', () => {
     dispenseSession.emergencyStop.mockClear();
     updatePrimed.mockResolvedValue(undefined);
     onApplySwap.mockResolvedValue(undefined);
-    dispenseSession.startRun.mockImplementation(async (options) => {
+    dispenseSession.startRun.mockImplementation((options) => {
       if (options.tracker) {
         markPumpPourDispenseStarted(options.tracker.current);
       }
+      return Promise.resolve();
     });
   });
 
@@ -118,7 +124,9 @@ describe('LineSwapWizard', () => {
     expect(dispenseSession.startRun).toHaveBeenCalledWith({
       pumpId: 1,
       purpose: 'drain',
-      tracker: expect.objectContaining({ current: expect.any(Object) }),
+      tracker: expect.objectContaining({
+        current: expect.any(Object) as PumpPourTracker,
+      }) as { current: PumpPourTracker },
     });
   });
 

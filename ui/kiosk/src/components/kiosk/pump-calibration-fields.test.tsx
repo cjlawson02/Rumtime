@@ -10,6 +10,12 @@ vi.mock('@/hooks/use-device-mutations', () => ({
   useUpdatePumpCalibration: () => ({ mutateAsync: updatePumpCalibration }),
 }));
 
+function getPumpField(container: HTMLElement, selector: string) {
+  const field = container.querySelector<HTMLElement>(selector);
+  if (!field) throw new Error(`Missing pump calibration field ${selector}`);
+  return field;
+}
+
 describe('PumpCalibrationFields', () => {
   beforeEach(() => {
     updatePumpCalibration.mockReset();
@@ -39,7 +45,7 @@ describe('PumpCalibrationFields', () => {
       />,
     );
 
-    await user.click(container.querySelector('#pump-1-ml-per-s')!);
+    await user.click(getPumpField(container, '#pump-1-ml-per-s'));
     await user.click(getByRole('button', { name: 'Clear' }));
     await user.click(getByRole('button', { name: '3' }));
     await user.click(getByRole('button', { name: 'Save' }));
@@ -65,7 +71,7 @@ describe('PumpCalibrationFields', () => {
       />,
     );
 
-    await user.click(container.querySelector('#pump-1-ml-per-s')!);
+    await user.click(getPumpField(container, '#pump-1-ml-per-s'));
     await user.click(getByRole('button', { name: 'Clear' }));
     await user.click(getByRole('button', { name: 'Save' }));
 
@@ -80,7 +86,7 @@ describe('PumpCalibrationFields', () => {
       <PumpCalibrationFields pumpId={1} mlPerSecond={2} antiDripMs={100} />,
     );
 
-    await user.click(container.querySelector('#pump-1-anti-drip')!);
+    await user.click(getPumpField(container, '#pump-1-anti-drip'));
     await user.click(getByRole('button', { name: 'Clear' }));
     await user.click(getByRole('button', { name: '2' }));
     await user.click(getByRole('button', { name: '0' }));
@@ -120,7 +126,7 @@ describe('PumpCalibrationFields', () => {
       />,
     );
 
-    await user.click(container.querySelector('#pump-1-ml-per-s')!);
+    await user.click(getPumpField(container, '#pump-1-ml-per-s'));
 
     expect(queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
   });
@@ -138,7 +144,7 @@ describe('PumpCalibrationFields', () => {
       />,
     );
 
-    await user.click(container.querySelector('#pump-1-ml-per-s')!);
+    await user.click(getPumpField(container, '#pump-1-ml-per-s'));
     await user.click(getByRole('button', { name: 'Clear' }));
     await user.click(getByRole('button', { name: '1' }));
     await user.click(getByRole('button', { name: '5' }));
@@ -157,7 +163,7 @@ describe('PumpCalibrationFields', () => {
       <PumpCalibrationFields pumpId={1} mlPerSecond={2} antiDripMs={100} />,
     );
 
-    await user.click(container.querySelector('#pump-1-ml-per-s')!);
+    await user.click(getPumpField(container, '#pump-1-ml-per-s'));
     await user.click(getByRole('button', { name: 'Save' }));
 
     expect(updatePumpCalibration).not.toHaveBeenCalled();
@@ -178,7 +184,7 @@ describe('PumpCalibrationFields', () => {
       />,
     );
 
-    await user.click(container.querySelector('#pump-1-ml-per-s')!);
+    await user.click(getPumpField(container, '#pump-1-ml-per-s'));
     await user.click(getByRole('button', { name: 'Clear' }));
     await user.click(getByRole('button', { name: '3' }));
     await user.click(getByRole('button', { name: 'Save' }));

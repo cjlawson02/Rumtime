@@ -55,6 +55,3 @@ export function deviceErrorMessage(error: unknown): string {
 
   return 'Could not start pour';
 }
-
-/** @deprecated Use {@link deviceErrorMessage} */
-export const pourErrorMessage = deviceErrorMessage;

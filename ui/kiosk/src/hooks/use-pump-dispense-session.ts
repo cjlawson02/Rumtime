@@ -2,7 +2,7 @@ import {
   useCallback,
   useRef,
   useState,
-  type MutableRefObject,
+  type RefObject,
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -26,7 +26,7 @@ export type StartRunOptions = {
   purpose: PumpJobPurpose;
   durationSeconds?: number;
   ml?: number;
-  tracker?: MutableRefObject<PumpPourTracker>;
+  tracker?: RefObject<PumpPourTracker>;
 };
 
 export function usePumpDispenseSession() {
@@ -42,7 +42,7 @@ export function usePumpDispenseSession() {
   const createTracker = useCallback(() => createPumpPourTracker(), []);
 
   const resolveTracker = useCallback(
-    (tracker?: MutableRefObject<PumpPourTracker>) =>
+    (tracker?: RefObject<PumpPourTracker>) =>
       tracker ?? defaultTrackerRef,
     [defaultTrackerRef],
   );
@@ -76,7 +76,7 @@ export function usePumpDispenseSession() {
 
   const stopRun = useCallback(
     async (options?: {
-      tracker?: MutableRefObject<PumpPourTracker>;
+      tracker?: RefObject<PumpPourTracker>;
       resetTracker?: boolean;
     }) => {
       setError(null);

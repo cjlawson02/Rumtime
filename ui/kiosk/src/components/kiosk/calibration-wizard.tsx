@@ -256,7 +256,7 @@ function CalibrationWizardSession({
       return (
         <WizardFooterActions
           showBack={false}
-          onNext={() => void startCalibrationRun()}
+          onNext={() => { startCalibrationRun(); }}
           nextLabel={
             starting
               ? 'Starting…'
@@ -467,7 +467,7 @@ function CalibrationWizardSession({
                   variant={activeVerifyMl === ml ? 'default' : 'outline'}
                   className="kiosk-touch h-20 text-2xl font-semibold tabular-nums"
                   disabled={verifyPourDisabled}
-                  onClick={() => void startVerifyPour(ml)}
+                  onClick={() => { startVerifyPour(ml); }}
                 >
                   {ml} ml
                 </Button>
@@ -501,7 +501,7 @@ function CalibrationWizardSession({
               variant={verifyDispenseActive ? 'default' : 'outline'}
               className="kiosk-touch"
               disabled={verifyPourDisabled}
-              onClick={() => void startVerifyPour(CALIBRATION_SAMPLE_ML)}
+              onClick={() => { startVerifyPour(CALIBRATION_SAMPLE_ML); }}
             >
               Test pour {CALIBRATION_SAMPLE_ML} ml
             </Button>

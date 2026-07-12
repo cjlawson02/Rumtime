@@ -56,6 +56,12 @@ vi.mock('@/hooks/use-device-status', () => ({
   useDeviceStatus: () => ({ status: deviceStatus }),
 }));
 
+function getDialogButton(dialog: HTMLElement) {
+  const button = dialog.querySelector<HTMLElement>('button');
+  if (!button) throw new Error('Missing mocked dialog close button');
+  return button;
+}
+
 const calibrationStatus: DeviceStatus = {
   connected: true,
   bindings: {
@@ -103,7 +109,7 @@ describe('SetupCalibrationPage', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getAllByRole('button', { name: 'Prime' })[0]!);
+    await user.click(getAllByRole('button', { name: 'Prime' })[0]);
 
     expect(getByTestId('prime-wizard')).toHaveTextContent('pump 1');
   });
@@ -115,7 +121,7 @@ describe('SetupCalibrationPage', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getAllByRole('button', { name: 'Calibrate' })[0]!);
+    await user.click(getAllByRole('button', { name: 'Calibrate' })[0]);
 
     expect(getByTestId('calibration-wizard')).toHaveTextContent('pump 1');
   });
@@ -131,11 +137,14 @@ describe('SetupCalibrationPage', () => {
   });
 
   it('shows unassigned lines without prime or calibrate actions', () => {
+    const pumps = calibrationStatus.pumps;
+    if (!pumps) throw new Error('Missing pump fixtures');
+
     deviceStatus = {
       ...calibrationStatus,
       pumps: [
         { pumpId: 1, ingredientId: null },
-        ...calibrationStatus.pumps,
+        ...pumps,
       ],
     };
 
@@ -155,10 +164,10 @@ describe('SetupCalibrationPage', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getAllByRole('button', { name: 'Prime' })[0]!);
+    await user.click(getAllByRole('button', { name: 'Prime' })[0]);
     expect(getByTestId('prime-wizard')).toBeInTheDocument();
 
-    await user.click(getByTestId('prime-wizard').querySelector('button')!);
+    await user.click(getDialogButton(getByTestId('prime-wizard')));
 
     expect(queryByTestId('prime-wizard')).not.toBeInTheDocument();
   });
@@ -170,12 +179,10 @@ describe('SetupCalibrationPage', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getAllByRole('button', { name: 'Calibrate' })[0]!);
+    await user.click(getAllByRole('button', { name: 'Calibrate' })[0]);
     expect(getByTestId('calibration-wizard')).toBeInTheDocument();
 
-    await user.click(
-      getByTestId('calibration-wizard').querySelector('button')!,
-    );
+    await user.click(getDialogButton(getByTestId('calibration-wizard')));
 
     expect(queryByTestId('calibration-wizard')).not.toBeInTheDocument();
   });

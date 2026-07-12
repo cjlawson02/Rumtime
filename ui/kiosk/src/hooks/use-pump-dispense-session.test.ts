@@ -121,7 +121,7 @@ describe('usePumpDispenseSession', () => {
     expect(cancelMutateAsync).toHaveBeenCalledOnce();
   });
 
-  it('cancels an active run when closing a wizard for that pump', async () => {
+  it('cancels an active run when closing a wizard for that pump', () => {
     deviceStatus = {
       connected: true,
       bindings: {},

@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 
 import type { DeviceStatus, PumpJob } from '@/api/types';
+import type { StartRunOptions } from '@/hooks/use-pump-dispense-session';
 import { createPumpPourTracker } from '@/lib/pump-pour-lifecycle';
 
 export function createMockPumpDispenseSession() {
@@ -8,8 +9,12 @@ export function createMockPumpDispenseSession() {
     error: null as string | null,
     starting: false,
   };
-  const startRun = vi.fn().mockResolvedValue(undefined);
-  const emergencyStop = vi.fn().mockResolvedValue(undefined);
+  const startRun = vi
+    .fn<(options: StartRunOptions) => Promise<void>>()
+    .mockResolvedValue(undefined);
+  const emergencyStop = vi
+    .fn<(pumpId: number, onCancelRequested?: () => void) => Promise<void>>()
+    .mockResolvedValue(undefined);
   const stopRun = vi.fn().mockResolvedValue(undefined);
   const setError = vi.fn((message: string | null) => {
     state.error = message;

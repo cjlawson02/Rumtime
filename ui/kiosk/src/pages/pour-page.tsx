@@ -83,6 +83,9 @@ export function PourPage() {
     !flowComplete &&
     postStepIndex < postSteps.length &&
     (jobState === 'prompt' || jobState === 'complete');
+  const pourFlowComplete =
+    flowComplete ||
+    (!postPourPhase && jobState === 'complete' && postSteps.length === 0);
 
   const jobRef = useLatestRef(job);
   const recipeIdRef = useLatestRef(recipeId);
@@ -100,7 +103,7 @@ export function PourPage() {
       pourStarted &&
       !prePourPhase &&
       !postPourPhase &&
-      !flowComplete &&
+      !pourFlowComplete &&
       !pumpBusy &&
       !foreignActivePour &&
       (!job ||
@@ -177,14 +180,15 @@ export function PourPage() {
     if (prePourPhase || pourStarted || beginPourAttemptedRef.current) return;
     if (!recipe || !status) return;
 
-    void beginPour();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void beginPour();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [prePourPhase, pourStarted, recipe, status, beginPour]);
-
-  useEffect(() => {
-    if (!postPourPhase && jobState === 'complete' && postSteps.length === 0) {
-      setFlowComplete(true);
-    }
-  }, [postPourPhase, jobState, postSteps.length]);
 
   useEffect(() => {
     if (jobState !== 'prompt' || postSteps.length > 0 || flowComplete) return;
@@ -223,11 +227,11 @@ export function PourPage() {
   }, [cancelPourRef, expectActivePourRef, jobRef, recipeIdRef]);
 
   useEffect(() => {
-    if (!recipe || !flowComplete) return;
+    if (!recipe || !pourFlowComplete) return;
 
     const timer = window.setTimeout(() => { navigate('/'); }, RETURN_TO_MENU_MS);
     return () => { window.clearTimeout(timer); };
-  }, [recipe, flowComplete, navigate]);
+  }, [recipe, pourFlowComplete, navigate]);
 
   if (!recipe) {
     return (
@@ -327,7 +331,7 @@ export function PourPage() {
     );
   }
 
-  if (flowComplete || (jobState === 'complete' && postSteps.length === 0)) {
+  if (pourFlowComplete) {
     return (
       <PourScreenShell
         recipeId={recipeId}

@@ -1,7 +1,10 @@
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { markPumpPourDispenseStarted } from '@/lib/pump-pour-lifecycle';
+import {
+  markPumpPourDispenseStarted,
+  type PumpPourTracker,
+} from '@/lib/pump-pour-lifecycle';
 import { PrimeWizard } from '@/components/kiosk/prime-wizard';
 import { renderWithProviders } from '@/test/render';
 import {
@@ -39,10 +42,11 @@ describe('PrimeWizard', () => {
     dispenseSession.closeWizard.mockClear();
     cancelPumpDispense.mockResolvedValue(undefined);
     updatePrimed.mockResolvedValue(undefined);
-    dispenseSession.startRun.mockImplementation(async (options) => {
+    dispenseSession.startRun.mockImplementation((options) => {
       if (options.tracker) {
         markPumpPourDispenseStarted(options.tracker.current);
       }
+      return Promise.resolve();
     });
   });
 
@@ -65,7 +69,9 @@ describe('PrimeWizard', () => {
     expect(dispenseSession.startRun).toHaveBeenCalledWith({
       pumpId: 1,
       purpose: 'prime',
-      tracker: expect.objectContaining({ current: expect.any(Object) }),
+      tracker: expect.objectContaining({
+        current: expect.any(Object) as PumpPourTracker,
+      }) as { current: PumpPourTracker },
     });
     expect(getByText('Prime until the nozzle is wet')).toBeInTheDocument();
   });

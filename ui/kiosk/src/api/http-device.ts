@@ -40,7 +40,7 @@ function mergeFetchSignal(
   }
 
   const controller = new AbortController();
-  const abort = () => controller.abort();
+  const abort = () => { controller.abort(); };
   external.addEventListener('abort', abort, { once: true });
   timeout.addEventListener('abort', abort, { once: true });
   if (external.aborted || timeout.aborted) abort();

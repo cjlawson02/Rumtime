@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { HttpDeviceClient } from '@/api/http-device';
 import { deviceStatusSchema } from '@/api/types';
@@ -39,7 +39,9 @@ describe('HttpDeviceClient', () => {
     await expect(client.getStatus()).resolves.toEqual(validStatus);
     expect(fetch).toHaveBeenCalledWith(
       'http://rumtime.local/status',
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      expect.objectContaining<RequestInit>({
+        signal: expect.any(AbortSignal) as AbortSignal,
+      }),
     );
   });
 
@@ -125,7 +127,7 @@ describe('HttpDeviceClient', () => {
   });
 
   it('merges external abort signals without AbortSignal.any', async () => {
-    const originalAny = AbortSignal.any;
+    const originalAny = AbortSignal.any.bind(AbortSignal);
     // @ts-expect-error test fallback path when AbortSignal.any is unavailable
     AbortSignal.any = undefined;
 
@@ -335,7 +337,7 @@ describe('HttpDeviceClient', () => {
   });
 
   it('aborts immediately when external signal is already aborted', async () => {
-    const originalAny = AbortSignal.any;
+    const originalAny = AbortSignal.any.bind(AbortSignal);
     // @ts-expect-error test fallback path when AbortSignal.any is unavailable
     AbortSignal.any = undefined;
 

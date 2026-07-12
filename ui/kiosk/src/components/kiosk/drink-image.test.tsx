@@ -29,8 +29,8 @@ describe('DrinkImage', () => {
     );
 
     const image = container.querySelector('img');
-    expect(image).not.toBeNull();
-    fireEvent.error(image!);
+    if (!image) throw new Error('Expected drink image');
+    fireEvent.error(image);
 
     expect(image).toHaveAttribute('src', FALLBACK_DRINK_IMAGE);
   });
@@ -41,9 +41,9 @@ describe('DrinkImage', () => {
     );
 
     const image = container.querySelector('img');
-    expect(image).not.toBeNull();
-    fireEvent.error(image!);
-    fireEvent.error(image!);
+    if (!image) throw new Error('Expected drink image');
+    fireEvent.error(image);
+    fireEvent.error(image);
 
     expect(container.querySelector('img')).toBeNull();
     expect(container.firstChild).toHaveClass('from-amber-900/40');

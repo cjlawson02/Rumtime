@@ -41,7 +41,10 @@ describe('IpAddressPadDialog', () => {
     );
 
     const saveButton = getByRole('button', { name: 'Save' });
-    expect(saveButton).toBeDisabled();
+    if (!(saveButton instanceof HTMLButtonElement)) {
+      throw new Error('Expected save control to be a button');
+    }
+    expect(saveButton.disabled).toBe(true);
 
     await user.click(getByRole('button', { name: '1' }));
     await user.click(getByRole('button', { name: '9' }));
@@ -56,7 +59,7 @@ describe('IpAddressPadDialog', () => {
     await user.click(getByRole('button', { name: '1' }));
     await user.click(getByRole('button', { name: '0' }));
 
-    expect(saveButton).not.toBeDisabled();
+    expect(saveButton.disabled).toBe(false);
     await user.click(saveButton);
     expect(onSave).toHaveBeenCalledWith('192.168.1.10');
   });
@@ -95,7 +98,7 @@ describe('IpAddressPadDialog', () => {
       />,
     );
 
-    expect(getByText('Enter a valid IP address')).toBeInTheDocument();
+    expect(getByText('Enter a valid IP address')).toBeTruthy();
   });
 
   it('dismisses without saving when the dialog closes', async () => {

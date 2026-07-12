@@ -4,7 +4,6 @@ import {
   DeviceApiError,
   deviceErrorMessage,
   mutationErrorMessage,
-  pourErrorMessage,
 } from '@/lib/device-errors';
 
 describe('deviceErrorMessage', () => {
@@ -29,13 +28,6 @@ describe('deviceErrorMessage', () => {
     const timeout = new Error('timeout');
     timeout.name = 'TimeoutError';
     expect(deviceErrorMessage(timeout)).toMatch(/did not respond/i);
-  });
-});
-
-describe('pourErrorMessage alias', () => {
-  it('matches deviceErrorMessage', () => {
-    const err = new DeviceApiError(503, 'unsafe');
-    expect(pourErrorMessage(err)).toBe(deviceErrorMessage(err));
   });
 });
 

@@ -8,7 +8,13 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig(
   {
-    ignores: ['dist/**', 'public/mockServiceWorker.js'],
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      '.vitest-coverage/**',
+      'coverage-report/**',
+      'public/mockServiceWorker.js',
+    ],
   },
   {
     files: ['**/*.{ts,tsx}'],
@@ -17,7 +23,12 @@ export default defineConfig(
       ecmaVersion: 2023,
       globals: globals.browser,
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: [
+            'src/components/kiosk/ip-address-pad-dialog.test.tsx',
+          ],
+          defaultProject: 'tsconfig.app.json',
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },

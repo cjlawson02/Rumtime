@@ -174,8 +174,8 @@ function totalMlPerIngredient(steps: PourStep[]): Map<string, number> {
 
 function validatePourInventory(steps: PourStep[]) {
   for (const [ingredientId, totalMl] of totalMlPerIngredient(steps)) {
+    if (!(ingredientId in state.status.bindings)) continue;
     const binding = state.status.bindings[ingredientId];
-    if (!binding) continue;
     if (binding.remainingMl < totalMl + INVENTORY_RESERVE_ML) {
       throw new Error('422: low inventory');
     }
@@ -367,7 +367,7 @@ function startPourSimulation(command: PourCommand) {
   let completedSteps = 0;
 
   const stepName = (index: number) =>
-    pumped[index]?.name ?? steps[index]?.ingredientId ?? 'ingredients';
+    pumped[index]?.name ?? steps[index].ingredientId;
 
   setJob({
     recipeId: command.recipeId,
@@ -389,8 +389,8 @@ function startPourSimulation(command: PourCommand) {
     const stepThreshold = ((completedSteps + 1) / steps.length) * 100;
     if (nextProgress >= stepThreshold && completedSteps < steps.length) {
       subtractIngredientMl(
-        steps[completedSteps]!.ingredientId,
-        steps[completedSteps]!.ml,
+        steps[completedSteps].ingredientId,
+        steps[completedSteps].ml,
       );
       completedSteps += 1;
       if (completedSteps < steps.length) {

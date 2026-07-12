@@ -213,6 +213,7 @@ export function DrinkDetailPage() {
                 const issue = blockingIssues.find(
                   (candidate) => candidate.ingredient.id === i.id,
                 );
+                if (i.ml === undefined) return null;
 
                 return (
                   <div
@@ -229,7 +230,7 @@ export function DrinkDetailPage() {
                         issue ? 'text-muted-foreground' : 'text-primary',
                       )}
                     >
-                      {formatVolumeMl(i.ml!)}
+                      {formatVolumeMl(i.ml)}
                     </span>
                     {issue && (
                       <Badge

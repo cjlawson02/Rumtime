@@ -73,8 +73,11 @@ export function SetupGate({
   useEffect(() => {
     if (requiresPin || deferPinLock || hasSetupUnlock()) return;
 
-    setRequiresPin(true);
-    setDialogOpen(true);
+    queueMicrotask(() => {
+      if (hasSetupUnlock()) return;
+      setRequiresPin(true);
+      setDialogOpen(true);
+    });
   }, [deferPinLock, requiresPin]);
 
   const handleDialogOpenChange = (open: boolean) => {

@@ -71,6 +71,29 @@ function createQueryClient() {
   });
 }
 
+async function expectCommandMutationInvalidates<TInput>(
+  hook: () => { mutateAsync: (input: TInput) => Promise<unknown> },
+  mutate: ReturnType<typeof vi.fn>,
+  input: TInput,
+) {
+  const queryClient = createQueryClient();
+  const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+  const { result } = renderHook(() => hook(), {
+    wrapper: createWrapper({ queryClient }),
+  });
+
+  await act(async () => {
+    await result.current.mutateAsync(input);
+  });
+
+  expect(mutate).toHaveBeenCalledWith(input);
+  await waitFor(() => {
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: deviceStatusQueryKeyPrefix,
+    });
+  });
+}
+
 describe('useDeviceMutations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -89,92 +112,111 @@ describe('useDeviceMutations', () => {
 
   it.each([
     {
-      hook: useStartPour,
-      mutate: startPour,
-      input: {
-        recipeId: 'old-fashioned',
-        steps: [{ ingredientId: 'bourbon', ml: 45 }],
-      },
-    },
-    {
       hook: useCancelPour,
       mutate: cancelPour,
-      input: undefined,
     },
     {
       hook: useAcknowledgePrompt,
       mutate: acknowledgePrompt,
-      input: undefined,
-    },
-    {
-      hook: useStartPumpDispense,
-      mutate: startPumpDispense,
-      input: { pumpId: 1, purpose: 'verify' as const, ml: 30 },
     },
     {
       hook: useCancelPumpDispense,
       mutate: cancelPumpDispense,
-      input: undefined,
     },
-    {
-      hook: useUpdatePumpBinding,
-      mutate: updatePumpBinding,
-      input: { pumpId: 1, ingredientId: 'bourbon' },
-    },
-    {
-      hook: useUpdatePrimed,
-      mutate: updatePrimed,
-      input: { ingredientId: 'bourbon', primed: true },
-    },
-    {
-      hook: useRefillIngredient,
-      mutate: refillIngredient,
-      input: { ingredientId: 'bourbon' },
-    },
-    {
-      hook: useUpdateBottleSize,
-      mutate: updateBottleSize,
-      input: { ingredientId: 'bourbon', bottleSizeMl: 1000 },
-    },
-    {
-      hook: useUpdateInventoryLevel,
-      mutate: updateInventoryLevel,
-      input: { ingredientId: 'bourbon', remainingMl: 250 },
-    },
-    {
-      hook: useUpdatePumpCalibration,
-      mutate: updatePumpCalibration,
-      input: { pumpId: 1, mlPerSecond: 2.5, antiDripMs: 120 },
-    },
-  ])(
-    'calls deviceClient and invalidates status for $hook.name',
-    async ({ hook, mutate, input }) => {
-      const queryClient = createQueryClient();
-      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-      const { result } = renderHook(() => hook(), {
-        wrapper: createWrapper({ queryClient }),
-      });
+  ])('calls deviceClient and invalidates status for $hook.name', async ({
+    hook,
+    mutate,
+  }) => {
+    const queryClient = createQueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => hook(), {
+      wrapper: createWrapper({ queryClient }),
+    });
 
-      await act(async () => {
-        if (input === undefined) {
-          await result.current.mutateAsync();
-        } else {
-          await result.current.mutateAsync(input);
-        }
-      });
+    await act(async () => {
+      await result.current.mutateAsync();
+    });
 
-      if (input === undefined) {
-        expect(mutate).toHaveBeenCalledOnce();
-      } else {
-        expect(mutate).toHaveBeenCalledWith(input);
-      }
-      await waitFor(() => {
-        expect(invalidateSpy).toHaveBeenCalledWith({
-          queryKey: deviceStatusQueryKeyPrefix,
-        });
+    expect(mutate).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: deviceStatusQueryKeyPrefix,
       });
+    });
+  });
+
+  it.each([
+    {
+      name: 'useStartPour',
+      run: () =>
+        expectCommandMutationInvalidates(useStartPour, startPour, {
+          recipeId: 'old-fashioned',
+          steps: [{ ingredientId: 'bourbon', ml: 45 }],
+        }),
     },
-  );
+    {
+      name: 'useStartPumpDispense',
+      run: () =>
+        expectCommandMutationInvalidates(
+          useStartPumpDispense,
+          startPumpDispense,
+          { pumpId: 1, purpose: 'verify' as const, ml: 30 },
+        ),
+    },
+    {
+      name: 'useUpdatePumpBinding',
+      run: () =>
+        expectCommandMutationInvalidates(
+          useUpdatePumpBinding,
+          updatePumpBinding,
+          { pumpId: 1, ingredientId: 'bourbon' },
+        ),
+    },
+    {
+      name: 'useUpdatePrimed',
+      run: () =>
+        expectCommandMutationInvalidates(useUpdatePrimed, updatePrimed, {
+          ingredientId: 'bourbon',
+          primed: true,
+        }),
+    },
+    {
+      name: 'useRefillIngredient',
+      run: () =>
+        expectCommandMutationInvalidates(useRefillIngredient, refillIngredient, {
+          ingredientId: 'bourbon',
+        }),
+    },
+    {
+      name: 'useUpdateBottleSize',
+      run: () =>
+        expectCommandMutationInvalidates(
+          useUpdateBottleSize,
+          updateBottleSize,
+          { ingredientId: 'bourbon', bottleSizeMl: 1000 },
+        ),
+    },
+    {
+      name: 'useUpdateInventoryLevel',
+      run: () =>
+        expectCommandMutationInvalidates(
+          useUpdateInventoryLevel,
+          updateInventoryLevel,
+          { ingredientId: 'bourbon', remainingMl: 250 },
+        ),
+    },
+    {
+      name: 'useUpdatePumpCalibration',
+      run: () =>
+        expectCommandMutationInvalidates(
+          useUpdatePumpCalibration,
+          updatePumpCalibration,
+          { pumpId: 1, mlPerSecond: 2.5, antiDripMs: 120 },
+        ),
+    },
+  ])('calls deviceClient and invalidates status for $name', async ({ run }) => {
+    await run();
+  });
 
   it('applies ingredient swaps and clears primed state', async () => {
     const queryClient = createQueryClient();
