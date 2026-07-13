@@ -82,7 +82,9 @@ CommandReject validatePourSequenceStepsImpl(const PourSequenceStep* steps, uint8
     }
     total_ml += step.ml;
     total_pour_ms += pour_ms;
-    total_pour_ms += kFlowDetectTimeoutMs;
+    if (dispense.flow_gate) {
+      total_pour_ms += kFlowDetectTimeoutMs;
+    }
   }
 
   if (total_ml > kMaxSequenceTotalMl) {

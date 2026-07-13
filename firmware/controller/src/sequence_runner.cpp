@@ -223,3 +223,47 @@ float SequenceRunner::stepMl(uint8_t index) const {
   }
   return steps_[index].ml;
 }
+
+uint32_t SequenceRunner::stepDurationMs(const ResolvedStep& step) {
+  if (step.ml_per_s <= 0.0f || step.ml <= 0.0f) {
+    return step.anti_drip_ms;
+  }
+  const float pour_ms = (step.ml / step.ml_per_s) * 1000.0f;
+  if (pour_ms <= 0.0f) {
+    return step.anti_drip_ms;
+  }
+  return static_cast<uint32_t>(pour_ms) + step.anti_drip_ms;
+}
+
+uint8_t SequenceRunner::progressPercent(uint8_t in_step_progress) const {
+  if (state_ != State::kRunning || step_count_ == 0) {
+    return 0;
+  }
+
+  uint32_t total_ms = 0;
+  uint32_t done_ms = 0;
+  for (uint8_t i = 0; i < step_count_; ++i) {
+    const uint32_t d = stepDurationMs(steps_[i]);
+    total_ms += d;
+    if (i < step_index_) {
+      done_ms += d;
+    }
+  }
+
+  if (total_ms == 0) {
+    // Equal step weight when calibration is missing/zero.
+    const int step_pct = in_step_progress > 100 ? 100 : static_cast<int>(in_step_progress);
+    const int pct =
+        (static_cast<int>(step_index_) * 100 + step_pct) / static_cast<int>(step_count_);
+    return static_cast<uint8_t>(pct < 0 ? 0 : (pct > 100 ? 100 : pct));
+  }
+
+  const uint8_t step_pct = in_step_progress > 100 ? 100 : in_step_progress;
+  const uint32_t current_ms =
+      step_index_ < step_count_
+          ? (stepDurationMs(steps_[step_index_]) * static_cast<uint32_t>(step_pct)) / 100UL
+          : 0UL;
+  const uint32_t elapsed = done_ms + current_ms;
+  const uint32_t pct = (elapsed * 100UL) / total_ms;
+  return static_cast<uint8_t>(pct > 100UL ? 100UL : pct);
+}

@@ -42,6 +42,15 @@ describe('pour inventory bypass', () => {
     expect(peekPourInventoryBypass('old-fashioned')).toBe(false);
   });
 
+  it('peek leaves the grant so a StrictMode remount can still read it', () => {
+    grantPourInventoryBypass('old-fashioned');
+
+    expect(peekPourInventoryBypass('old-fashioned')).toBe(true);
+    expect(peekPourInventoryBypass('old-fashioned')).toBe(true);
+    expect(consumePourInventoryBypass('old-fashioned')).toBe(true);
+    expect(peekPourInventoryBypass('old-fashioned')).toBe(false);
+  });
+
   it('does not reuse bypass after consumption', () => {
     grantPourInventoryBypass('old-fashioned');
     consumePourInventoryBypass('old-fashioned');

@@ -71,6 +71,7 @@ export const pourJobStateSchema = z.enum([
   'prompt',
   'complete',
   'cancelled',
+  'error',
 ]);
 
 export const pourJobSchema = z.object({
@@ -134,10 +135,20 @@ export const deviceNotificationSchema = z.object({
   actionLabel: z.string().max(100).optional(),
 });
 
+export const deviceLinkSchema = z.object({
+  ssid: z.string().max(32).optional(),
+  ip: z.string().max(45).optional(),
+  rssi: z.number().int().optional(),
+  lastDisconnectReason: z.number().int().min(0).max(255).optional(),
+  uptimeSeconds: z.number().int().min(0).optional(),
+  freeHeap: z.number().int().min(0).optional(),
+});
+
 export const deviceStatusSchema = z.object({
   connected: z.boolean(),
   firmwareVersion: z.string().optional(),
   hostname: z.string().optional(),
+  link: deviceLinkSchema.optional(),
   bindings: z.record(z.string(), ingredientBindingSchema),
   pumps: z.array(pumpSlotSchema).optional(),
   job: pourJobSchema.nullable().optional(),
@@ -222,6 +233,7 @@ export type PumpJobPurpose = z.infer<typeof pumpJobPurposeSchema>;
 export type PumpJobState = z.infer<typeof pumpJobStateSchema>;
 export type PumpJob = z.infer<typeof pumpJobSchema>;
 export type DeviceStatus = z.infer<typeof deviceStatusSchema>;
+export type DeviceLink = z.infer<typeof deviceLinkSchema>;
 export type PourStep = z.infer<typeof pourStepSchema>;
 export type PourCommand = z.infer<typeof pourCommandSchema>;
 export type RefillCommand = z.infer<typeof refillCommandSchema>;

@@ -19,6 +19,7 @@ import type {
 import {
   deviceStatusQueryKeyPrefix,
 } from '@/hooks/use-device-status';
+import { isActivePourJob, isTerminalPourJob } from '@/lib/pour-job';
 
 function invalidateDeviceStatus(queryClient: QueryClient) {
   return queryClient.invalidateQueries({ queryKey: deviceStatusQueryKeyPrefix });
@@ -31,6 +32,29 @@ function getCachedDeviceStatus(
     queryKey: deviceStatusQueryKeyPrefix,
   });
   return matches.map(([, data]) => data).find((data) => data !== undefined);
+}
+
+/** Drop a prior attempt's terminal job so UI does not sticky-show it until poll. */
+function clearStaleTerminalPourJob(queryClient: QueryClient) {
+  queryClient.setQueriesData<DeviceStatus>(
+    { queryKey: deviceStatusQueryKeyPrefix },
+    (prev) => {
+      if (!prev?.job || isActivePourJob(prev.job)) return prev;
+      if (!isTerminalPourJob(prev.job)) return prev;
+      return { ...prev, job: null };
+    },
+  );
+}
+
+/** Drop a prior pump dispense terminal so wizards do not sticky-show it. */
+function clearStaleTerminalPumpJob(queryClient: QueryClient) {
+  queryClient.setQueriesData<DeviceStatus>(
+    { queryKey: deviceStatusQueryKeyPrefix },
+    (prev) => {
+      if (!prev?.pumpJob || prev.pumpJob.state === 'running') return prev;
+      return { ...prev, pumpJob: null };
+    },
+  );
 }
 
 function bindingPrimed(
@@ -46,10 +70,13 @@ function useDeviceStatusInvalidator() {
 }
 
 export function useStartPour() {
-  const invalidate = useDeviceStatusInvalidator();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (command: PourCommand) => deviceClient.startPour(command),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      clearStaleTerminalPourJob(queryClient);
+      return invalidateDeviceStatus(queryClient);
+    },
   });
 }
 
@@ -70,11 +97,14 @@ export function useAcknowledgePrompt() {
 }
 
 export function useStartPumpDispense() {
-  const invalidate = useDeviceStatusInvalidator();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (command: PumpDispenseCommand) =>
       deviceClient.startPumpDispense(command),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      clearStaleTerminalPumpJob(queryClient);
+      return invalidateDeviceStatus(queryClient);
+    },
   });
 }
 

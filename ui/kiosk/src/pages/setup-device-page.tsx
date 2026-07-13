@@ -16,6 +16,12 @@ import { DEVICE_SETUP_SECTION } from '@/data/setup-sections';
 import { useDeviceEndpoint } from '@/hooks/use-device-endpoint';
 import { useDeviceStatus } from '@/hooks/use-device-status';
 import { formatHostnameInput } from '@/lib/device-endpoint';
+import {
+  formatDisconnectReason,
+  formatFreeHeap,
+  formatUptime,
+  formatWifiRssi,
+} from '@/lib/device-link';
 import { ipv4DraftFromHostname } from '@/lib/ip-address';
 
 const machineStatus = DEVICE_SETUP_SECTION;
@@ -30,7 +36,7 @@ function StatusRow({
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-border/60 py-3 last:border-0">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-right text-sm font-medium">{value}</dd>
+      <dd className="text-right text-sm font-medium tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -115,6 +121,7 @@ export function SetupDevicePage() {
     resetHostname,
     defaultDeviceApiBase,
   } = useDeviceEndpoint();
+  const link = status?.link;
 
   return (
     <SetupSectionLayout
@@ -155,10 +162,33 @@ export function SetupDevicePage() {
               onReset={resetHostname}
             />
             {connected ? (
-              <StatusRow
-                label="Firmware"
-                value={status?.firmwareVersion ?? '—'}
-              />
+              <>
+                <StatusRow
+                  label="Firmware"
+                  value={status?.firmwareVersion ?? '—'}
+                />
+                <StatusRow
+                  label="Wi‑Fi SSID"
+                  value={link?.ssid?.trim() ? link.ssid : '—'}
+                />
+                <StatusRow
+                  label="Controller IP"
+                  value={link?.ip?.trim() ? link.ip : '—'}
+                />
+                <StatusRow label="RSSI" value={formatWifiRssi(link?.rssi)} />
+                <StatusRow
+                  label="Uptime"
+                  value={formatUptime(link?.uptimeSeconds)}
+                />
+                <StatusRow
+                  label="Free heap"
+                  value={formatFreeHeap(link?.freeHeap)}
+                />
+                <StatusRow
+                  label="Last disconnect"
+                  value={formatDisconnectReason(link?.lastDisconnectReason)}
+                />
+              </>
             ) : null}
             {!connected && error ? (
               <StatusRow label="Last error" value={error} />

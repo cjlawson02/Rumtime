@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Route, Switch } from 'wouter';
 
+import { ConnectionHelper } from '@/components/kiosk/connection-helper';
 import { KioskMessageScreen } from '@/components/kiosk/kiosk-message-screen';
 import { LinkButton } from '@/components/kiosk/link-button';
 
@@ -69,39 +70,42 @@ function NotFoundPage() {
 
 export function App() {
   return (
-    <Suspense fallback={<PageFallback />}>
-      <Switch>
-        <Route path="/">
-          <MenuPage />
-        </Route>
-        <Route path="/drink/:id">
-          <DrinkDetailPage />
-        </Route>
-        <Route path="/pour/:id">
-          <PourPage />
-        </Route>
-        <Route path="/setup/pumps">
-          <SetupPumpsPage />
-        </Route>
-        <Route path="/setup/calibration">
-          <SetupCalibrationPage />
-        </Route>
-        <Route path="/setup/cleaning">
-          <SetupCleaningPage />
-        </Route>
-        <Route path="/setup/device">
-          <SetupDevicePage />
-        </Route>
-        <Route path="/setup/:section">
-          <SetupSectionPage />
-        </Route>
-        <Route path="/setup">
-          <SetupIndexPage />
-        </Route>
-        <Route>
-          <NotFoundPage />
-        </Route>
-      </Switch>
-    </Suspense>
+    <>
+      <ConnectionHelper />
+      <Suspense fallback={<PageFallback />}>
+        <Switch>
+          <Route path="/">
+            <MenuPage />
+          </Route>
+          <Route path="/drink/:id">
+            {(params) => <DrinkDetailPage key={params.id} />}
+          </Route>
+          <Route path="/pour/:id">
+            {(params) => <PourPage key={params.id} />}
+          </Route>
+          <Route path="/setup/pumps">
+            <SetupPumpsPage />
+          </Route>
+          <Route path="/setup/calibration">
+            <SetupCalibrationPage />
+          </Route>
+          <Route path="/setup/cleaning">
+            <SetupCleaningPage />
+          </Route>
+          <Route path="/setup/device">
+            <SetupDevicePage />
+          </Route>
+          <Route path="/setup/:section">
+            <SetupSectionPage />
+          </Route>
+          <Route path="/setup">
+            <SetupIndexPage />
+          </Route>
+          <Route>
+            <NotFoundPage />
+          </Route>
+        </Switch>
+      </Suspense>
+    </>
   );
 }

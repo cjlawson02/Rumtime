@@ -24,7 +24,23 @@ WiFiManager* g_wifi = nullptr;
 
 constexpr size_t kMaxHttpBodyBytes = 2048;
 
+void noteHttpActivity() {
+  if (g_ctx == nullptr) {
+    return;
+  }
+  g_ctx->last_http_activity_ms.store(millis(), std::memory_order_relaxed);
+}
+
+void armKioskJobWatchdog() {
+  noteHttpActivity();
+  if (g_ctx != nullptr) {
+    g_ctx->kiosk_job_watchdog_armed.store(true, std::memory_order_release);
+  }
+}
+
 void addCorsHeaders() {
+  // v1 home LAN — kiosk UI origin varies (dev server, tablet IP). No device auth.
+  g_server.sendHeader("Access-Control-Allow-Origin", "*");
   g_server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   g_server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
 }
@@ -46,6 +62,9 @@ void sendNoContent() {
 
 void handleOptions() {
   addCorsHeaders();
+  // Browsers require a successful preflight (2xx). Keep Access-Control-Max-Age short
+  // so header changes pick up quickly during bench bring-up.
+  g_server.sendHeader("Access-Control-Max-Age", "600");
   g_server.send(204);
 }
 
@@ -77,11 +96,19 @@ void handleStatus() {
     sendError(HttpStatus::kServiceUnavailable, "unsafe", "Runtime not ready");
     return;
   }
+  noteHttpActivity();
   const StatusSnapshot snapshot = g_ctx->status.read();
+  const WiFiStatus wifi = g_wifi->status();
   DeviceStatusInputs in;
-  in.wifi_connected = g_wifi->connected();
+  in.wifi_connected = wifi.connected;
   in.snapshot = &snapshot;
   in.now_ms = millis();
+  in.wifi_ssid = wifi.ssid;
+  in.wifi_ip = wifi.ip;
+  in.wifi_rssi = wifi.rssi;
+  in.wifi_last_disconnect_reason = wifi.last_disconnect_reason;
+  in.uptime_ms = millis();
+  in.free_heap = ESP.getFreeHeap();
   const std::string json = buildDeviceStatusJson(in);
   addCorsHeaders();
   g_server.send(200, "application/json", json.c_str());
@@ -155,6 +182,7 @@ void handlePour() {
     sendError(httpStatusForReject(busy), httpErrorCode(busy), httpMessageForReject(busy));
     return;
   }
+  armKioskJobWatchdog();
   sendNoContent();
 }
 
@@ -163,6 +191,7 @@ void handlePourCancel() {
     sendError(HttpStatus::kServiceUnavailable, "unsafe", "Runtime not ready");
     return;
   }
+  noteHttpActivity();
   g_ctx->queue.enqueueCancel();
   sendNoContent();
 }
@@ -211,6 +240,7 @@ void handlePumpDispense() {
       sendError(HttpStatus::kConflict, "busy", "Device busy");
       return;
     }
+    armKioskJobWatchdog();
     sendNoContent();
     return;
   }
@@ -264,6 +294,7 @@ void handlePumpDispense() {
     sendError(HttpStatus::kConflict, "busy", "Device busy");
     return;
   }
+  armKioskJobWatchdog();
   sendNoContent();
 }
 
@@ -272,12 +303,10 @@ void handlePumpDispenseCancel() {
     sendError(HttpStatus::kServiceUnavailable, "unsafe", "Runtime not ready");
     return;
   }
+  noteHttpActivity();
   const StatusSnapshot status = g_ctx->status.read();
   if (status.job_busy && status.job_phase == static_cast<uint8_t>(Coordinator::Phase::kPrime)) {
-    if (!g_ctx->queue.enqueuePrimeStop()) {
-      sendError(HttpStatus::kConflict, "busy", "Device busy");
-      return;
-    }
+    g_ctx->queue.enqueuePrimeStop();
   } else {
     g_ctx->queue.enqueueCancel();
   }
@@ -427,6 +456,12 @@ void handlePumpCalibration() {
 }
 
 void handleNotFound() {
+  // Arduino WebServer does not reliably match on("*", HTTP_OPTIONS). Preflight for
+  // registered POST/GET routes therefore lands here — answer CORS instead of 404.
+  if (g_server.method() == HTTP_OPTIONS) {
+    handleOptions();
+    return;
+  }
   sendError(HttpStatus::kNotFound, "not_found", "Not found");
 }
 
@@ -437,20 +472,31 @@ void beginHttpServer(RuntimeContext& ctx, WiFiManager& wifi) {
   g_wifi = &wifi;
 
   g_server.on("/status", HTTP_GET, handleStatus);
+  g_server.on("/status", HTTP_OPTIONS, handleOptions);
   g_server.on("/pour", HTTP_POST, handlePour);
+  g_server.on("/pour", HTTP_OPTIONS, handleOptions);
   g_server.on("/pour/cancel", HTTP_POST, handlePourCancel);
+  g_server.on("/pour/cancel", HTTP_OPTIONS, handleOptions);
   g_server.on("/pour/ack", HTTP_POST, handlePourAck);
+  g_server.on("/pour/ack", HTTP_OPTIONS, handleOptions);
   g_server.on("/pumps/dispense", HTTP_POST, handlePumpDispense);
+  g_server.on("/pumps/dispense", HTTP_OPTIONS, handleOptions);
   g_server.on("/pumps/dispense/cancel", HTTP_POST, handlePumpDispenseCancel);
+  g_server.on("/pumps/dispense/cancel", HTTP_OPTIONS, handleOptions);
   g_server.on("/pumps/binding", HTTP_POST, handlePumpBinding);
+  g_server.on("/pumps/binding", HTTP_OPTIONS, handleOptions);
   g_server.on("/pumps/calibration", HTTP_POST, handlePumpCalibration);
+  g_server.on("/pumps/calibration", HTTP_OPTIONS, handleOptions);
   g_server.on("/inventory/refill", HTTP_POST, handleInventoryRefill);
+  g_server.on("/inventory/refill", HTTP_OPTIONS, handleOptions);
   g_server.on("/inventory/bottle-size", HTTP_POST, handleInventoryBottleSize);
+  g_server.on("/inventory/bottle-size", HTTP_OPTIONS, handleOptions);
   g_server.on("/inventory/level", HTTP_POST, handleInventoryLevel);
+  g_server.on("/inventory/level", HTTP_OPTIONS, handleOptions);
   g_server.on("/inventory/primed", HTTP_POST, handleInventoryPrimed);
+  g_server.on("/inventory/primed", HTTP_OPTIONS, handleOptions);
 
   g_server.onNotFound(handleNotFound);
-  g_server.on("*", HTTP_OPTIONS, handleOptions);
 
   g_server.begin();
 }

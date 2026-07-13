@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "command_queue.h"
 #include "config_op_queue.h"
 #include "config_store.h"
@@ -13,6 +15,11 @@ struct RuntimeContext {
   StatusPublisher status;
   ConfigStore config;
   InventoryStore inventory;
+
+  // Kiosk link watchdog — armed only for HTTP-started motion jobs.
+  // GET /status (and other HTTP) refreshes last_http_activity_ms.
+  std::atomic<unsigned long> last_http_activity_ms{0};
+  std::atomic<bool> kiosk_job_watchdog_armed{false};
 };
 
 RuntimeContext& runtimeContext();

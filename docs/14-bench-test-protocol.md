@@ -4,7 +4,7 @@ Run this on the Phase 0–1 rig before ordering 4-pump PCBs or the full 8-pump B
 
 Reference: [`09-build-plan-and-verification.md`](09-build-plan-and-verification.md), [`12-phase-0-decisions.md`](12-phase-0-decisions.md).
 
-**Progress (2026-06-27):** P1+P2 @ **1.75 ml/s**; dual **~0.4 A**; anti-drip **100 ms**; Test 4b P2 **50→~45 ml** (anti-drip). **Outlet:** sessions 01–02 on **open ~3 mm tube** (no restricted tip). **Procurement:** 2× 24 V pumps returned; barb-union order mis-shipped as **1.8 mm ID** smooth couplers (**not yet returned**). **P3 variance open** until 12 V replacements arrive. Logs: [01](bench-results/2026-06-27-session-01.md) · [02](bench-results/2026-06-27-session-02.md).
+**Progress (2026-07-12):** [Session 03](bench-results/2026-07-12-session-03.md) — product FW/kiosk sequential pour (open-loop happy path), cancel, STA-disconnect auto-stop; **scale not wired** (Tests 7–9 still open). Liquid cal still from 2026-06-27: P1+P2 @ **1.75 ml/s**; dual **~0.4 A**; anti-drip **100 ms**; Test 4b P2 **50→~45 ml**. **Outlet:** sessions 01–02 on **open ~3 mm tube**. Logs: [01](bench-results/2026-06-27-session-01.md) · [02](bench-results/2026-06-27-session-02.md) · [03](bench-results/2026-07-12-session-03.md).
 
 ## Setup checklist
 
@@ -16,7 +16,7 @@ Before first liquid test:
 - [ ] No leaks at barbs under dry prime pressure (clamp tightness checked).
 - [ ] Multimeter/clamp meter ready for current tests.
 - [x] Graduated cylinder on hand (received 2026-06-27; used session 02).
-- [ ] **Load cell bar + HX711** wired (required for Tests 7–9). _(Ordered 2026-06-23; both ship together — **not in hand** as of 2026-06-27.)_
+- [ ] **Load cell bar + HX711** wired (required for Tests 7–9). _(Ordered 2026-06-23; **not wired** as of session 03 / 2026-07-12.)_
 - [ ] Restricted **nozzle tip** on outlet before locking anti-drip ms. Target: orifice **smaller than 3 mm line** (e.g. short barb + restricted fitting, or mis-shipped **1.8 mm ID** silicone coupler while still on hand: 3×5 mm tube into one end, pour from other; clamp 5 mm OD side). Re-run Tests 3–5 after adding restriction — ml/s and anti-drip ms from sessions 01–02 were measured on **open outlet**.
 - [x] Firmware flashed (`firmware/bench-rig/`); serial monitor connects at 115200 baud.
 

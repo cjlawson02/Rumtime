@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PumpJob } from '@/api/types';
+import type { PourJob, PumpJob } from '@/api/types';
 import {
   createPumpPourTracker,
   markPumpPourDispenseStarted,
+  pourJobIdentityKey,
   resetPumpPourTracker,
   resolvePumpPourOutcome,
+  resolveRecipePourOutcome,
 } from '@/lib/pump-pour-lifecycle';
 
 const runningJob: PumpJob = {
@@ -118,5 +120,82 @@ describe('resolvePumpPourOutcome', () => {
     resetPumpPourTracker(tracker);
 
     expect(tracker).toEqual(createPumpPourTracker());
+  });
+});
+
+const cancelledPour: PourJob = {
+  recipeId: 'gin-tonic',
+  state: 'cancelled',
+  progress: 0,
+  stepLabel: 'Cancelled',
+};
+
+const completePour: PourJob = {
+  recipeId: 'gin-tonic',
+  state: 'complete',
+  progress: 100,
+  stepLabel: 'Done',
+};
+
+describe('resolveRecipePourOutcome', () => {
+  it('ignores a prior terminal still in status until an active job appears', () => {
+    const tracker = createPumpPourTracker();
+    markPumpPourDispenseStarted(tracker);
+    const priorKey = pourJobIdentityKey(cancelledPour);
+
+    expect(
+      resolveRecipePourOutcome(tracker, 'gin-tonic', cancelledPour, priorKey),
+    ).toBeNull();
+
+    expect(
+      resolveRecipePourOutcome(
+        tracker,
+        'gin-tonic',
+        {
+          recipeId: 'gin-tonic',
+          state: 'pouring',
+          progress: 20,
+          stepLabel: 'Pouring gin',
+        },
+        priorKey,
+      ),
+    ).toBe('active');
+  });
+
+  it('accepts complete without observing an active pour', () => {
+    const tracker = createPumpPourTracker();
+    markPumpPourDispenseStarted(tracker);
+
+    expect(
+      resolveRecipePourOutcome(tracker, 'gin-tonic', completePour, null),
+    ).toBe('complete');
+  });
+
+  it('accepts a new terminal that differs from the prior-attempt snapshot', () => {
+    const tracker = createPumpPourTracker();
+    markPumpPourDispenseStarted(tracker);
+    const priorKey = pourJobIdentityKey(cancelledPour);
+
+    expect(
+      resolveRecipePourOutcome(tracker, 'gin-tonic', completePour, priorKey),
+    ).toBe('complete');
+  });
+
+  it('does not treat idle null as complete after an active pour', () => {
+    const tracker = createPumpPourTracker();
+    markPumpPourDispenseStarted(tracker);
+    resolveRecipePourOutcome(
+      tracker,
+      'gin-tonic',
+      {
+        recipeId: 'gin-tonic',
+        state: 'pouring',
+        progress: 10,
+        stepLabel: 'Pouring gin',
+      },
+      null,
+    );
+
+    expect(resolveRecipePourOutcome(tracker, 'gin-tonic', null, null)).toBeNull();
   });
 });

@@ -43,7 +43,7 @@ Base URL: `http://rumtime.local` (mDNS) or `VITE_DEVICE_API_BASE`. **Deploy the 
 
 `pumpJob` on `/status` **only while a dispense is active**. When idle (no pour in progress), `pumpJob` is **`null`** — that is the primary idle signal for setup wizards (prime/calibration/verify). The kiosk treats **`pumpJob` cleared to `null`** as finished after a timed pour; explicit terminal `complete`/`cancelled` on `pumpJob` is optional polish.
 
-**Recipe `job` (guest pours):** When a multi-step pour completes without a manual prompt step, firmware publishes a **brief terminal latch** (`job.state`: `"complete"` or `"cancelled"`, ~500 ms / at least one poll) before clearing `job` to `null`. The kiosk pour page keys off `job.state === "complete"` for drinks like Daiquiri (pumped-only + pre-pour lime). Prompt-step drinks remain a known gap until the prompt FSM exists.
+**Recipe `job` (guest pours):** When a multi-step pour completes without a manual prompt step, firmware publishes a **terminal latch** (`job.state`: `"complete"`, `"cancelled"`, or `"error"`, **~3 s**) before clearing `job` to `null`. The kiosk pour page keys off `job.state === "complete"` for drinks like Daiquiri (pumped-only + pre-pour lime). Prompt-step drinks remain a known gap until the prompt FSM exists.
 
 Example while running:
 
@@ -80,6 +80,14 @@ stop | cancel         abort — job cancelled (mid-prime emergency only in kiosk
   "connected": true,
   "firmwareVersion": "0.1.0",
   "hostname": "rumtime.local",
+  "link": {
+    "ssid": "IoT",
+    "ip": "192.168.5.29",
+    "rssi": -61,
+    "lastDisconnectReason": 8,
+    "uptimeSeconds": 3725,
+    "freeHeap": 204800
+  },
   "bindings": {
     "bourbon": { "ingredientId": "bourbon", "remainingMl": 420, "bottleSizeMl": 750, "primed": true }
   },
@@ -115,7 +123,11 @@ stop | cancel         abort — job cancelled (mid-prime emergency only in kiosk
 }
 ```
 
-`job.state`: `idle` | `pouring` | `prompt` | `complete` | `cancelled`. Prefer `job: null` when idle; the kiosk normalizes `idle` to null. For pumped-only recipes, firmware **must** emit `complete` (or `cancelled`) for at least one poll before returning to `job: null`.
+`link` is optional diagnostics for Machine status (SSID, controller IP, RSSI, uptime, free heap, last Espressif STA disconnect reason). Omit or leave empty fields when unknown.
+
+`job.state`: `idle` | `pouring` | `prompt` | `complete` | `cancelled` | `error`. Prefer `job: null` when idle; the kiosk normalizes `idle` to null. For pumped-only recipes, firmware **must** emit `complete`, `cancelled`, or `error` for at least one poll before returning to `job: null`.
+
+`job.progress` (0–100) is **duration-weighted** across sequence steps (pour time from `ml / ml_per_s` plus anti-drip), not equal per step. The kiosk pour bar also estimates total duration from recipe + pump calibration and advances on wall-clock; it does not depend on poll-to-poll `job.progress` for smoothness.
 
 **Firmware should always include:**
 

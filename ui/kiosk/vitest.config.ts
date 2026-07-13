@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Tests use fixed env — do not load .env.local (hardware dev overrides).
+  envDir: false,
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -15,6 +17,11 @@ export default defineConfig({
     },
   },
   test: {
+    env: {
+      VITE_DEVICE_API_BASE: 'http://rumtime.local',
+      VITE_SETUP_PIN: '',
+      VITE_DEVICE_POLL_MS: '500',
+    },
     environment: 'jsdom',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     setupFiles: ['./src/test/setup.ts'],

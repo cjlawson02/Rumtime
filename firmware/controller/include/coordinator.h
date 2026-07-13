@@ -78,6 +78,9 @@ class Coordinator {
     return last_reject_;
   }
 
+  // 0–100 within the current dispense (flow-wait stays low; pour is timed; anti-drip → 100).
+  uint8_t dispenseProgressPercent(unsigned long now_ms) const;
+
  private:
   void beginPour(unsigned long now_ms);  // enter timed pour from motor-on now
   void beginAntiDrip(unsigned long now_ms);

@@ -22,7 +22,8 @@ class ControlTask {
   void publishConfigAndInventory(StatusSnapshot& snapshot);
   void updatePumpJobSnapshot(StatusSnapshot& snapshot, unsigned long now);
   void updateJobTerminalLatch(StatusSnapshot& snapshot, unsigned long now);
-  void armJobTerminal(JobTerminalState state, unsigned long now);
+  void armJobTerminal(JobTerminalState state, unsigned long now,
+                      JobReject reject = JobReject::kNone);
   void clearPumpJobContext();
   void setPumpJobFromDispense(const DispenseCommand& cmd, unsigned long now);
   void setPumpJobFromPrime(uint8_t channel, unsigned long now);
@@ -48,5 +49,6 @@ class ControlTask {
   JobTerminalState job_terminal_ = JobTerminalState::kNone;
   unsigned long job_terminal_until_ms_ = 0;
   char terminal_recipe_id_[kRecipeIdMax] = {0};
+  JobReject terminal_reject_ = JobReject::kNone;
   bool config_op_apply_failed_ = false;
 };

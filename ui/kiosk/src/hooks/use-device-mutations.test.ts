@@ -218,6 +218,63 @@ describe('useDeviceMutations', () => {
     await run();
   });
 
+  it('clears a stale terminal pour job from the cache on start success', async () => {
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(deviceStatusQueryKey(), {
+      connected: true,
+      bindings: {},
+      job: {
+        recipeId: 'old-fashioned',
+        state: 'cancelled',
+        progress: 0,
+        stepLabel: 'Cancelled',
+      },
+    });
+    const { result } = renderHook(() => useStartPour(), {
+      wrapper: createWrapper({ queryClient }),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        recipeId: 'old-fashioned',
+        steps: [{ ingredientId: 'bourbon', ml: 45 }],
+      });
+    });
+
+    expect(queryClient.getQueryData(deviceStatusQueryKey())).toMatchObject({
+      job: null,
+    });
+  });
+
+  it('clears a stale terminal pump job from the cache on dispense start', async () => {
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(deviceStatusQueryKey(), {
+      connected: true,
+      bindings: {},
+      pumpJob: {
+        pumpId: 1,
+        purpose: 'prime',
+        state: 'complete',
+        progress: 100,
+        stepLabel: 'Done',
+      },
+    });
+    const { result } = renderHook(() => useStartPumpDispense(), {
+      wrapper: createWrapper({ queryClient }),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        pumpId: 1,
+        purpose: 'prime',
+      });
+    });
+
+    expect(queryClient.getQueryData(deviceStatusQueryKey())).toMatchObject({
+      pumpJob: null,
+    });
+  });
+
   it('applies ingredient swaps and clears primed state', async () => {
     const queryClient = createQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');

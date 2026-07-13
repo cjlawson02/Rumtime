@@ -200,6 +200,9 @@ bool InventoryStore::setPrimed(const char* ingredient_id, bool primed) {
   if (e == nullptr) {
     return false;
   }
+  if (e->primed == primed) {
+    return true;
+  }
   e->primed = primed;
   dirty_ = true;
   return true;

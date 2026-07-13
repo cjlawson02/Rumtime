@@ -24,10 +24,24 @@ function installGlobalErrorHandlers() {
   });
 }
 
+function shouldStartMsw(): boolean {
+  if (import.meta.env.VITE_USE_MSW === 'false') {
+    return false;
+  }
+  const base = import.meta.env.VITE_DEVICE_API_BASE ?? 'http://rumtime.local';
+  try {
+    const { hostname } = new URL(base);
+    // Real hardware dev uses a LAN IP — MSW would shadow the ESP32.
+    return !/^\d+\.\d+\.\d+\.\d+$/.test(hostname);
+  } catch {
+    return true;
+  }
+}
+
 async function bootstrap() {
   installGlobalErrorHandlers();
 
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV && shouldStartMsw()) {
     const { startMockServiceWorker } = await import('@/api/msw/browser');
     await startMockServiceWorker();
   }

@@ -2,7 +2,7 @@
 
 This plan follows goal-driven execution: every step has a verification check.
 
-**Bench progress (2026-06-27):** [session 02](bench-results/2026-06-27-session-02.md) — P1+P2 @ 1.75 ml/s; dual **~0.4 A**; anti-drip 100 ms; Test 4b P2 50→~45 ml (anti-drip).
+**Bench progress (2026-07-12):** [session 03](bench-results/2026-07-12-session-03.md) — product controller + kiosk Old Fashioned (P1+P2) under temporary open-loop; cancel + Wi‑Fi disconnect auto-stop OK; **scale still not wired**. Earlier liquid cal: [session 02](bench-results/2026-06-27-session-02.md) — P1+P2 @ 1.75 ml/s; dual **~0.4 A**; anti-drip 100 ms; Test 4b P2 50→~45 ml (anti-drip).
 
 ## Phase 0: Confirm critical parts
 

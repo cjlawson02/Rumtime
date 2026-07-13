@@ -12,7 +12,6 @@ import {
 import { WizardErrorBanner } from '@/components/kiosk/wizard-error-banner';
 import { useDeviceStatus } from '@/hooks/use-device-status';
 import {
-  useCancelPumpDispense,
   useUpdatePrimed,
 } from '@/hooks/use-device-mutations';
 import { usePumpDispenseSession } from '@/hooks/use-pump-dispense-session';
@@ -49,18 +48,19 @@ function PrimeWizardSession({
   ingredientName,
 }: PrimeWizardProps) {
   const { status } = useDeviceStatus();
-  const cancelPumpDispense = useCancelPumpDispense();
   const updatePrimed = useUpdatePrimed();
   const {
     starting,
     error,
     setError,
     startRun,
+    stopRun,
     emergencyStop,
     closeWizard: closeDispenseSession,
     createTracker,
   } = usePumpDispenseSession();
   const [stepIndex, setStepIndex] = useState(0);
+  const [finishing, setFinishing] = useState(false);
   const completingRef = useRef(false);
   const primePourRef = useRef<PumpPourTracker>(createTracker());
 
@@ -112,17 +112,24 @@ function PrimeWizardSession({
     startRun({ pumpId, purpose: 'prime', tracker: primePourRef });
 
   const finishPrime = async () => {
+    if (completingRef.current) return;
     setError(null);
     completingRef.current = true;
+    setFinishing(true);
     resetPumpPourTracker(primePourRef.current);
     try {
-      await cancelPumpDispense.mutateAsync();
+      await stopRun({
+        tracker: primePourRef,
+        resetTracker: false,
+        waitForIdle: { pumpId },
+      });
       await markPrimed();
       setStepIndex(2);
     } catch (err) {
       setError(deviceErrorMessage(err));
     } finally {
       completingRef.current = false;
+      setFinishing(false);
     }
   };
 
@@ -153,7 +160,8 @@ function PrimeWizardSession({
               })
             }
             onNext={() => void finishPrime()}
-            nextLabel="Nozzle is wet"
+            nextLabel={finishing ? 'Stopping…' : 'Nozzle is wet'}
+            nextDisabled={finishing}
           />
         );
       }

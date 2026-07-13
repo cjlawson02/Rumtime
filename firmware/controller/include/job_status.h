@@ -7,7 +7,7 @@
 
 // Inputs for published job status (ControlTask snapshot fields). Extracted for
 // unit tests — priority: sequence in-progress > coordinator in-progress >
-// coordinator terminal > sequence terminal.
+// sequence terminal > coordinator terminal.
 struct JobStatusInputs {
   bool sequence_busy = false;
   Coordinator::JobResult sequence_result = Coordinator::JobResult::kNone;
@@ -42,20 +42,21 @@ inline void fillJobStatusFields(const JobStatusInputs& in, bool* job_ok, bool* j
     *job_reject = in.coordinator_reject;
     return;
   }
-  if (in.coordinator_ok || in.coordinator_error || in.coordinator_cancelled) {
-    *job_ok = in.coordinator_ok;
-    *job_error = in.coordinator_error;
-    *job_cancelled = in.coordinator_cancelled;
-    *job_phase = 0;
-    *job_reject = in.coordinator_reject;
-    return;
-  }
+  // Sequence terminal wins over a leftover coordinator result from the last step.
   if (in.sequence_result != Coordinator::JobResult::kNone) {
     *job_ok = in.sequence_ok;
     *job_error = in.sequence_error;
     *job_cancelled = in.sequence_cancelled;
     *job_phase = 0;
     *job_reject = in.sequence_reject;
+    return;
+  }
+  if (in.coordinator_ok || in.coordinator_error || in.coordinator_cancelled) {
+    *job_ok = in.coordinator_ok;
+    *job_error = in.coordinator_error;
+    *job_cancelled = in.coordinator_cancelled;
+    *job_phase = 0;
+    *job_reject = in.coordinator_reject;
     return;
   }
   *job_ok = false;

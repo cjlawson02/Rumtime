@@ -359,6 +359,25 @@ void test_job_status_coordinator_not_shadowed_while_busy() {
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPour), static_cast<int>(job_phase));
 }
 
+void test_job_status_sequence_error_beats_coordinator_ok() {
+  JobStatusInputs in;
+  in.sequence_result = Coordinator::JobResult::kError;
+  in.sequence_error = true;
+  in.sequence_reject = JobReject::kBadMl;
+  in.coordinator_ok = true;
+
+  bool job_ok = true;
+  bool job_error = false;
+  bool job_cancelled = false;
+  uint8_t job_phase = 0;
+  JobReject job_reject = JobReject::kNone;
+  fillJobStatusFields(in, &job_ok, &job_error, &job_cancelled, &job_phase, &job_reject);
+
+  TEST_ASSERT_FALSE(job_ok);
+  TEST_ASSERT_TRUE(job_error);
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kBadMl), static_cast<int>(job_reject));
+}
+
 void test_job_status_coordinator_error_after_sequence_cleared() {
   JobStatusInputs in;
   in.sequence_result = Coordinator::JobResult::kNone;
@@ -463,6 +482,30 @@ void test_per_step_inventory_subtract_on_partial_failure() {
   TEST_ASSERT_EQUAL_FLOAT(200.0f, h.inventory.find("simple")->remaining_ml);
 }
 
+void test_progress_weighted_by_step_duration() {
+  Harness h;
+  h.begin();
+  TEST_ASSERT_TRUE(h.config.setBinding(0, "bourbon"));
+  TEST_ASSERT_TRUE(h.config.setBinding(1, "simple"));
+  // Same ml/s, zero anti-drip: durations scale with ml (45 vs 10 → 82% after first step).
+  TEST_ASSERT_TRUE(h.config.setCalibration(0, kDefaultMlPerSecond, 0));
+  TEST_ASSERT_TRUE(h.config.setCalibration(1, kDefaultMlPerSecond, 0));
+  h.seedPrimed("bourbon");
+  h.seedPrimed("simple");
+  h.scale_fake.grams = {100.0f, 100.1f, 100.2f, 100.3f, 100.3f};
+
+  PourSequenceStep steps[2] = {makeStep("bourbon", 45.0f), makeStep("simple", 10.0f)};
+  TEST_ASSERT_TRUE(h.sequence.start(steps, 2, 0));
+  TEST_ASSERT_EQUAL(0, h.sequence.progressPercent(0));
+  TEST_ASSERT_EQUAL(40, h.sequence.progressPercent(50));  // half of 45/55
+
+  unsigned long now = 0;
+  runUntilStepIndex(h, 1, now, 60000);
+  TEST_ASSERT_EQUAL(1, h.sequence.stepIndex());
+  TEST_ASSERT_EQUAL(81, h.sequence.progressPercent(0));  // 45/55
+  TEST_ASSERT_EQUAL(90, h.sequence.progressPercent(50)); // 45/55 + half of 10/55
+}
+
 }  // namespace
 
 void setUp() {
@@ -481,9 +524,11 @@ int main() {
   RUN_TEST(test_flow_gate_uses_scale);
   RUN_TEST(test_ingredient_resolves_to_bound_pump);
   RUN_TEST(test_job_status_coordinator_not_shadowed_while_busy);
+  RUN_TEST(test_job_status_sequence_error_beats_coordinator_ok);
   RUN_TEST(test_job_status_coordinator_error_after_sequence_cleared);
   RUN_TEST(test_unbind_mid_sequence_does_not_change_resolved_step);
   RUN_TEST(test_clear_terminal_result_before_coordinator_job);
   RUN_TEST(test_per_step_inventory_subtract_on_partial_failure);
+  RUN_TEST(test_progress_weighted_by_step_duration);
   return UNITY_END();
 }

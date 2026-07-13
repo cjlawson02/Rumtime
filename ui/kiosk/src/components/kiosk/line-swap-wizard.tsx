@@ -177,10 +177,13 @@ function LineSwapWizardSession({
   const startRunForPhase = (purpose: 'flush' | 'drain' | 'prime') =>
     startRun({ pumpId, purpose, tracker: runPourRef });
 
-  const stopRun = async () => {
+  const stopRun = async (options?: {
+    resetTracker?: boolean;
+    waitForIdle?: boolean | { pumpId?: number };
+  }) => {
     completingRef.current = true;
     try {
-      await stopDispenseRun({ tracker: runPourRef });
+      await stopDispenseRun({ tracker: runPourRef, ...options });
     } finally {
       completingRef.current = false;
     }
@@ -340,7 +343,10 @@ function LineSwapWizardSession({
             onNext={() => {
               void (async () => {
                 try {
-                  await stopRun();
+                  await stopRun({
+                    resetTracker: false,
+                    waitForIdle: { pumpId },
+                  });
                   await markPrimed();
                   advance();
                 } catch (err) {

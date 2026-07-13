@@ -22,7 +22,7 @@ The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated t
 | `ConfigOpQueue` | `config_op_queue.{h,cpp}` | **Implemented (host-tested)** — depth-1 cross-task queue; HTTP (Core 0) enqueues; ControlTask drains and applies RAM mutations |
 | `DeviceStatus` mapper | `device_status.{h,cpp}` | **Implemented (host-tested)** — `GET /status` JSON matching kiosk `deviceStatusSchema` |
 | `HttpServer` | `http_server.{h,cpp}` | **Implemented** — Arduino `WebServer` + ArduinoJson v7 on Core 0; enqueue-only handlers; HTTP preflight reads published snapshot rows only (no cross-core store access) |
-| `WiFiManager` | `wifi_manager.{h,cpp}` | **Implemented** — STA-only; serial provisioning; mDNS `rumtime.local`; reconnect on disconnect |
+| `WiFiManager` | `wifi_manager.{h,cpp}` | **Implemented** — STA-only; serial provisioning; mDNS `rumtime.local`; reconnect on disconnect; modem sleep off + max TX; **cancel busy jobs on STA drop** (`wifi_link_safety.h`) |
 
 Not present yet: multi-pump parallel dispense, I2C/PCA9685, cleaning sequences, soft-AP captive portal.
 
@@ -32,6 +32,8 @@ Not present yet: multi-pump parallel dispense, I2C/PCA9685, cleaning sequences, 
 - **STBY on demand:** STBY is raised only while a channel is actively running and dropped again on `stopAll()` / last stop — extra hardware-level disable when idle.
 - **Hardware stop:** the only hardware cutoff is **main power** (upstream of the 12 V supply). There is no separate pump-bus cutoff or GPIO sense line. Firmware does not know whether main power is on.
 - **Software stop:** `stopAll()` and TB6612 **STBY** stop motion while power is present.
+- **Wi-Fi lost while busy:** NetworkTask falling-edge on STA disconnect enqueues **cancel** (same path as HTTP/serial) when `job_busy`, `sequence_busy`, or `pumps_running`. Brief RF blips will abort a pour/prime — preferred over a runaway continuous prime when the kiosk cannot reach `/cancel`. The 60 s prime timeout remains a backup.
+- **Kiosk HTTP heartbeat:** HTTP-started pour/prime/dispense **arms** a watchdog. `GET /status` (kiosk poll) refreshes activity. If no HTTP for `kKioskHeartbeatTimeoutMs` (3 s) while still busy → **cancel**. Serial-started jobs are not armed. Covers “Wi-Fi up, kiosk dead”; STA cancel remains the fast path for RF drop.
 - **STBY pull-down:** add an external 10 kΩ resistor from STBY (GPIO 17) to GND. During the pre-`begin()` boot window the GPIO floats; the pull-down holds the TB6612 disabled until firmware asserts the pin.
 
 ## Pin reference (`include/config.h`, copied from bench-rig)
@@ -54,6 +56,8 @@ HX711 uses GPIO 1 (`kScaleDout`) and GPIO 2 (`kScaleSck`).
 
 Requires [PlatformIO](https://platformio.org/). Uses **USB CDC on boot** — flash via the DevKit native USB port.
 
+Platform: **pioarduino** `55.03.39` (Arduino-ESP32 **3.3.9** / IDF **5.5.4**). Official PlatformIO `espressif32` still ships Arduino 2.0.17 only.
+
 ```bash
 cd firmware/controller
 pio run -e esp32-s3-devkitc-1
@@ -61,6 +65,34 @@ pio run -e esp32-s3-devkitc-1 -t upload
 ```
 
 **N16R8 module:** use the default `esp32-s3-devkitc-1` board profile (8 MB flash); a 16 MB/PSRAM profile caused a boot loop on bench (see bench-rig notes).
+
+## USB and serial monitor
+
+Firmware is built with **USB CDC on boot** — use the DevKit **native USB** port (shows as `/dev/cu.usbmodem*` on macOS).
+
+### Recommended: `controllerctl.py` (host CLI)
+
+PlatformIO monitor and copy-paste can mangle commands (unicode, `\r` quirks). Prefer the Python CLI:
+
+```bash
+cd firmware/controller
+pip install -r requirements.txt
+python3 scripts/controllerctl.py              # interactive (prompt: rumtime>)
+python3 scripts/controllerctl.py status
+python3 scripts/controllerctl.py wifi status
+python3 scripts/controllerctl.py dispense open 1 30
+python3 scripts/controllerctl.py pour bourbon 30 simple 15
+```
+
+Job commands (`dispense`, `pour`, `prime`, `cancel`) wait for async `// job:*` lines by default. Pass `--no-wait-job` for enqueue-only. Type `help` in the shell for the command list.
+
+### Fallback: PlatformIO monitor
+
+```bash
+pio device monitor -e esp32-s3-devkitc-1
+```
+
+Open the monitor, then press **RST** on the board if you see no response or a boot loop. Automated serial scripts can put the S3 into USB download mode — use an open monitor + **RST** for interactive testing, or use `controllerctl.py`.
 
 ## Unit tests
 
@@ -212,7 +244,7 @@ Base: `http://rumtime.local` (or device IP). Contract: [`docs/18-kiosk-device-ap
 | POST | `/pour/cancel` | Cancel current job |
 | POST | `/pour/ack` | 204 no-op (prompt steps deferred) |
 | POST | `/pumps/dispense` | `prime` / `verify` / `calibration` |
-| POST | `/pumps/dispense/cancel` | `prime stop` or cancel |
+| POST | `/pumps/dispense/cancel` | During prime → `prime stop` (ok); otherwise cancel. Idempotent. |
 | POST | `/pumps/binding` | Bind/clear ingredient on pump |
 | POST | `/pumps/calibration` | Per-pump calibration |
 | POST | `/inventory/refill` | Refill to bottle size |

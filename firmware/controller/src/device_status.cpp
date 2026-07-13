@@ -142,14 +142,6 @@ void appendPumpJobJson(std::string& out, const StatusSnapshot& s, unsigned long 
 
 }  // namespace
 
-int computeSequenceProgressPercent(uint8_t step_index, uint8_t step_count) {
-  if (step_count == 0) {
-    return 0;
-  }
-  const int pct = (static_cast<int>(step_index) * 100) / static_cast<int>(step_count);
-  return pct < 0 ? 0 : (pct > 100 ? 100 : pct);
-}
-
 int computeTimedPumpProgressPercent(unsigned long elapsed_ms, unsigned long duration_ms) {
   if (duration_ms == 0) {
     return 0;
@@ -193,6 +185,15 @@ std::string buildDeviceStatusJson(const DeviceStatusInputs& in) {
   appendKeyBool(out, "connected", in.wifi_connected);
   appendKeyString(out, "firmwareVersion", in.firmware_version);
   appendKeyString(out, "hostname", in.hostname);
+
+  out.append("\"link\":{");
+  appendKeyString(out, "ssid", in.wifi_ssid != nullptr ? in.wifi_ssid : "");
+  appendKeyString(out, "ip", in.wifi_ip != nullptr ? in.wifi_ip : "");
+  appendKeyInt(out, "rssi", in.wifi_rssi);
+  appendKeyInt(out, "lastDisconnectReason", static_cast<int>(in.wifi_last_disconnect_reason));
+  appendKeyInt(out, "uptimeSeconds", static_cast<int>(in.uptime_ms / 1000UL));
+  appendKeyInt(out, "freeHeap", static_cast<int>(in.free_heap), false);
+  out.append("},");
 
   out.append("\"bindings\":{");
   for (uint8_t i = 0; i < s.published_binding_count; ++i) {
@@ -241,22 +242,42 @@ std::string buildDeviceStatusJson(const DeviceStatusInputs& in) {
     out.append("\"job\":{");
     appendKeyString(out, "recipeId", s.active_recipe_id[0] != '\0' ? s.active_recipe_id : "pour");
     appendKeyString(out, "state", "pouring");
-    appendKeyInt(out, "progress",
-                 computeSequenceProgressPercent(s.sequence_step_index, s.sequence_step_count));
+    appendKeyInt(out, "progress", static_cast<int>(s.sequence_progress));
     appendKeyString(out, "stepLabel", pourStepLabel(s.sequence_ingredient), false);
     out.append("},");
     out.append("\"pumpJob\":null,");
   } else if (s.job_terminal == JobTerminalState::kComplete ||
-             s.job_terminal == JobTerminalState::kCancelled) {
+             s.job_terminal == JobTerminalState::kCancelled ||
+             s.job_terminal == JobTerminalState::kError) {
     out.append("\"job\":{");
     appendKeyString(out, "recipeId",
                     s.terminal_recipe_id[0] != '\0' ? s.terminal_recipe_id : "pour");
-    appendKeyString(out, "state",
-                    s.job_terminal == JobTerminalState::kComplete ? "complete" : "cancelled");
-    appendKeyInt(out, "progress", s.job_terminal == JobTerminalState::kComplete ? 100 : 0);
-    appendKeyString(
-        out, "stepLabel",
-        s.job_terminal == JobTerminalState::kComplete ? "Pour complete" : "Pour cancelled", false);
+    const char* state = "complete";
+    const char* label = "Pour complete";
+    int progress = 100;
+    if (s.job_terminal == JobTerminalState::kCancelled) {
+      state = "cancelled";
+      label = "Pour cancelled";
+      progress = 0;
+    } else if (s.job_terminal == JobTerminalState::kError) {
+      state = "error";
+      progress = 0;
+      switch (s.job_reject) {
+        case JobReject::kFlowTimeout:
+          label = "No flow detected — check glass and scale";
+          break;
+        case JobReject::kScaleNotReady:
+        case JobReject::kScaleFault:
+          label = "Scale not ready";
+          break;
+        default:
+          label = "Pour failed";
+          break;
+      }
+    }
+    appendKeyString(out, "state", state);
+    appendKeyInt(out, "progress", progress);
+    appendKeyString(out, "stepLabel", label, false);
     out.append("},");
     out.append("\"pumpJob\":null,");
   } else if (s.job_busy && s.pump_job_pump_id > 0) {

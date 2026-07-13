@@ -8,6 +8,7 @@ export function isTerminalPourJob(job: PourJob): boolean {
   return (
     job.state === 'complete' ||
     job.state === 'cancelled' ||
+    job.state === 'error' ||
     job.state === 'idle'
   );
 }

@@ -5,6 +5,16 @@ import { memoryLocation } from 'wouter/memory-location';
 import { App } from '@/app';
 import { renderWithProviders } from '@/test/render';
 
+vi.mock('@/hooks/use-device-status', () => ({
+  useDeviceStatus: () => ({
+    status: { connected: true, bindings: {} },
+    error: null,
+    loading: false,
+    connected: true,
+    refresh: vi.fn(),
+  }),
+}));
+
 vi.mock('@/pages/menu-page', () => ({
   MenuPage: () => <div>Menu page</div>,
 }));

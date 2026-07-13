@@ -238,3 +238,35 @@ void Coordinator::finish(JobResult result) {
     last_reject_ = JobReject::kNone;
   }
 }
+
+uint8_t Coordinator::dispenseProgressPercent(unsigned long now_ms) const {
+  if (state_ != JobState::kDispensing) {
+    return 0;
+  }
+  switch (phase_) {
+    case Phase::kFlowWait: {
+      // Pump is on but timed pour has not started — keep overall bar moving slowly.
+      if (flow_wait_max_ms_ == 0) {
+        return 0;
+      }
+      const unsigned long elapsed = now_ms - flow_wait_start_ms_;
+      const unsigned long clamped = elapsed > flow_wait_max_ms_ ? flow_wait_max_ms_ : elapsed;
+      return static_cast<uint8_t>((clamped * 10UL) / flow_wait_max_ms_);  // 0–10%
+    }
+    case Phase::kPour: {
+      if (pour_ms_ == 0) {
+        return 0;
+      }
+      const unsigned long elapsed = now_ms - pour_start_ms_;
+      const unsigned long clamped = elapsed > pour_ms_ ? pour_ms_ : elapsed;
+      const unsigned long pct = (clamped * 100UL) / pour_ms_;
+      return static_cast<uint8_t>(pct > 100UL ? 100UL : pct);
+    }
+    case Phase::kAntiDrip:
+      return 100;
+    case Phase::kIdle:
+    case Phase::kPrime:
+    default:
+      return 0;
+  }
+}

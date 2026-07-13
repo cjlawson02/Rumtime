@@ -13,7 +13,6 @@ import {
   wizardPumpStatus,
 } from '@/test/wizard-mocks';
 
-const cancelPumpDispense = vi.fn();
 const updatePrimed = vi.fn();
 const dispenseSession = createMockPumpDispenseSession();
 
@@ -24,7 +23,6 @@ vi.mock('@/hooks/use-device-status', () => ({
 }));
 
 vi.mock('@/hooks/use-device-mutations', () => ({
-  useCancelPumpDispense: () => ({ mutateAsync: cancelPumpDispense }),
   useUpdatePrimed: () => ({ mutateAsync: updatePrimed }),
 }));
 
@@ -35,12 +33,11 @@ vi.mock('@/hooks/use-pump-dispense-session', () => ({
 describe('PrimeWizard', () => {
   beforeEach(() => {
     deviceStatus = { ...wizardPumpStatus, pumpJob: null };
-    cancelPumpDispense.mockReset();
     updatePrimed.mockReset();
     dispenseSession.startRun.mockClear();
     dispenseSession.emergencyStop.mockClear();
+    dispenseSession.stopRun.mockClear();
     dispenseSession.closeWizard.mockClear();
-    cancelPumpDispense.mockResolvedValue(undefined);
     updatePrimed.mockResolvedValue(undefined);
     dispenseSession.startRun.mockImplementation((options) => {
       if (options.tracker) {
@@ -138,7 +135,13 @@ describe('PrimeWizard', () => {
     await user.click(getByRole('button', { name: 'Start priming' }));
     await user.click(getByRole('button', { name: 'Nozzle is wet' }));
 
-    expect(cancelPumpDispense).toHaveBeenCalledOnce();
+    expect(dispenseSession.stopRun).toHaveBeenCalledWith({
+      tracker: expect.objectContaining({
+        current: expect.any(Object) as PumpPourTracker,
+      }) as { current: PumpPourTracker },
+      resetTracker: false,
+      waitForIdle: { pumpId: 1 },
+    });
     expect(updatePrimed).toHaveBeenCalledWith({
       ingredientId: 'bourbon',
       primed: true,

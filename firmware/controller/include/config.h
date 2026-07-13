@@ -80,7 +80,8 @@ constexpr unsigned long kControlTaskPeriodMs = 5;
 constexpr int kControlTaskCore = 1;
 constexpr unsigned int kControlTaskPriority = 10;
 // ESP-IDF xTaskCreatePinnedToCore expects stack depth in bytes.
-constexpr unsigned int kControlTaskStackBytes = 4096;
+// StatusSnapshot is ~1376 B; tick() must not hold multiple copies on stack (see control_task.cpp).
+constexpr unsigned int kControlTaskStackBytes = 8192;
 constexpr unsigned int kControlTaskWdtTimeoutMs = 2000;
 
 // Idle NVS commit retry interval when a prior commit failed (avoid hammering flash).
@@ -122,6 +123,12 @@ constexpr unsigned long kWifiReconnectCooldownMs = 500;
 constexpr unsigned long kWifiReconnectBackoffMs = 10000;
 constexpr unsigned long kWifiConnectTimeoutMs = 45000;
 
+// Kiosk HTTP heartbeat while an HTTP-started job is busy.
+// Kiosk polls GET /status at ~500 ms; miss several polls → cancel.
+// STA disconnect still cancels immediately (wifi_link_safety); this covers
+// "Wi-Fi up, kiosk dead/backgrounded" and is a backup if the STA event is missed.
+constexpr unsigned long kKioskHeartbeatTimeoutMs = 3000;
+
 // Wi-Fi credentials NVS (separate from machine config blob).
 constexpr const char* kWifiCredNamespace = "rumtime-wifi";
 constexpr const char* kWifiSsidKey = "wifi_ssid";
@@ -139,4 +146,5 @@ constexpr float kDefaultBottleSizeMl = 750.0f;
 constexpr float kInventoryReserveMl = 10.0f;  // matches kiosk INVENTORY_RESERVE_ML
 
 // Recipe job terminal latch on GET /status (kiosk pour-page complete detection).
-constexpr unsigned long kJobTerminalLatchMs = 500;
+// Long enough to survive a brief Wi-Fi blip / missed poll after cancel or flow-timeout.
+constexpr unsigned long kJobTerminalLatchMs = 3000;

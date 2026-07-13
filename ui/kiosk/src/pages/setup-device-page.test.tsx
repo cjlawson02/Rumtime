@@ -45,6 +45,14 @@ vi.mock('@/hooks/use-device-endpoint', () => ({
 const connectedStatus: DeviceStatus = {
   connected: true,
   firmwareVersion: '1.2.3',
+  link: {
+    ssid: 'IoT',
+    ip: '192.168.5.29',
+    rssi: -61,
+    lastDisconnectReason: 8,
+    uptimeSeconds: 3725,
+    freeHeap: 204800,
+  },
   bindings: {},
   pumps: [],
 };
@@ -70,6 +78,12 @@ describe('SetupDevicePage', () => {
     expect(getByText('Connected')).toBeInTheDocument();
     expect(getByText('1.2.3')).toBeInTheDocument();
     expect(getByText('rumtime.local')).toBeInTheDocument();
+    expect(getByText('IoT')).toBeInTheDocument();
+    expect(getByText('192.168.5.29')).toBeInTheDocument();
+    expect(getByText('-61 dBm')).toBeInTheDocument();
+    expect(getByText('1h 2m')).toBeInTheDocument();
+    expect(getByText('200 KB')).toBeInTheDocument();
+    expect(getByText('8 (assoc leave)')).toBeInTheDocument();
   });
 
   it('shows offline state and last error when disconnected', () => {

@@ -69,8 +69,35 @@ describe('usePumpDispenseSession', () => {
     });
     expect(trackerRef.current.pending).toBe(true);
     expect(trackerRef.current.seenRunning).toBe(false);
-    expect(fetchDeviceStatus).toHaveBeenCalledOnce();
+    expect(fetchDeviceStatus).toHaveBeenCalledTimes(2);
     expect(result.current.error).toBeNull();
+  });
+
+  it('refuses to start when a recipe pour is active', async () => {
+    fetchDeviceStatus.mockResolvedValue({
+      connected: true,
+      bindings: {},
+      job: {
+        recipeId: 'gin-tonic',
+        state: 'pouring',
+        progress: 40,
+        stepLabel: 'Pouring gin',
+      },
+    });
+    const trackerRef = { current: createPumpPourTracker() };
+    const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
+
+    await act(async () => {
+      await result.current.startRun({
+        pumpId: 2,
+        purpose: 'prime',
+        tracker: trackerRef,
+      });
+    });
+
+    expect(startMutateAsync).not.toHaveBeenCalled();
+    expect(trackerRef.current).toEqual(createPumpPourTracker());
+    expect(result.current.error).toMatch(/pouring a drink/i);
   });
 
   it('resets the tracker and surfaces errors when start fails', async () => {
@@ -89,6 +116,29 @@ describe('usePumpDispenseSession', () => {
 
     expect(trackerRef.current).toEqual(createPumpPourTracker());
     expect(result.current.error).toBe('Device offline');
+  });
+
+  it('waits for the pump to stop before config updates when requested', async () => {
+    fetchDeviceStatus
+      .mockResolvedValueOnce({
+        connected: true,
+        bindings: {},
+        pumpJob: runningJob,
+      })
+      .mockResolvedValueOnce({ connected: true, bindings: {}, pumpJob: null });
+    const trackerRef = { current: createPumpPourTracker() };
+    const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
+
+    await act(async () => {
+      await result.current.stopRun({
+        tracker: trackerRef,
+        waitForIdle: { pumpId: 2 },
+      });
+    });
+
+    expect(cancelMutateAsync).toHaveBeenCalledOnce();
+    expect(fetchDeviceStatus).toHaveBeenCalledTimes(2);
+    expect(trackerRef.current).toEqual(createPumpPourTracker());
   });
 
   it('calls cancel and optionally resets the tracker on stop', async () => {

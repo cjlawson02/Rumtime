@@ -8,12 +8,6 @@ bool commitMachineStores(ConfigStore& config, InventoryStore& inventory, void (*
   if (!config_dirty && !inventory_dirty) {
     return true;
   }
-  if (!config_dirty) {
-    return inventory.commit(feed_wdt);
-  }
-  if (!inventory_dirty) {
-    return config.commit(feed_wdt);
-  }
 
   const NvsOps* ops = config.ops_;
   if (ops == nullptr || ops->begin == nullptr || ops->setBlob == nullptr) {
@@ -21,6 +15,13 @@ bool commitMachineStores(ConfigStore& config, InventoryStore& inventory, void (*
   }
   if (!ops->begin(kNvsNamespace)) {
     return false;
+  }
+
+  if (!config_dirty) {
+    return inventory.commit(feed_wdt);
+  }
+  if (!inventory_dirty) {
+    return config.commit(feed_wdt);
   }
 
   config.record_.crc32 = crc32OfRecord(config.record_);

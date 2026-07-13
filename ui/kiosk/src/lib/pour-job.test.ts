@@ -23,9 +23,10 @@ describe('isActivePourJob', () => {
 });
 
 describe('isTerminalPourJob', () => {
-  it('treats complete, cancelled, and idle as terminal', () => {
+  it('treats complete, cancelled, error, and idle as terminal', () => {
     expect(isTerminalPourJob({ ...baseJob, state: 'complete' })).toBe(true);
     expect(isTerminalPourJob({ ...baseJob, state: 'cancelled' })).toBe(true);
+    expect(isTerminalPourJob({ ...baseJob, state: 'error' })).toBe(true);
     expect(isTerminalPourJob({ ...baseJob, state: 'idle' })).toBe(true);
   });
 

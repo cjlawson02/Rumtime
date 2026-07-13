@@ -13,6 +13,8 @@ struct WiFiStatus {
   char ssid[33] = {0};
   char ip[16] = {0};
   int rssi = 0;
+  // Latched Espressif wifi_err_reason_t from the last unexpected STA drop (0 = none).
+  uint8_t last_disconnect_reason = 0;
 };
 
 class WiFiManager {
@@ -48,9 +50,11 @@ class WiFiManager {
   WiFiStatus status_;
   std::atomic<bool> reconnect_requested_{false};
   std::atomic<bool> disconnect_pending_{false};
+  std::atomic<uint8_t> last_disconnect_reason_{0};
   unsigned long last_reconnect_attempt_ms_ = 0;
   unsigned long connect_started_ms_ = 0;
   bool connect_in_progress_ = false;
   bool prefer_immediate_reconnect_ = false;
+  bool intentional_disconnect_ = false;
   bool mdns_started_ = false;
 };

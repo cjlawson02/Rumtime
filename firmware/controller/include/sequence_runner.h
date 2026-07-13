@@ -64,6 +64,10 @@ class SequenceRunner {
     return current_ingredient_;
   }
 
+  // Overall pour progress 0–100 weighted by each step's pour+anti-drip duration.
+  // in_step_progress is the active step's 0–100 (from Coordinator).
+  uint8_t progressPercent(uint8_t in_step_progress) const;
+
   // Clear terminal result after a completed sequence so a later coordinator job
   // is not shadowed in the status snapshot (ControlTask calls on dispense/prime).
   void clearTerminalResult();
@@ -77,6 +81,7 @@ class SequenceRunner {
     uint32_t anti_drip_ms = 0;
   };
 
+  static uint32_t stepDurationMs(const ResolvedStep& step);
   bool resolveSteps(const PourSequenceStep* steps, uint8_t step_count);
   bool startCurrentStep(unsigned long now_ms);
   void finish(Coordinator::JobResult result, JobReject reject = JobReject::kNone);

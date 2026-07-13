@@ -20,6 +20,7 @@ import {
   resetPumpPourTracker,
   type PumpPourTracker,
 } from '@/lib/pump-pour-lifecycle';
+import { waitForPumpJobIdle } from '@/lib/wait-for-pump-idle';
 
 export type StartRunOptions = {
   pumpId: number;
@@ -53,6 +54,24 @@ export function usePumpDispenseSession() {
       setStarting(true);
       setError(null);
       try {
+        let latest;
+        try {
+          latest = await fetchDeviceStatus(queryClient);
+        } catch {
+          setError('Could not verify device status — try again.');
+          return;
+        }
+
+        if (
+          latest.job?.state === 'pouring' ||
+          latest.job?.state === 'prompt'
+        ) {
+          setError(
+            'Machine is pouring a drink — wait for the pour to finish before running setup.',
+          );
+          return;
+        }
+
         resetPumpPourTracker(trackerRef.current);
         await startPumpDispense.mutateAsync({
           pumpId: options.pumpId,
@@ -78,19 +97,28 @@ export function usePumpDispenseSession() {
     async (options?: {
       tracker?: RefObject<PumpPourTracker>;
       resetTracker?: boolean;
+      waitForIdle?: boolean | { pumpId?: number };
     }) => {
       setError(null);
       try {
         await cancelPumpDispense.mutateAsync();
+        if (options?.waitForIdle) {
+          const pumpId =
+            typeof options.waitForIdle === 'object'
+              ? options.waitForIdle.pumpId
+              : undefined;
+          await waitForPumpJobIdle(queryClient, { pumpId });
+        }
       } catch (err) {
         setError(deviceErrorMessage(err));
+        throw err;
       } finally {
         if (options?.resetTracker !== false && options?.tracker) {
           resetPumpPourTracker(options.tracker.current);
         }
       }
     },
-    [cancelPumpDispense],
+    [cancelPumpDispense, queryClient],
   );
 
   const emergencyStop = useCallback(

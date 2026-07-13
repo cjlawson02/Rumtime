@@ -23,7 +23,7 @@ enum class JobReject : uint8_t {
 };
 
 // Brief terminal recipe job state for GET /status (kiosk pour-page).
-enum class JobTerminalState : uint8_t { kNone = 0, kComplete = 1, kCancelled = 2 };
+enum class JobTerminalState : uint8_t { kNone = 0, kComplete = 1, kCancelled = 2, kError = 3 };
 
 // Published binding/pump rows — copied from ConfigStore/InventoryStore on ControlTask only.
 struct SnapshotBinding {
@@ -67,6 +67,8 @@ struct StatusSnapshot {
   bool sequence_busy = false;
   uint8_t sequence_step_index = 0;
   uint8_t sequence_step_count = 0;
+  uint8_t sequence_step_progress = 0;  // 0–100 within the current step
+  uint8_t sequence_progress = 0;       // 0–100 overall, weighted by step duration
   char sequence_ingredient[kIngredientIdMax] = {0};
   char active_recipe_id[kRecipeIdMax] = {0};
 

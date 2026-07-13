@@ -15,21 +15,25 @@ Preferences g_wifi_prefs;
 WiFiManager* WiFiManager::instance_ = nullptr;
 
 void WiFiManager::onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
-  (void)info;
   if (instance_ == nullptr) {
     return;
   }
   switch (event) {
 #if defined(ARDUINO_EVENT_WIFI_STA_DISCONNECTED)
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+      instance_->last_disconnect_reason_.store(info.wifi_sta_disconnected.reason,
+                                               std::memory_order_relaxed);
       instance_->disconnect_pending_.store(true, std::memory_order_release);
       break;
 #elif defined(WIFI_EVENT_STA_DISCONNECTED)
     case WIFI_EVENT_STA_DISCONNECTED:
+      instance_->last_disconnect_reason_.store(info.wifi_sta_disconnected.reason,
+                                               std::memory_order_relaxed);
       instance_->disconnect_pending_.store(true, std::memory_order_release);
       break;
 #endif
     default:
+      (void)info;
       break;
   }
 }
@@ -39,6 +43,9 @@ void WiFiManager::begin() {
   WiFi.mode(WIFI_STA);
   WiFi.persistent(false);
   WiFi.setAutoReconnect(false);
+  // Pump motors + PCB antenna: modem sleep makes brief EMI look like a link drop.
+  WiFi.setSleep(WIFI_PS_NONE);
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);
   WiFi.setHostname(kMdnsHostname);
   WiFi.onEvent(onWiFiEvent);
   loadCredentialsFromNvs();
@@ -121,7 +128,8 @@ void WiFiManager::clearCredentials() {
   connect_in_progress_ = false;
   prefer_immediate_reconnect_ = false;
   last_reconnect_attempt_ms_ = 0;
-  WiFi.disconnect(true);
+  intentional_disconnect_ = true;
+  WiFi.disconnect(/*wifioff=*/false, /*eraseap=*/true);
   mdns_started_ = false;
   updateStatus();
 }
@@ -139,7 +147,9 @@ void WiFiManager::startConnect() {
   if (ssid.length() == 0) {
     return;
   }
-  WiFi.disconnect(true);
+  // Do not WiFi.disconnect(true) here — that races with disconnect_pending_ and
+  // used to clear connect_in_progress_ on the next tick.
+  WiFi.setSleep(WIFI_PS_NONE);
   WiFi.begin(ssid.c_str(), pass.c_str());
   connect_in_progress_ = true;
   connect_started_ms_ = millis();
@@ -191,14 +201,28 @@ void WiFiManager::tick() {
 
   if (disconnect_pending_.exchange(false, std::memory_order_acq_rel)) {
     mdns_started_ = false;
-    connect_in_progress_ = false;
-    prefer_immediate_reconnect_ = true;
+    const uint8_t reason =
+        last_disconnect_reason_.exchange(0, std::memory_order_relaxed);
+    if (intentional_disconnect_) {
+      intentional_disconnect_ = false;
+    } else {
+      // Unexpected drop (EMI, AP kick, etc.) — reconnect ASAP.
+      prefer_immediate_reconnect_ = true;
+      connect_in_progress_ = false;
+      status_.last_disconnect_reason = reason;
+      Serial.print("wifi: disconnected reason=");
+      Serial.println(reason);
+    }
   }
 
   updateStatus();
 
-  if (status_.connected && !connect_in_progress_) {
+  // Success path: must clear connect_in_progress_ or the 45s connect timeout
+  // force-disconnects a healthy link in a loop.
+  if (status_.connected) {
+    connect_in_progress_ = false;
     prefer_immediate_reconnect_ = false;
+    intentional_disconnect_ = false;
     startMdns();
     return;
   }
@@ -209,10 +233,12 @@ void WiFiManager::tick() {
 
   if (connect_in_progress_) {
     if ((now - connect_started_ms_) >= kWifiConnectTimeoutMs) {
-      WiFi.disconnect(true);
+      intentional_disconnect_ = true;
+      WiFi.disconnect(/*wifioff=*/false, /*eraseap=*/false);
       connect_in_progress_ = false;
       last_reconnect_attempt_ms_ = now;
       prefer_immediate_reconnect_ = false;
+      Serial.println("wifi: connect timeout");
     } else {
       return;
     }

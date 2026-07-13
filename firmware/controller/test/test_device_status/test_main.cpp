@@ -83,11 +83,23 @@ void test_device_status_idle_null_jobs() {
   snap.scale_ready = true;
   DeviceStatusInputs in;
   in.wifi_connected = true;
+  in.wifi_ssid = "IoT";
+  in.wifi_ip = "192.168.5.29";
+  in.wifi_rssi = -61;
+  in.wifi_last_disconnect_reason = 8;
+  in.uptime_ms = 3725000;
+  in.free_heap = 204800;
   in.snapshot = &snap;
   const std::string json = buildDeviceStatusJson(in);
   TEST_ASSERT_TRUE(jsonContains(json, "\"job\":null"));
   TEST_ASSERT_TRUE(jsonContains(json, "\"pumpJob\":null"));
   TEST_ASSERT_TRUE(jsonContains(json, "\"connected\":true"));
+  TEST_ASSERT_TRUE(jsonContains(json, "\"ssid\":\"IoT\""));
+  TEST_ASSERT_TRUE(jsonContains(json, "\"ip\":\"192.168.5.29\""));
+  TEST_ASSERT_TRUE(jsonContains(json, "\"rssi\":-61"));
+  TEST_ASSERT_TRUE(jsonContains(json, "\"lastDisconnectReason\":8"));
+  TEST_ASSERT_TRUE(jsonContains(json, "\"uptimeSeconds\":3725"));
+  TEST_ASSERT_TRUE(jsonContains(json, "\"freeHeap\":204800"));
 }
 
 void test_device_status_sequence_pouring() {
@@ -95,6 +107,8 @@ void test_device_status_sequence_pouring() {
   snap.sequence_busy = true;
   snap.sequence_step_index = 1;
   snap.sequence_step_count = 2;
+  snap.sequence_step_progress = 0;
+  snap.sequence_progress = 50;
   std::strncpy(snap.sequence_ingredient, "bourbon", kIngredientIdMax - 1);
   std::strncpy(snap.active_recipe_id, "old-fashioned", kRecipeIdMax - 1);
 
@@ -104,6 +118,35 @@ void test_device_status_sequence_pouring() {
   TEST_ASSERT_TRUE(jsonContains(json, "\"state\":\"pouring\""));
   TEST_ASSERT_TRUE(jsonContains(json, "\"recipeId\":\"old-fashioned\""));
   TEST_ASSERT_TRUE(jsonContains(json, "\"progress\":50"));
+}
+
+void test_device_status_sequence_includes_step_progress() {
+  StatusSnapshot snap;
+  snap.sequence_busy = true;
+  snap.sequence_step_index = 0;
+  snap.sequence_step_count = 2;
+  snap.sequence_step_progress = 50;
+  // Duration-weighted overall (e.g. long first step half done).
+  snap.sequence_progress = 40;
+  std::strncpy(snap.sequence_ingredient, "bourbon", kIngredientIdMax - 1);
+  std::strncpy(snap.active_recipe_id, "old-fashioned", kRecipeIdMax - 1);
+
+  DeviceStatusInputs in;
+  in.snapshot = &snap;
+  const std::string json = buildDeviceStatusJson(in);
+  TEST_ASSERT_TRUE(jsonContains(json, "\"progress\":40"));
+}
+
+void test_device_status_job_terminal_flow_timeout_message() {
+  StatusSnapshot snap;
+  snap.job_terminal = JobTerminalState::kError;
+  snap.job_reject = JobReject::kFlowTimeout;
+  std::strncpy(snap.terminal_recipe_id, "old-fashioned", kRecipeIdMax - 1);
+  DeviceStatusInputs in;
+  in.snapshot = &snap;
+  const std::string json = buildDeviceStatusJson(in);
+  TEST_ASSERT_TRUE(jsonContains(json, "\"state\":\"error\""));
+  TEST_ASSERT_TRUE(jsonContains(json, "No flow detected"));
 }
 
 void test_device_status_prime_pump_job() {
@@ -148,6 +191,18 @@ void test_device_status_job_terminal_complete() {
   TEST_ASSERT_TRUE(jsonContains(json, "\"state\":\"complete\""));
   TEST_ASSERT_TRUE(jsonContains(json, "\"recipeId\":\"daiquiri\""));
   TEST_ASSERT_TRUE(jsonContains(json, "\"pumpJob\":null"));
+}
+
+void test_device_status_job_terminal_error() {
+  StatusSnapshot snap;
+  snap.job_terminal = JobTerminalState::kError;
+  std::strncpy(snap.terminal_recipe_id, "old-fashioned", kRecipeIdMax - 1);
+  DeviceStatusInputs in;
+  in.snapshot = &snap;
+  const std::string json = buildDeviceStatusJson(in);
+  TEST_ASSERT_TRUE(jsonContains(json, "\"state\":\"error\""));
+  TEST_ASSERT_TRUE(jsonContains(json, "\"stepLabel\":\"Pour failed\""));
+  TEST_ASSERT_TRUE(jsonContains(json, "\"recipeId\":\"old-fashioned\""));
 }
 
 void test_device_status_published_bindings() {
@@ -240,9 +295,12 @@ int main() {
   UNITY_BEGIN();
   RUN_TEST(test_device_status_idle_null_jobs);
   RUN_TEST(test_device_status_sequence_pouring);
+  RUN_TEST(test_device_status_sequence_includes_step_progress);
   RUN_TEST(test_device_status_prime_pump_job);
   RUN_TEST(test_device_status_verify_pump_job);
   RUN_TEST(test_device_status_job_terminal_complete);
+  RUN_TEST(test_device_status_job_terminal_error);
+  RUN_TEST(test_device_status_job_terminal_flow_timeout_message);
   RUN_TEST(test_device_status_published_bindings);
   RUN_TEST(test_device_status_notifications_scale_not_ready);
   RUN_TEST(test_device_status_config_op_apply_failed_notification);

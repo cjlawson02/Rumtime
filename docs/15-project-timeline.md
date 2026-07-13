@@ -4,7 +4,7 @@ Living Gantt and procurement log for Rumtime v1. Update after bench sessions, or
 
 Reference: [`09-build-plan-and-verification.md`](09-build-plan-and-verification.md), [`14-bench-test-protocol.md`](14-bench-test-protocol.md).
 
-**Last updated:** 2026-06-27 (returns: 2× 24 V pumps shipped; smooth couplers **not yet returned** — see procurement notes).
+**Last updated:** 2026-07-12 (session 03: product pour / cancel / disconnect; scale still not wired).
 
 ## Gantt chart
 
@@ -68,6 +68,7 @@ gantt
 | 2026-06-27 | Session 01 — TB6612 + P1 bring-up (no scale yet) | `bench-results/2026-06-27-session-01.md` |
 | 2026-06-27 | Session 02 — P1+P2 @ 1.75 ml/s, anti-drip 100 ms | `bench-results/2026-06-27-session-02.md` |
 | 2026-06-27 | 2× 24 V pumps returned; smooth couplers return **pending** (1.8 mm ID, on hand) | Operator |
+| 2026-07-12 | Session 03 — product FW/kiosk pour (open-loop), cancel, Wi‑Fi disconnect stop | `bench-results/2026-07-12-session-03.md` |
 | TBD        | Tests 7–9 pass (load cell + flow-gate)         | — |
 | TBD        | Test 10 pass (PCA9685 I2C)                      | — |
 | TBD        | Phase 0–1 exit → order 4-pump PCB              | `14-bench-test-protocol.md` exit checklist |
@@ -79,6 +80,7 @@ gantt
 | ---------- | ------- | ----- |
 | 2026-06-27 | 01      | Firmware, TB6612, P1 dry spin (scale not wired) |
 | 2026-06-27 | 02      | Water prime, flow cal, P2, anti-drip, Test 4b partial |
+| 2026-07-12 | 03      | Product controller + kiosk: open-loop pour, cancel, disconnect stop (no scale) |
 
 ## Procurement log
 
@@ -94,12 +96,12 @@ Fill **ordered** and **received** as you go. Sourced from [`13-phase-0-mini-bom.
 | PP barb unions (Quickun B08L5DTRCK class) | 1 set | 2026-06-27 | **Wrong SKU — return pending** | Shipped as **smooth silicone couplers** (slip join, not barbed). **Not yet returned** (post office pending). Operator measured **1.8 mm ID** bore vs **3 mm** line tubing. **Not** a barb union; on outlet (tube in one end, pour from other) narrows orifice vs open 3 mm tube. Food-contact rating not verified. Sessions 01–02 used **open ~3 mm outlet** (no restriction at tip). |
 | Spring clamps | 1 set | 2026-06-27 | OK | |
 | Inline fuse + main power cutoff | 1 | 2026-06-27 | OK | Not installed yet |
-| Estardyn 5 kg load cell bar + HX711 | 1 set | — | **Pending** | Ordered **2026-06-23**; bundled kit **ships together** — not in hand as of 2026-06-27; blocks Tests 7–9 |
+| Estardyn 5 kg load cell bar + HX711 | 1 set | — | **Pending** | Ordered **2026-06-23**; **still not wired** as of session 03 (2026-07-12); blocks Tests 7–9 |
 | Graduated cylinder (250 ml) | 1 | 2026-06-27 | OK | In use session 02 |
 | Breadboard + jumpers | 1 | 2026-06-27 | OK | |
 | PCA9685 breakout | 1 | — | — | Buy after liquid tests (Test 10) |
 
-**Order dates:** Bulk mini-BOM **2026-06-18** (delivered **2026-06-27**). Load cell bar + HX711 **2026-06-23** — separate shipment, still in transit.
+**Order dates:** Bulk mini-BOM **2026-06-18** (delivered **2026-06-27**). Load cell bar + HX711 **2026-06-23** — **not wired** as of 2026-07-12 (Tests 7–9 blocked).
 
 ### Open replacements
 

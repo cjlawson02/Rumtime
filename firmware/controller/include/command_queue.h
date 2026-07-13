@@ -65,13 +65,17 @@ class CommandQueue {
   // Returns false when the single slot is already full (busy / duplicate).
   bool enqueueDispense(const DispenseCommand& command);
   bool enqueuePrime(const PrimeCommand& command);
-  bool enqueuePrimeStop();
+  // Operator prime stop — side-channel like cancel (idempotent; always succeeds).
+  void enqueuePrimeStop();
   bool enqueuePourSequence(const PourSequenceCommand& command);
   void enqueueCancel();
 
-  // drainCancel() processes any pending cancel first (docs/16 tick order).
-  // job_was_busy: only drop a queued command when cancelling an active job.
+  // drainCancel(): process pending cancel. Drops a queued command when the job
+  // was busy or the depth-1 slot already holds a command, unless
+  // markCommandAfterCancel() preserved it (same-poll cancel then command).
   bool drainCancel(bool job_was_busy);
+  // True once when operator prime-stop was requested; cancel supersedes.
+  bool drainPrimeStop();
   // Pops at most one command; false when the slot is empty.
   bool drainCommand(Command& out);
 
@@ -85,5 +89,6 @@ class CommandQueue {
   const QueueOps* ops_ = nullptr;
   void* handle_ = nullptr;
   std::atomic<bool> cancel_pending_{false};
+  std::atomic<bool> prime_stop_pending_{false};
   bool preserve_queued_dispense_on_drain_ = false;
 };

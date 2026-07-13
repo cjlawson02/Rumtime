@@ -176,12 +176,9 @@ void SerialTransport::handleLine(char* line, const StatusSnapshot* status_overri
   }
 
   if (parsed.command.type == CommandType::kPrimeStop) {
-    if (queue_->enqueuePrimeStop()) {
-      command_enqueued_this_poll_ = true;
-      Serial.println("ok");
-    } else {
-      Serial.println("busy");
-    }
+    queue_->enqueuePrimeStop();
+    command_enqueued_this_poll_ = true;
+    Serial.println("ok");
     return;
   }
 

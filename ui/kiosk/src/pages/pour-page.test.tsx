@@ -205,6 +205,17 @@ describe('PourPage', () => {
       ...ginTonicDevice,
       job: {
         recipeId: 'gin-tonic',
+        state: 'pouring',
+        progress: 40,
+        stepLabel: 'Pouring gin',
+      },
+    };
+    view.rerender(<PourPage />);
+
+    deviceState.status = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
         state: 'complete',
         progress: 100,
         stepLabel: 'Done',
@@ -241,6 +252,58 @@ describe('PourPage', () => {
 
     expect(await findByText(/Bourbon low/i)).toBeInTheDocument();
     expect(startPourMutate).not.toHaveBeenCalled();
+  });
+
+  it('keeps inventory bypass across a remount and consumes it after start', async () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+      removeItem: (key: string) => {
+        store.delete(key);
+      },
+      clear: () => {
+        store.clear();
+      },
+    });
+    const { grantPourInventoryBypass, peekPourInventoryBypass } = await import(
+      '@/lib/pour-inventory-bypass'
+    );
+    grantPourInventoryBypass('old-fashioned');
+
+    fetchDeviceStatus.mockResolvedValue({
+      ...pourReadyDevice,
+      bindings: {
+        bourbon: {
+          ingredientId: 'bourbon',
+          remainingMl: 5,
+          bottleSizeMl: 750,
+          primed: true,
+        },
+        simple: {
+          ingredientId: 'simple',
+          remainingMl: 750,
+          bottleSizeMl: 750,
+          primed: true,
+        },
+      },
+    });
+
+    const user = userEvent.setup();
+    const first = renderWithProviders(<PourPage />);
+    first.unmount();
+
+    expect(peekPourInventoryBypass('old-fashioned')).toBe(true);
+
+    const view = renderWithProviders(<PourPage />);
+    await user.click(view.getByRole('button', { name: 'Done' }));
+
+    expect(startPourMutate).toHaveBeenCalled();
+    expect(peekPourInventoryBypass('old-fashioned')).toBe(false);
+
+    vi.unstubAllGlobals();
   });
 
   it('cancels an active pour and returns to the drink screen', async () => {
@@ -284,6 +347,17 @@ describe('PourPage', () => {
       ...ginTonicDevice,
       job: {
         recipeId: 'gin-tonic',
+        state: 'pouring',
+        progress: 10,
+        stepLabel: 'Pouring gin',
+      },
+    };
+    view.rerender(<PourPage />);
+
+    deviceState.status = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
         state: 'cancelled',
         progress: 0,
         stepLabel: 'Cancelled',
@@ -295,6 +369,195 @@ describe('PourPage', () => {
     expect(
       view.getByRole('link', { name: 'Back to drink' }),
     ).toHaveAttribute('href', '/drink/gin-tonic');
+  });
+
+  it('does not sticky-cancel when remounting while a previous cancelled job is still in status', async () => {
+    routeId.current = 'gin-tonic';
+    fetchDeviceStatus.mockResolvedValue({
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
+        state: 'cancelled',
+        progress: 0,
+        stepLabel: 'Cancelled',
+      },
+    });
+    deviceState.status = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
+        state: 'cancelled',
+        progress: 0,
+        stepLabel: 'Cancelled',
+      },
+    };
+
+    const user = userEvent.setup();
+    const view = renderWithProviders(<PourPage />);
+
+    expect(view.queryByText('Pour cancelled.')).not.toBeInTheDocument();
+
+    await user.click(view.getByRole('button', { name: 'Done' }));
+    expect(startPourMutate).toHaveBeenCalled();
+
+    deviceState.status = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
+        state: 'pouring',
+        progress: 20,
+        stepLabel: 'Pouring gin',
+      },
+    };
+    view.rerender(<PourPage />);
+
+    expect(view.getByText('Pouring gin')).toBeInTheDocument();
+    expect(view.queryByText('Pour cancelled.')).not.toBeInTheDocument();
+  });
+
+  it('latches complete without an intermediate pouring poll', async () => {
+    routeId.current = 'gin-tonic';
+    fetchDeviceStatus.mockResolvedValue(ginTonicDevice);
+    deviceState.status = ginTonicDevice;
+
+    const user = userEvent.setup();
+    const view = renderWithProviders(<PourPage />);
+
+    await user.click(view.getByRole('button', { name: 'Done' }));
+    expect(startPourMutate).toHaveBeenCalled();
+
+    deviceState.status = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
+        state: 'complete',
+        progress: 100,
+        stepLabel: 'Done',
+      },
+    };
+    view.rerender(<PourPage />);
+
+    expect(view.getByText('Tonic water')).toBeInTheDocument();
+    expect(view.queryByText('Waiting for pour to start…')).not.toBeInTheDocument();
+  });
+
+  it('shows pouring after start while a prior cancelled job is still in cache', async () => {
+    routeId.current = 'gin-tonic';
+    const cancelledStatus = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic' as const,
+        state: 'cancelled' as const,
+        progress: 0,
+        stepLabel: 'Cancelled',
+      },
+    };
+    fetchDeviceStatus.mockResolvedValue(cancelledStatus);
+    deviceState.status = cancelledStatus;
+
+    const user = userEvent.setup();
+    const view = renderWithProviders(<PourPage />);
+
+    await user.click(view.getByRole('button', { name: 'Done' }));
+    expect(startPourMutate).toHaveBeenCalled();
+    expect(view.queryByText('Pour cancelled.')).not.toBeInTheDocument();
+    expect(view.getByText('Waiting for pour to start…')).toBeInTheDocument();
+
+    deviceState.status = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
+        state: 'pouring',
+        progress: 15,
+        stepLabel: 'Pouring gin',
+      },
+    };
+    view.rerender(<PourPage />);
+
+    expect(view.getByText('Pouring gin')).toBeInTheDocument();
+  });
+
+  it('shows interrupted when an active pour disappears from status', async () => {
+    routeId.current = 'gin-tonic';
+    fetchDeviceStatus.mockResolvedValue(ginTonicDevice);
+    deviceState.status = ginTonicDevice;
+
+    const user = userEvent.setup();
+    const view = renderWithProviders(<PourPage />);
+
+    await user.click(view.getByRole('button', { name: 'Done' }));
+
+    deviceState.status = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
+        state: 'pouring',
+        progress: 10,
+        stepLabel: 'Pouring gin',
+      },
+    };
+    view.rerender(<PourPage />);
+    expect(view.getByText('Pouring gin')).toBeInTheDocument();
+
+    deviceState.status = { ...ginTonicDevice, job: null };
+    view.rerender(<PourPage />);
+
+    expect(
+      view.getByText(
+        'Pour stopped unexpectedly. Check the glass and scale, then try again.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      view.queryByText('Waiting for pour to start…'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the flow-timeout error after the terminal job latch clears', async () => {
+    routeId.current = 'gin-tonic';
+    fetchDeviceStatus.mockResolvedValue(ginTonicDevice);
+    deviceState.status = ginTonicDevice;
+
+    const user = userEvent.setup();
+    const view = renderWithProviders(<PourPage />);
+
+    await user.click(view.getByRole('button', { name: 'Done' }));
+
+    deviceState.status = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
+        state: 'pouring',
+        progress: 0,
+        stepLabel: 'Pouring gin',
+      },
+    };
+    view.rerender(<PourPage />);
+
+    deviceState.status = {
+      ...ginTonicDevice,
+      job: {
+        recipeId: 'gin-tonic',
+        state: 'error',
+        progress: 0,
+        stepLabel: 'No flow detected — check glass and scale',
+      },
+    };
+    view.rerender(<PourPage />);
+    expect(
+      view.getByText('No flow detected — check glass and scale'),
+    ).toBeInTheDocument();
+
+    deviceState.status = { ...ginTonicDevice, job: null };
+    view.rerender(<PourPage />);
+
+    expect(
+      view.getByText('No flow detected — check glass and scale'),
+    ).toBeInTheDocument();
+    expect(
+      view.queryByText(
+        'Pour stopped unexpectedly. Check the glass and scale, then try again.',
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it('shows a timeout message when the pour job never starts', async () => {
@@ -327,6 +590,56 @@ describe('PourPage', () => {
     vi.useRealTimers();
   });
 
+  it('keeps the complete screen after the terminal job latch clears', async () => {
+    vi.useFakeTimers();
+
+    routeId.current = 'margarita';
+    fetchDeviceStatus.mockResolvedValue(margaritaDevice);
+    deviceState.status = margaritaDevice;
+
+    const view = renderWithProviders(<PourPage />);
+
+    await act(async () => {
+      fireEvent.click(view.getByRole('button', { name: 'Done' }));
+      await Promise.resolve();
+    });
+
+    deviceState.status = {
+      ...margaritaDevice,
+      job: {
+        recipeId: 'margarita',
+        state: 'pouring',
+        progress: 20,
+        stepLabel: 'Pouring tequila',
+      },
+    };
+    view.rerender(<PourPage />);
+
+    deviceState.status = {
+      ...margaritaDevice,
+      job: {
+        recipeId: 'margarita',
+        state: 'complete',
+        progress: 100,
+        stepLabel: 'Done',
+      },
+    };
+    view.rerender(<PourPage />);
+    expect(view.getByText('Enjoy your Margarita')).toBeInTheDocument();
+
+    deviceState.status = { ...margaritaDevice, job: null };
+    view.rerender(<PourPage />);
+
+    expect(view.getByText('Enjoy your Margarita')).toBeInTheDocument();
+    expect(
+      view.queryByText(
+        'Pour stopped unexpectedly. Check the glass and scale, then try again.',
+      ),
+    ).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
   it('returns to the menu after a pour completes without post-pour steps', async () => {
     vi.useFakeTimers();
 
@@ -340,6 +653,17 @@ describe('PourPage', () => {
       fireEvent.click(view.getByRole('button', { name: 'Done' }));
       await Promise.resolve();
     });
+
+    deviceState.status = {
+      ...margaritaDevice,
+      job: {
+        recipeId: 'margarita',
+        state: 'pouring',
+        progress: 50,
+        stepLabel: 'Pouring tequila',
+      },
+    };
+    view.rerender(<PourPage />);
 
     deviceState.status = {
       ...margaritaDevice,

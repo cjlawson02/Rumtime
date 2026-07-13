@@ -17,6 +17,7 @@
 #include "queue_ops.h"
 #include "runtime_context.h"
 #include "scale_ops.h"
+#include "wifi_link_safety.h"
 
 namespace {
 
@@ -78,6 +79,10 @@ const ScaleOps kHx711Ops = {
 Preferences g_prefs;
 
 bool prefsBegin(const char* ns) {
+  // Preferences::begin() returns false when the namespace is already open.
+  // ConfigStore and InventoryStore both call begin() at boot; idle commit must
+  // reopen cleanly before putBytes.
+  g_prefs.end();
   return g_prefs.begin(ns, /*readOnly=*/false);
 }
 bool prefsGetBlob(const char* key, void* out, std::size_t len) {
@@ -165,10 +170,15 @@ void ControlTask::taskEntry(void* arg) {
 }
 
 void ControlTask::run() {
-  const uint32_t timeout_s = (kControlTaskWdtTimeoutMs + 999U) / 1000U;
-  esp_err_t wdt_err = esp_task_wdt_init(timeout_s, true);
+  // IDF 5.x: esp_task_wdt_init takes esp_task_wdt_config_t (Arduino-ESP32 3.x).
+  const esp_task_wdt_config_t wdt_config = {
+      .timeout_ms = kControlTaskWdtTimeoutMs,
+      .idle_core_mask = 0,
+      .trigger_panic = true,
+  };
+  esp_err_t wdt_err = esp_task_wdt_init(&wdt_config);
   if (wdt_err == ESP_ERR_INVALID_STATE) {
-    wdt_err = ESP_OK;
+    wdt_err = esp_task_wdt_reconfigure(&wdt_config);
   }
   if (wdt_err != ESP_OK) {
     fatalRestart("TWDT init/reconfigure failed; restarting");
@@ -243,9 +253,10 @@ void ControlTask::updatePumpJobSnapshot(StatusSnapshot& snapshot, unsigned long 
   snapshot.pump_job_duration_ms = pump_job_duration_ms_;
 }
 
-void ControlTask::armJobTerminal(JobTerminalState state, unsigned long now) {
+void ControlTask::armJobTerminal(JobTerminalState state, unsigned long now, JobReject reject) {
   job_terminal_ = state;
   job_terminal_until_ms_ = now + kJobTerminalLatchMs;
+  terminal_reject_ = reject;
   std::strncpy(terminal_recipe_id_, active_recipe_id_, kRecipeIdMax - 1);
   terminal_recipe_id_[kRecipeIdMax - 1] = '\0';
 }
@@ -255,11 +266,15 @@ void ControlTask::updateJobTerminalLatch(StatusSnapshot& snapshot, unsigned long
     job_terminal_ = JobTerminalState::kNone;
     job_terminal_until_ms_ = 0;
     terminal_recipe_id_[0] = '\0';
+    terminal_reject_ = JobReject::kNone;
   }
   snapshot.job_terminal = job_terminal_;
   if (job_terminal_ != JobTerminalState::kNone) {
     std::strncpy(snapshot.terminal_recipe_id, terminal_recipe_id_, kRecipeIdMax - 1);
     snapshot.terminal_recipe_id[kRecipeIdMax - 1] = '\0';
+    if (job_terminal_ == JobTerminalState::kError) {
+      snapshot.job_reject = terminal_reject_;
+    }
   } else {
     snapshot.terminal_recipe_id[0] = '\0';
   }
@@ -318,14 +333,32 @@ void ControlTask::tick() {
 
   const bool motion_busy = sequence_.busy() || coordinator_.busy();
 
-  StatusSnapshot preflight_status = ctx().status.read();
-  preflight_status.config_op_pending = ctx().config_queue.hasPending();
+  {
+    StatusSnapshot preflight_status = ctx().status.read();
+    preflight_status.config_op_pending = ctx().config_queue.hasPending();
+    serial_.poll(&preflight_status);
+  }
 
-  serial_.poll(&preflight_status);
+  // HTTP-started jobs: miss GET /status (and other HTTP) for too long → cancel.
+  // Enqueue before drainCancel so the abort applies this tick. Keep the watchdog
+  // armed while a command is still queued (not busy yet).
+  {
+    const bool armed =
+        ctx().kiosk_job_watchdog_armed.load(std::memory_order_acquire);
+    const bool pending = ctx().queue.hasPending();
+    if (armed && (motion_busy || pending)) {
+      cancelOnHeartbeatTimeout(
+          ctx().queue, true, true, now,
+          ctx().last_http_activity_ms.load(std::memory_order_relaxed),
+          kKioskHeartbeatTimeoutMs);
+    }
+  }
 
   if (ctx().queue.drainCancel(motion_busy)) {
     coordinator_.cancel();
     sequence_.cancel();
+  } else if (ctx().queue.drainPrimeStop()) {
+    coordinator_.stopPrime();
   }
 
   scale_.tick(now);
@@ -334,41 +367,46 @@ void ControlTask::tick() {
     drainConfigOps();
   }
 
-  Command command;
-  if (!coordinator_.busy() && !sequence_.busy() && ctx().queue.drainCommand(command)) {
-    switch (command.type) {
-      case CommandType::kDispensePump:
-        coordinator_.clearTerminalResult();
-        sequence_.clearTerminalResult();
-        if (coordinator_.startDispense(command.dispense, now)) {
-          setPumpJobFromDispense(command.dispense, now);
-        } else {
-          serial_.emitJobEvent(false, coordinator_.lastReject());
-        }
-        break;
-      case CommandType::kPrimePump:
-        coordinator_.clearTerminalResult();
-        sequence_.clearTerminalResult();
-        if (coordinator_.startPrime(command.prime.channel, now)) {
-          setPumpJobFromPrime(command.prime.channel, now);
-        } else {
-          serial_.emitJobEvent(false, coordinator_.lastReject());
-        }
-        break;
-      case CommandType::kPrimeStop:
-        coordinator_.stopPrime();
-        break;
-      case CommandType::kPourSequence:
-        std::strncpy(active_recipe_id_, command.pour_sequence.recipe_id, kRecipeIdMax - 1);
-        active_recipe_id_[kRecipeIdMax - 1] = '\0';
-        if (!sequence_.start(command.pour_sequence.steps, command.pour_sequence.step_count, now)) {
-          serial_.emitJobEvent(false, sequence_.lastReject());
-          active_recipe_id_[0] = '\0';
-        }
-        break;
-      case CommandType::kNone:
-      default:
-        break;
+  if (!coordinator_.busy() && !sequence_.busy()) {
+    Command command;
+    if (ctx().queue.drainCommand(command)) {
+      switch (command.type) {
+        case CommandType::kDispensePump:
+          coordinator_.clearTerminalResult();
+          sequence_.clearTerminalResult();
+          if (coordinator_.startDispense(command.dispense, now)) {
+            setPumpJobFromDispense(command.dispense, now);
+          } else {
+            serial_.emitJobEvent(false, coordinator_.lastReject());
+            coordinator_.clearTerminalResult();
+          }
+          break;
+        case CommandType::kPrimePump:
+          coordinator_.clearTerminalResult();
+          sequence_.clearTerminalResult();
+          if (coordinator_.startPrime(command.prime.channel, now)) {
+            setPumpJobFromPrime(command.prime.channel, now);
+          } else {
+            serial_.emitJobEvent(false, coordinator_.lastReject());
+            coordinator_.clearTerminalResult();
+          }
+          break;
+        case CommandType::kPourSequence:
+          std::strncpy(active_recipe_id_, command.pour_sequence.recipe_id, kRecipeIdMax - 1);
+          active_recipe_id_[kRecipeIdMax - 1] = '\0';
+          if (!sequence_.start(command.pour_sequence.steps, command.pour_sequence.step_count,
+                               now)) {
+            armJobTerminal(JobTerminalState::kError, now, sequence_.lastReject());
+            serial_.emitJobEvent(false, sequence_.lastReject());
+            sequence_.clearTerminalResult();
+            coordinator_.clearTerminalResult();
+            active_recipe_id_[0] = '\0';
+          }
+          break;
+        case CommandType::kNone:
+        default:
+          break;
+      }
     }
   }
   coordinator_.tick(now);
@@ -390,6 +428,11 @@ void ControlTask::tick() {
   snapshot.sequence_busy = sequence_.busy();
   snapshot.sequence_step_index = sequence_.busy() ? sequence_.stepIndex() : 0;
   snapshot.sequence_step_count = sequence_.busy() ? sequence_.stepCount() : 0;
+  const uint8_t in_step =
+      sequence_.busy() ? coordinator_.dispenseProgressPercent(now) : 0;
+  snapshot.sequence_step_progress = in_step;
+  snapshot.sequence_progress =
+      sequence_.busy() ? sequence_.progressPercent(in_step) : 0;
   if (sequence_.busy()) {
     std::strncpy(snapshot.sequence_ingredient, sequence_.currentIngredient(), kIngredientIdMax - 1);
     snapshot.sequence_ingredient[kIngredientIdMax - 1] = '\0';
@@ -424,19 +467,20 @@ void ControlTask::tick() {
   ctx().status.publish(snapshot);
 
   if (prev_top_job_busy_ && !top_job_busy) {
+    ctx().kiosk_job_watchdog_armed.store(false, std::memory_order_relaxed);
     if (prev_sequence_busy_) {
       if (sequence_.cancelled()) {
         armJobTerminal(JobTerminalState::kCancelled, now);
         serial_.emitJobCancelled();
-        sequence_.clearTerminalResult();
       } else if (sequence_.ok()) {
         armJobTerminal(JobTerminalState::kComplete, now);
         serial_.emitJobEvent(true, JobReject::kNone);
-        sequence_.clearTerminalResult();
       } else {
+        armJobTerminal(JobTerminalState::kError, now, sequence_.lastReject());
         serial_.emitJobEvent(false, sequence_.lastReject());
-        sequence_.clearTerminalResult();
       }
+      sequence_.clearTerminalResult();
+      coordinator_.clearTerminalResult();
       active_recipe_id_[0] = '\0';
     } else if (snapshot.job_cancelled) {
       serial_.emitJobCancelled();
@@ -450,10 +494,14 @@ void ControlTask::tick() {
   prev_top_job_busy_ = top_job_busy;
   prev_sequence_busy_ = sequence_.busy();
 
+  // Disarm if HTTP cancel cleared a queued job before it became busy.
+  if (!top_job_busy && !ctx().queue.hasPending()) {
+    ctx().kiosk_job_watchdog_armed.store(false, std::memory_order_relaxed);
+  }
+
   if (job_terminal_ != JobTerminalState::kNone) {
-    StatusSnapshot latch = snapshot;
-    updateJobTerminalLatch(latch, now);
-    ctx().status.publish(latch);
+    updateJobTerminalLatch(snapshot, now);
+    ctx().status.publish(snapshot);
   }
 
   if (!snapshot.job_busy && (ctx().config.dirty() || ctx().inventory.dirty())) {
