@@ -1,4 +1,4 @@
-const SESSION_KEY = 'kiosk-setup-unlocked';
+const SESSION_KEY = "kiosk-setup-unlocked";
 const MAX_AGE_MS = 15 * 60 * 1000;
 
 export function grantSetupUnlock(): void {

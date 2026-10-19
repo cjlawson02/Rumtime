@@ -1,24 +1,15 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useState,
-  type ReactNode,
-} from 'react';
-import { useLocation } from 'wouter';
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { useLocation } from "wouter";
 
-import { sanitizeInternalPath } from '@/lib/safe-href';
+import { sanitizeInternalPath } from "@/lib/safe-href";
 
-export const SETUP_ROOT = '/setup';
+export const SETUP_ROOT = "/setup";
 
 export function setupSectionPath(sectionId: string): string {
   return `${SETUP_ROOT}/${sectionId}`;
 }
 
-export function sanitizeReturnPath(
-  raw: string | null | undefined,
-  fallback = '/',
-): string {
+export function sanitizeReturnPath(raw: string | null | undefined, fallback = "/"): string {
   return sanitizeInternalPath(raw) ?? fallback;
 }
 
@@ -30,10 +21,10 @@ type SetupReturnContextValue = {
 const SetupReturnContext = createContext<SetupReturnContextValue | null>(null);
 
 export function SetupReturnProvider({ children }: { children: ReactNode }) {
-  const [returnTo, setReturnToState] = useState('/');
+  const [returnTo, setReturnToState] = useState("/");
 
   const setReturnTo = useCallback((path: string) => {
-    setReturnToState(sanitizeReturnPath(path, '/'));
+    setReturnToState(sanitizeReturnPath(path, "/"));
   }, []);
 
   return (
@@ -46,7 +37,7 @@ export function SetupReturnProvider({ children }: { children: ReactNode }) {
 function useSetupReturnContext(): SetupReturnContextValue {
   const value = useContext(SetupReturnContext);
   if (!value) {
-    throw new Error('SetupReturnProvider is missing');
+    throw new Error("SetupReturnProvider is missing");
   }
   return value;
 }
@@ -66,7 +57,7 @@ export function useEnterSetup() {
 
   return useCallback(
     (path: string, from?: string) => {
-      setReturnTo(sanitizeReturnPath(from ?? location, '/'));
+      setReturnTo(sanitizeReturnPath(from ?? location, "/"));
       navigate(path);
     },
     [location, navigate, setReturnTo],

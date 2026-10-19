@@ -35,11 +35,11 @@ src/
 npm ci
 npm run dev       # Vite dev server + MSW mock device
 npm run build     # typecheck + production bundle
-npm run lint
-npm run format        # write
-npm run format:check  # CI-style check
-npm run test      # vitest
-npm run preview   # serve dist/
+npm run lint          # oxlint
+npm run format        # oxfmt write
+npm run format:check  # oxfmt check
+npm run test          # vitest
+npm run preview       # serve dist/
 ```
 
 Copy `.env.example` to `.env.local` for local overrides.

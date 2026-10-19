@@ -1,13 +1,13 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { registerSW } from 'virtual:pwa-register';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { registerSW } from "virtual:pwa-register";
 
-import { App } from './app';
-import { ErrorBoundary } from '@/components/kiosk/error-boundary';
-import { MenuCategoryProvider } from '@/hooks/use-menu-category';
-import { SetupReturnProvider } from '@/hooks/use-setup-return';
-import './index.css';
+import { App } from "./app";
+import { ErrorBoundary } from "@/components/kiosk/error-boundary";
+import { MenuCategoryProvider } from "@/hooks/use-menu-category";
+import { SetupReturnProvider } from "@/hooks/use-setup-return";
+import "./index.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,16 +19,16 @@ const queryClient = new QueryClient({
 });
 
 function installGlobalErrorHandlers() {
-  window.addEventListener('unhandledrejection', (event) => {
-    console.error('Kiosk unhandled rejection', event.reason);
+  window.addEventListener("unhandledrejection", (event) => {
+    console.error("Kiosk unhandled rejection", event.reason);
   });
 }
 
 function shouldStartMsw(): boolean {
-  if (import.meta.env.VITE_USE_MSW === 'false') {
+  if (import.meta.env.VITE_USE_MSW === "false") {
     return false;
   }
-  const base = import.meta.env.VITE_DEVICE_API_BASE ?? 'http://rumtime.local';
+  const base = import.meta.env.VITE_DEVICE_API_BASE ?? "http://rumtime.local";
   try {
     const { hostname } = new URL(base);
     // Real hardware dev uses a LAN IP — MSW would shadow the ESP32.
@@ -42,7 +42,7 @@ async function bootstrap() {
   installGlobalErrorHandlers();
 
   if (import.meta.env.DEV && shouldStartMsw()) {
-    const { startMockServiceWorker } = await import('@/api/msw/browser');
+    const { startMockServiceWorker } = await import("@/api/msw/browser");
     await startMockServiceWorker();
   }
 
@@ -50,9 +50,9 @@ async function bootstrap() {
     registerSW({ immediate: true });
   }
 
-  const appRoot = document.getElementById('app');
+  const appRoot = document.getElementById("app");
   if (!appRoot) {
-    throw new Error('Missing #app mount node');
+    throw new Error("Missing #app mount node");
   }
 
   createRoot(appRoot).render(

@@ -1,18 +1,18 @@
-import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DeviceStatus } from '@/api/types';
-import { SetupCalibrationPage } from '@/pages/setup-calibration-page';
-import { renderWithProviders } from '@/test/render';
+import type { DeviceStatus } from "@/api/types";
+import { SetupCalibrationPage } from "@/pages/setup-calibration-page";
+import { renderWithProviders } from "@/test/render";
 
 let deviceStatus: DeviceStatus | undefined;
 
-vi.mock('@/lib/setup-unlock', () => ({
+vi.mock("@/lib/setup-unlock", () => ({
   hasSetupUnlock: () => true,
   grantSetupUnlock: vi.fn(),
 }));
 
-vi.mock('@/components/kiosk/prime-wizard', () => ({
+vi.mock("@/components/kiosk/prime-wizard", () => ({
   PrimeWizard: ({
     open,
     pumpId,
@@ -32,7 +32,7 @@ vi.mock('@/components/kiosk/prime-wizard', () => ({
     ) : null,
 }));
 
-vi.mock('@/components/kiosk/calibration-wizard', () => ({
+vi.mock("@/components/kiosk/calibration-wizard", () => ({
   CalibrationWizard: ({
     open,
     pumpId,
@@ -52,13 +52,13 @@ vi.mock('@/components/kiosk/calibration-wizard', () => ({
     ) : null,
 }));
 
-vi.mock('@/hooks/use-device-status', () => ({
+vi.mock("@/hooks/use-device-status", () => ({
   useDeviceStatus: () => ({ status: deviceStatus }),
 }));
 
 function getDialogButton(dialog: HTMLElement) {
-  const button = dialog.querySelector<HTMLElement>('button');
-  if (!button) throw new Error('Missing mocked dialog close button');
+  const button = dialog.querySelector<HTMLElement>("button");
+  if (!button) throw new Error("Missing mocked dialog close button");
   return button;
 }
 
@@ -66,121 +66,118 @@ const calibrationStatus: DeviceStatus = {
   connected: true,
   bindings: {
     bourbon: {
-      ingredientId: 'bourbon',
+      ingredientId: "bourbon",
       remainingMl: 500,
       bottleSizeMl: 750,
       primed: true,
     },
     simple: {
-      ingredientId: 'simple',
+      ingredientId: "simple",
       remainingMl: 400,
       bottleSizeMl: 750,
       primed: false,
     },
   },
   pumps: [
-    { pumpId: 1, ingredientId: 'bourbon', mlPerSecond: 2, antiDripMs: 100 },
-    { pumpId: 2, ingredientId: 'simple', mlPerSecond: 1.5, antiDripMs: 80 },
+    { pumpId: 1, ingredientId: "bourbon", mlPerSecond: 2, antiDripMs: 100 },
+    { pumpId: 2, ingredientId: "simple", mlPerSecond: 1.5, antiDripMs: 80 },
   ],
 };
 
-describe('SetupCalibrationPage', () => {
+describe("SetupCalibrationPage", () => {
   beforeEach(() => {
     deviceStatus = calibrationStatus;
   });
 
-  it('lists assigned lines with calibration metrics', () => {
+  it("lists assigned lines with calibration metrics", () => {
     const { getByText } = renderWithProviders(<SetupCalibrationPage />, {
       withSetupReturn: true,
     });
 
-    expect(getByText('Pour tuning')).toBeInTheDocument();
-    expect(getByText('Line 1')).toBeInTheDocument();
-    expect(getByText('Line 2')).toBeInTheDocument();
-    expect(getByText('Primed')).toBeInTheDocument();
-    expect(getByText('Needs prime')).toBeInTheDocument();
+    expect(getByText("Pour tuning")).toBeInTheDocument();
+    expect(getByText("Line 1")).toBeInTheDocument();
+    expect(getByText("Line 2")).toBeInTheDocument();
+    expect(getByText("Primed")).toBeInTheDocument();
+    expect(getByText("Needs prime")).toBeInTheDocument();
     expect(getByText(/2\.00 ml\/s/)).toBeInTheDocument();
   });
 
-  it('opens the prime wizard for a line', async () => {
+  it("opens the prime wizard for a line", async () => {
     const user = userEvent.setup();
-    const { getAllByRole, getByTestId } = renderWithProviders(
-      <SetupCalibrationPage />,
-      { withSetupReturn: true },
-    );
+    const { getAllByRole, getByTestId } = renderWithProviders(<SetupCalibrationPage />, {
+      withSetupReturn: true,
+    });
 
-    await user.click(getAllByRole('button', { name: 'Prime' })[0]);
+    await user.click(getAllByRole("button", { name: "Prime" })[0]);
 
-    expect(getByTestId('prime-wizard')).toHaveTextContent('pump 1');
+    expect(getByTestId("prime-wizard")).toHaveTextContent("pump 1");
   });
 
-  it('opens the calibration wizard for a line', async () => {
+  it("opens the calibration wizard for a line", async () => {
     const user = userEvent.setup();
-    const { getAllByRole, getByTestId } = renderWithProviders(
-      <SetupCalibrationPage />,
-      { withSetupReturn: true },
-    );
+    const { getAllByRole, getByTestId } = renderWithProviders(<SetupCalibrationPage />, {
+      withSetupReturn: true,
+    });
 
-    await user.click(getAllByRole('button', { name: 'Calibrate' })[0]);
+    await user.click(getAllByRole("button", { name: "Calibrate" })[0]);
 
-    expect(getByTestId('calibration-wizard')).toHaveTextContent('pump 1');
+    expect(getByTestId("calibration-wizard")).toHaveTextContent("pump 1");
   });
 
-  it('shows loading when device status is not ready', () => {
+  it("shows loading when device status is not ready", () => {
     deviceStatus = undefined;
 
     const { getByText } = renderWithProviders(<SetupCalibrationPage />, {
       withSetupReturn: true,
     });
 
-    expect(getByText('Loading pour tuning…')).toBeInTheDocument();
+    expect(getByText("Loading pour tuning…")).toBeInTheDocument();
   });
 
-  it('shows unassigned lines without prime or calibrate actions', () => {
+  it("shows unassigned lines without prime or calibrate actions", () => {
     const pumps = calibrationStatus.pumps;
-    if (!pumps) throw new Error('Missing pump fixtures');
+    if (!pumps) throw new Error("Missing pump fixtures");
 
     deviceStatus = {
       ...calibrationStatus,
       pumps: [{ pumpId: 1, ingredientId: null }, ...pumps],
     };
 
-    const { getByText, queryAllByRole } = renderWithProviders(
-      <SetupCalibrationPage />,
-      { withSetupReturn: true },
-    );
+    const { getByText, queryAllByRole } = renderWithProviders(<SetupCalibrationPage />, {
+      withSetupReturn: true,
+    });
 
-    expect(getByText('Unassigned')).toBeInTheDocument();
-    expect(queryAllByRole('button', { name: 'Prime' })).toHaveLength(2);
+    expect(getByText("Unassigned")).toBeInTheDocument();
+    expect(queryAllByRole("button", { name: "Prime" })).toHaveLength(2);
   });
 
-  it('closes the prime wizard from the mocked panel', async () => {
+  it("closes the prime wizard from the mocked panel", async () => {
     const user = userEvent.setup();
     const { getAllByRole, getByTestId, queryByTestId } = renderWithProviders(
       <SetupCalibrationPage />,
       { withSetupReturn: true },
     );
 
-    await user.click(getAllByRole('button', { name: 'Prime' })[0]);
-    expect(getByTestId('prime-wizard')).toBeInTheDocument();
+    await user.click(getAllByRole("button", { name: "Prime" })[0]);
+    expect(getByTestId("prime-wizard")).toBeInTheDocument();
 
-    await user.click(getDialogButton(getByTestId('prime-wizard')));
+    await user.click(getDialogButton(getByTestId("prime-wizard")));
 
-    expect(queryByTestId('prime-wizard')).not.toBeInTheDocument();
+    expect(queryByTestId("prime-wizard")).not.toBeInTheDocument();
   });
 
-  it('closes the calibration wizard from the mocked panel', async () => {
+  it("closes the calibration wizard from the mocked panel", async () => {
     const user = userEvent.setup();
     const { getAllByRole, getByTestId, queryByTestId } = renderWithProviders(
       <SetupCalibrationPage />,
       { withSetupReturn: true },
     );
 
-    await user.click(getAllByRole('button', { name: 'Calibrate' })[0]);
-    expect(getByTestId('calibration-wizard')).toBeInTheDocument();
+    await user.click(getAllByRole("button", { name: "Calibrate" })[0]);
+    expect(getByTestId("calibration-wizard")).toBeInTheDocument();
 
-    await user.click(getDialogButton(getByTestId('calibration-wizard')));
+    await user.click(getDialogButton(getByTestId("calibration-wizard")));
 
-    expect(queryByTestId('calibration-wizard')).not.toBeInTheDocument();
+    expect(queryByTestId("calibration-wizard")).not.toBeInTheDocument();
   });
 });

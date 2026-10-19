@@ -1,21 +1,18 @@
-import { useCallback, useRef, useState, type RefObject } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useRef, useState, type RefObject } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
-import type { PumpJobPurpose } from '@/api/types';
-import { fetchDeviceStatus, useDeviceStatus } from '@/hooks/use-device-status';
-import {
-  useCancelPumpDispense,
-  useStartPumpDispense,
-} from '@/hooks/use-device-mutations';
-import { useLatestRef } from '@/hooks/use-latest-ref';
-import { deviceErrorMessage } from '@/lib/device-errors';
+import type { PumpJobPurpose } from "@/api/types";
+import { fetchDeviceStatus, useDeviceStatus } from "@/hooks/use-device-status";
+import { useCancelPumpDispense, useStartPumpDispense } from "@/hooks/use-device-mutations";
+import { useLatestRef } from "@/hooks/use-latest-ref";
+import { deviceErrorMessage } from "@/lib/device-errors";
 import {
   createPumpPourTracker,
   markPumpPourDispenseStarted,
   resetPumpPourTracker,
   type PumpPourTracker,
-} from '@/lib/pump-pour-lifecycle';
-import { waitForPumpJobIdle } from '@/lib/wait-for-pump-idle';
+} from "@/lib/pump-pour-lifecycle";
+import { waitForPumpJobIdle } from "@/lib/wait-for-pump-idle";
 
 export type StartRunOptions = {
   pumpId: number;
@@ -52,13 +49,13 @@ export function usePumpDispenseSession() {
         try {
           latest = await fetchDeviceStatus(queryClient);
         } catch {
-          setError('Could not verify device status — try again.');
+          setError("Could not verify device status — try again.");
           return;
         }
 
-        if (latest.job?.state === 'pouring' || latest.job?.state === 'prompt') {
+        if (latest.job?.state === "pouring" || latest.job?.state === "prompt") {
           setError(
-            'Machine is pouring a drink — wait for the pour to finish before running setup.',
+            "Machine is pouring a drink — wait for the pour to finish before running setup.",
           );
           return;
         }
@@ -95,9 +92,7 @@ export function usePumpDispenseSession() {
         await cancelPumpDispense.mutateAsync();
         if (options?.waitForIdle) {
           const pumpId =
-            typeof options.waitForIdle === 'object'
-              ? options.waitForIdle.pumpId
-              : undefined;
+            typeof options.waitForIdle === "object" ? options.waitForIdle.pumpId : undefined;
           await waitForPumpJobIdle(queryClient, { pumpId });
         }
       } catch (err) {
@@ -116,7 +111,7 @@ export function usePumpDispenseSession() {
     async (pumpId: number, onCancelRequested?: () => void) => {
       setError(null);
       const job = statusRef.current?.pumpJob;
-      if (job?.pumpId === pumpId && job.state === 'running') {
+      if (job?.pumpId === pumpId && job.state === "running") {
         onCancelRequested?.();
       }
       try {
@@ -136,12 +131,12 @@ export function usePumpDispenseSession() {
     ) => {
       const job = statusRef.current?.pumpJob;
       const shouldStop =
-        job?.state === 'running' &&
+        job?.state === "running" &&
         (options?.pumpId === undefined || job.pumpId === options.pumpId);
 
       if (shouldStop) {
         void cancelPumpDispense.mutateAsync().catch((err: unknown) => {
-          console.error('Wizard cancel failed', err);
+          console.error("Wizard cancel failed", err);
         });
       }
       onOpenChange(false);

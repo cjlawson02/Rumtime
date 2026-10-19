@@ -1,11 +1,7 @@
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from "msw";
 
-import { DEVICE_API_BASE } from '@/api/device-client';
-import {
-  getMockDeviceStatus,
-  mockDeviceClient,
-  resetMockDevice,
-} from '@/api/mock-device';
+import { DEVICE_API_BASE } from "@/api/device-client";
+import { getMockDeviceStatus, mockDeviceClient, resetMockDevice } from "@/api/mock-device";
 import {
   bottleSizeCommandSchema,
   inventoryLevelCommandSchema,
@@ -15,22 +11,22 @@ import {
   pumpCalibrationCommandSchema,
   pumpDispenseCommandSchema,
   refillCommandSchema,
-} from '@/api/types';
+} from "@/api/types";
 
-const base = DEVICE_API_BASE.replace(/\/$/, '');
+const base = DEVICE_API_BASE.replace(/\/$/, "");
 
 function map422Error(message: string): { error: string; message: string } {
-  const code = message.includes('primed')
-    ? 'not_primed'
-    : message.includes('inventory')
-      ? 'low_inventory'
-      : message.includes('unassigned')
-        ? 'unassigned'
-        : message.includes('pump')
-          ? 'bad_pump'
-          : message.includes('ingredient') || message.includes('bound')
-            ? 'bad_ingredient'
-            : 'unprocessable';
+  const code = message.includes("primed")
+    ? "not_primed"
+    : message.includes("inventory")
+      ? "low_inventory"
+      : message.includes("unassigned")
+        ? "unassigned"
+        : message.includes("pump")
+          ? "bad_pump"
+          : message.includes("ingredient") || message.includes("bound")
+            ? "bad_ingredient"
+            : "unprocessable";
   return { error: code, message };
 }
 
@@ -45,11 +41,11 @@ export const deviceHandlers = [
       await mockDeviceClient.startPour(body);
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'pour failed';
-      if (message.startsWith('409')) {
-        return HttpResponse.json({ error: 'busy' }, { status: 409 });
+      const message = error instanceof Error ? error.message : "pour failed";
+      if (message.startsWith("409")) {
+        return HttpResponse.json({ error: "busy" }, { status: 409 });
       }
-      if (message.startsWith('422')) {
+      if (message.startsWith("422")) {
         return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
@@ -72,8 +68,8 @@ export const deviceHandlers = [
       await mockDeviceClient.refillIngredient(body);
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'refill failed';
-      if (message.startsWith('422')) {
+      const message = error instanceof Error ? error.message : "refill failed";
+      if (message.startsWith("422")) {
         return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
@@ -86,8 +82,8 @@ export const deviceHandlers = [
       await mockDeviceClient.updatePumpBinding(body);
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'binding failed';
-      if (message.startsWith('422')) {
+      const message = error instanceof Error ? error.message : "binding failed";
+      if (message.startsWith("422")) {
         return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
@@ -100,9 +96,8 @@ export const deviceHandlers = [
       await mockDeviceClient.updateBottleSize(body);
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'bottle size failed';
-      if (message.startsWith('422')) {
+      const message = error instanceof Error ? error.message : "bottle size failed";
+      if (message.startsWith("422")) {
         return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
@@ -115,9 +110,8 @@ export const deviceHandlers = [
       await mockDeviceClient.updateInventoryLevel(body);
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'fill level failed';
-      if (message.startsWith('422')) {
+      const message = error instanceof Error ? error.message : "fill level failed";
+      if (message.startsWith("422")) {
         return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
@@ -130,9 +124,8 @@ export const deviceHandlers = [
       await mockDeviceClient.updatePumpCalibration(body);
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'calibration failed';
-      if (message.startsWith('422')) {
+      const message = error instanceof Error ? error.message : "calibration failed";
+      if (message.startsWith("422")) {
         return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
@@ -145,8 +138,8 @@ export const deviceHandlers = [
       await mockDeviceClient.updatePrimed(body);
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'primed failed';
-      if (message.startsWith('422')) {
+      const message = error instanceof Error ? error.message : "primed failed";
+      if (message.startsWith("422")) {
         return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });
@@ -159,12 +152,11 @@ export const deviceHandlers = [
       await mockDeviceClient.startPumpDispense(body);
       return new HttpResponse(null, { status: 204 });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'dispense failed';
-      if (message.startsWith('409')) {
-        return HttpResponse.json({ error: 'busy' }, { status: 409 });
+      const message = error instanceof Error ? error.message : "dispense failed";
+      if (message.startsWith("409")) {
+        return HttpResponse.json({ error: "busy" }, { status: 409 });
       }
-      if (message.startsWith('422')) {
+      if (message.startsWith("422")) {
         return HttpResponse.json(map422Error(message), { status: 422 });
       }
       return HttpResponse.json({ error: message }, { status: 400 });

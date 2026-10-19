@@ -8,9 +8,9 @@ export function mlToRoughOz(ml: number): number {
 }
 
 function formatOzValue(oz: number): string {
-  if (oz <= 0) return '0 oz';
+  if (oz <= 0) return "0 oz";
   if (Number.isInteger(oz)) return `${oz} oz`;
-  return `${oz.toFixed(1).replace(/\.0$/, '')} oz`;
+  return `${oz.toFixed(1).replace(/\.0$/, "")} oz`;
 }
 
 /** Rough US fl oz equivalent, prefixed with ~ */

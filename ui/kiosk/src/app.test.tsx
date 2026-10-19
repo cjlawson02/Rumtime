@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
-import { Router } from 'wouter';
-import { memoryLocation } from 'wouter/memory-location';
+import { describe, expect, it, vi } from "vitest";
+import { Router } from "wouter";
+import { memoryLocation } from "wouter/memory-location";
 
-import { App } from '@/app';
-import { renderWithProviders } from '@/test/render';
+import { App } from "@/app";
+import { renderWithProviders } from "@/test/render";
 
-vi.mock('@/hooks/use-device-status', () => ({
+vi.mock("@/hooks/use-device-status", () => ({
   useDeviceStatus: () => ({
     status: { connected: true, bindings: {} },
     error: null,
@@ -15,66 +15,66 @@ vi.mock('@/hooks/use-device-status', () => ({
   }),
 }));
 
-vi.mock('@/pages/menu-page', () => ({
+vi.mock("@/pages/menu-page", () => ({
   MenuPage: () => <div>Menu page</div>,
 }));
-vi.mock('@/pages/drink-detail-page', () => ({
+vi.mock("@/pages/drink-detail-page", () => ({
   DrinkDetailPage: () => <div>Drink detail page</div>,
 }));
-vi.mock('@/pages/pour-page', () => ({
+vi.mock("@/pages/pour-page", () => ({
   PourPage: () => <div>Pour page</div>,
 }));
-vi.mock('@/pages/setup-index-page', () => ({
+vi.mock("@/pages/setup-index-page", () => ({
   SetupIndexPage: () => <div>Setup index page</div>,
 }));
-vi.mock('@/pages/setup-pumps-page', () => ({
+vi.mock("@/pages/setup-pumps-page", () => ({
   SetupPumpsPage: () => <div>Setup pumps page</div>,
 }));
-vi.mock('@/pages/setup-calibration-page', () => ({
+vi.mock("@/pages/setup-calibration-page", () => ({
   SetupCalibrationPage: () => <div>Setup calibration page</div>,
 }));
-vi.mock('@/pages/setup-cleaning-page', () => ({
+vi.mock("@/pages/setup-cleaning-page", () => ({
   SetupCleaningPage: () => <div>Setup cleaning page</div>,
 }));
-vi.mock('@/pages/setup-device-page', () => ({
+vi.mock("@/pages/setup-device-page", () => ({
   SetupDevicePage: () => <div>Setup device page</div>,
 }));
-vi.mock('@/pages/setup-section-page', () => ({
+vi.mock("@/pages/setup-section-page", () => ({
   SetupSectionPage: () => <div>Setup section page</div>,
 }));
 
-describe('App', () => {
-  it('renders the menu route', async () => {
-    const { hook } = memoryLocation({ path: '/', static: true });
+describe("App", () => {
+  it("renders the menu route", async () => {
+    const { hook } = memoryLocation({ path: "/", static: true });
     const { findByText } = renderWithProviders(
       <Router hook={hook}>
         <App />
       </Router>,
     );
 
-    expect(await findByText('Menu page')).toBeInTheDocument();
+    expect(await findByText("Menu page")).toBeInTheDocument();
   });
 
-  it('renders setup routes', async () => {
-    const { hook } = memoryLocation({ path: '/setup/pumps', static: true });
+  it("renders setup routes", async () => {
+    const { hook } = memoryLocation({ path: "/setup/pumps", static: true });
     const { findByText } = renderWithProviders(
       <Router hook={hook}>
         <App />
       </Router>,
     );
 
-    expect(await findByText('Setup pumps page')).toBeInTheDocument();
+    expect(await findByText("Setup pumps page")).toBeInTheDocument();
   });
 
-  it('renders the not-found screen for unknown paths', async () => {
-    const { hook } = memoryLocation({ path: '/missing-page', static: true });
+  it("renders the not-found screen for unknown paths", async () => {
+    const { hook } = memoryLocation({ path: "/missing-page", static: true });
     const { findByText } = renderWithProviders(
       <Router hook={hook}>
         <App />
       </Router>,
     );
 
-    expect(await findByText('Page not found.')).toBeInTheDocument();
-    expect(await findByText('Back to menu')).toBeInTheDocument();
+    expect(await findByText("Page not found.")).toBeInTheDocument();
+    expect(await findByText("Back to menu")).toBeInTheDocument();
   });
 });

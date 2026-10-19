@@ -1,9 +1,9 @@
-import { Delete } from 'lucide-react';
+import { Delete } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
+const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 
 export type NumberPadProps = {
   value: string;
@@ -35,16 +35,11 @@ export function NumberValueDisplay({
 }) {
   return (
     <div
-      className={cn(
-        'text-center text-3xl font-medium tabular-nums tracking-tight',
-        className,
-      )}
+      className={cn("text-center text-3xl font-medium tabular-nums tracking-tight", className)}
       aria-live="polite"
     >
-      {value || '0'}
-      {suffix ? (
-        <span className="ml-1 text-lg text-muted-foreground">{suffix}</span>
-      ) : null}
+      {value || "0"}
+      {suffix ? <span className="ml-1 text-lg text-muted-foreground">{suffix}</span> : null}
     </div>
   );
 }
@@ -60,10 +55,10 @@ export function NumberPad({
   canAppendDigit,
   canAppendDot,
   className,
-  ariaLabel = 'Number pad',
+  ariaLabel = "Number pad",
 }: NumberPadProps) {
   const atMax = maxLength !== undefined && value.length >= maxLength;
-  const hasDecimal = value.includes('.');
+  const hasDecimal = value.includes(".");
 
   const append = (digit: string) => {
     if (disabled || atMax) return;
@@ -77,7 +72,7 @@ export function NumberPad({
 
   const appendDecimal = () => {
     if (disabled || atMax || hasDecimal) return;
-    const next = value.length === 0 ? '0.' : `${value}.`;
+    const next = value.length === 0 ? "0." : `${value}.`;
     onChange(next);
   };
 
@@ -94,16 +89,14 @@ export function NumberPad({
 
   const clear = () => {
     if (disabled || value.length === 0) return;
-    onChange('');
+    onChange("");
   };
 
   const separatorButton = allowDot ? (
     <Button
       type="button"
       variant="outline"
-      disabled={
-        disabled || atMax || (canAppendDot ? !canAppendDot(value) : false)
-      }
+      disabled={disabled || atMax || (canAppendDot ? !canAppendDot(value) : false)}
       className="kiosk-touch min-h-16 text-2xl font-medium"
       aria-label="Dot"
       onClick={appendDot}
@@ -134,22 +127,14 @@ export function NumberPad({
   );
 
   return (
-    <div className={cn('space-y-3', className)}>
-      <div
-        className="grid grid-cols-3 gap-3"
-        role="group"
-        aria-label={ariaLabel}
-      >
+    <div className={cn("space-y-3", className)}>
+      <div className="grid grid-cols-3 gap-3" role="group" aria-label={ariaLabel}>
         {DIGITS.map((digit) => (
           <Button
             key={digit}
             type="button"
             variant="outline"
-            disabled={
-              disabled ||
-              atMax ||
-              (canAppendDigit ? !canAppendDigit(value, digit) : false)
-            }
+            disabled={disabled || atMax || (canAppendDigit ? !canAppendDigit(value, digit) : false)}
             className="kiosk-touch min-h-16 text-2xl font-medium"
             onClick={() => {
               append(digit);
@@ -173,14 +158,10 @@ export function NumberPad({
         <Button
           type="button"
           variant="outline"
-          disabled={
-            disabled ||
-            atMax ||
-            (canAppendDigit ? !canAppendDigit(value, '0') : false)
-          }
+          disabled={disabled || atMax || (canAppendDigit ? !canAppendDigit(value, "0") : false)}
           className="kiosk-touch min-h-16 text-2xl font-medium"
           onClick={() => {
-            append('0');
+            append("0");
           }}
         >
           0

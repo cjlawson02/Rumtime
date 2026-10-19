@@ -1,17 +1,17 @@
-import { isValidIpv4 } from '@/lib/ip-address';
+import { isValidIpv4 } from "@/lib/ip-address";
 
 /** Default dispenser base URL from build-time env (mDNS hostname — not overridable at runtime). */
 export const DEFAULT_DEVICE_API_BASE =
-  import.meta.env.VITE_DEVICE_API_BASE ?? 'http://rumtime.local';
+  import.meta.env.VITE_DEVICE_API_BASE ?? "http://rumtime.local";
 
 /** Persisted IPv4 override — localStorage survives reloads on the kiosk tablet. */
-const STORAGE_KEY = 'rumtime.deviceApiBase';
-const ENDPOINT_CHANGE_EVENT = 'rumtime:device-endpoint-change';
+const STORAGE_KEY = "rumtime.deviceApiBase";
+const ENDPOINT_CHANGE_EVENT = "rumtime:device-endpoint-change";
 
 export function deviceApiBaseFromIpv4(ipAddress: string): string {
   const trimmed = ipAddress.trim();
   if (!isValidIpv4(trimmed)) {
-    throw new Error('Enter a valid IP address');
+    throw new Error("Enter a valid IP address");
   }
   return `http://${trimmed}`;
 }
@@ -22,12 +22,12 @@ export function formatHostnameInput(apiBase: string): string {
     const url = new URL(apiBase);
     return url.port ? `${url.hostname}:${url.port}` : url.hostname;
   } catch {
-    return apiBase.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+    return apiBase.replace(/^https?:\/\//i, "").replace(/\/$/, "");
   }
 }
 
 export function readDeviceApiBaseOverride(): string | null {
-  if (typeof localStorage === 'undefined') return null;
+  if (typeof localStorage === "undefined") return null;
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
 

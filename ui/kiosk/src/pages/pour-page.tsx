@@ -1,75 +1,60 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Loader2, PartyPopper, Wine } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useLocation, useRoute } from 'wouter';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, Loader2, PartyPopper, Wine } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useLocation, useRoute } from "wouter";
 
-import { LinkButton } from '@/components/kiosk/link-button';
-import { KioskShell } from '@/components/kiosk/kiosk-shell';
-import { ManualPourStepPanel } from '@/components/kiosk/manual-pour-step-panel';
-import { PourProgressBar } from '@/components/kiosk/pour-progress-bar';
-import { PourScreenShell } from '@/components/kiosk/pour-screen-shell';
-import { Button } from '@/components/ui/button';
-import { getRecipeById } from '@/data/load-recipes';
-import { useDelayedTrue } from '@/hooks/use-delayed-true';
-import { useLatestRef } from '@/hooks/use-latest-ref';
-import { fetchDeviceStatus, useDeviceStatus } from '@/hooks/use-device-status';
-import {
-  useAcknowledgePrompt,
-  useCancelPour,
-  useStartPour,
-} from '@/hooks/use-device-mutations';
-import { useTimedPourProgress } from '@/hooks/use-timed-pour-progress';
+import { LinkButton } from "@/components/kiosk/link-button";
+import { KioskShell } from "@/components/kiosk/kiosk-shell";
+import { ManualPourStepPanel } from "@/components/kiosk/manual-pour-step-panel";
+import { PourProgressBar } from "@/components/kiosk/pour-progress-bar";
+import { PourScreenShell } from "@/components/kiosk/pour-screen-shell";
+import { Button } from "@/components/ui/button";
+import { getRecipeById } from "@/data/load-recipes";
+import { useDelayedTrue } from "@/hooks/use-delayed-true";
+import { useLatestRef } from "@/hooks/use-latest-ref";
+import { fetchDeviceStatus, useDeviceStatus } from "@/hooks/use-device-status";
+import { useAcknowledgePrompt, useCancelPour, useStartPour } from "@/hooks/use-device-mutations";
+import { useTimedPourProgress } from "@/hooks/use-timed-pour-progress";
 import {
   buildPostPourSteps,
   buildPrePourSteps,
   postPourStepInstruction,
   prePourStepInstruction,
   prePourStepLabel,
-} from '@/lib/manual-pour';
+} from "@/lib/manual-pour";
 import {
   effectiveBlockingIssues,
   firstBlockingMessage,
   getDrinkAvailability,
-} from '@/lib/availability';
-import { deviceErrorMessage } from '@/lib/device-errors';
-import { isActivePourJob, isTerminalPourJob } from '@/lib/pour-job';
-import { shouldCancelPourOnLeave } from '@/lib/pour-leave';
-import { estimateRecipePourDurationMs } from '@/lib/pour-progress';
-import { pourStepsFromRecipe } from '@/lib/pour-steps';
-import {
-  consumePourInventoryBypass,
-  peekPourInventoryBypass,
-} from '@/lib/pour-inventory-bypass';
+} from "@/lib/availability";
+import { deviceErrorMessage } from "@/lib/device-errors";
+import { isActivePourJob, isTerminalPourJob } from "@/lib/pour-job";
+import { shouldCancelPourOnLeave } from "@/lib/pour-leave";
+import { estimateRecipePourDurationMs } from "@/lib/pour-progress";
+import { pourStepsFromRecipe } from "@/lib/pour-steps";
+import { consumePourInventoryBypass, peekPourInventoryBypass } from "@/lib/pour-inventory-bypass";
 import {
   createPumpPourTracker,
   markPumpPourDispenseStarted,
   pourJobIdentityKey,
   resolveRecipePourOutcome,
-} from '@/lib/pump-pour-lifecycle';
-import { cn } from '@/lib/utils';
+} from "@/lib/pump-pour-lifecycle";
+import { cn } from "@/lib/utils";
 
 const WAIT_FOR_JOB_MS = 15000;
 const RETURN_TO_MENU_MS = 3000;
 
 export function PourPage() {
-  const [, params] = useRoute('/pour/:id');
+  const [, params] = useRoute("/pour/:id");
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
-  const recipe = getRecipeById(params?.id ?? '');
-  const recipeId = recipe?.id ?? '';
+  const recipe = getRecipeById(params?.id ?? "");
+  const recipeId = recipe?.id ?? "";
   // Peek only — consume after a successful start so StrictMode remount keeps the grant.
-  const [bypassInventory] = useState(() =>
-    recipeId ? peekPourInventoryBypass(recipeId) : false,
-  );
+  const [bypassInventory] = useState(() => (recipeId ? peekPourInventoryBypass(recipeId) : false));
 
-  const preSteps = useMemo(
-    () => (recipe ? buildPrePourSteps(recipe) : []),
-    [recipe],
-  );
-  const postSteps = useMemo(
-    () => (recipe ? buildPostPourSteps(recipe) : []),
-    [recipe],
-  );
+  const preSteps = useMemo(() => (recipe ? buildPrePourSteps(recipe) : []), [recipe]);
+  const postSteps = useMemo(() => (recipe ? buildPostPourSteps(recipe) : []), [recipe]);
 
   const { status, error: deviceError } = useDeviceStatus();
   const startPour = useStartPour();
@@ -85,7 +70,7 @@ export function PourPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [flowComplete, setFlowComplete] = useState(false);
   const [terminalOutcome, setTerminalOutcome] = useState<{
-    state: 'cancelled' | 'error' | 'complete';
+    state: "cancelled" | "error" | "complete";
     stepLabel?: string;
   } | null>(null);
   const [pourTracker, setPourTracker] = useState(createPumpPourTracker);
@@ -95,41 +80,31 @@ export function PourPage() {
   const isThisRecipe = job?.recipeId === recipe?.id;
   const jobState = isThisRecipe ? job?.state : undefined;
   const pourDurationMs = useMemo(
-    () =>
-      recipe ? estimateRecipePourDurationMs(recipe, status?.pumps ?? []) : 0,
+    () => (recipe ? estimateRecipePourDurationMs(recipe, status?.pumps ?? []) : 0),
     [recipe, status?.pumps],
   );
-  const pourProgress = useTimedPourProgress(
-    isThisRecipe ? job : null,
-    pourDurationMs,
-  );
+  const pourProgress = useTimedPourProgress(isThisRecipe ? job : null, pourDurationMs);
 
   const liveOutcome =
     pourStarted && recipeId
       ? resolveRecipePourOutcome(pourTracker, recipeId, job, priorTerminalKey)
       : null;
   const derivedTerminal =
-    liveOutcome === 'complete' ||
-    liveOutcome === 'cancelled' ||
-    liveOutcome === 'error'
+    liveOutcome === "complete" || liveOutcome === "cancelled" || liveOutcome === "error"
       ? { state: liveOutcome, stepLabel: job?.stepLabel }
       : null;
   const effectiveTerminal = terminalOutcome ?? derivedTerminal;
   const sawActiveJob = pourTracker.seenRunning;
 
   // Adjust attempt latch during render when /status outcome changes (React-approved).
-  if (liveOutcome === 'active') {
+  if (liveOutcome === "active") {
     if (!pourTracker.seenRunning) {
       setPourTracker((tracker) => ({ ...tracker, seenRunning: true }));
     }
     if (terminalOutcome !== null) {
       setTerminalOutcome(null);
     }
-  } else if (
-    liveOutcome === 'complete' ||
-    liveOutcome === 'cancelled' ||
-    liveOutcome === 'error'
-  ) {
+  } else if (liveOutcome === "complete" || liveOutcome === "cancelled" || liveOutcome === "error") {
     if (terminalOutcome?.state !== liveOutcome) {
       setTerminalOutcome({
         state: liveOutcome,
@@ -139,20 +114,17 @@ export function PourPage() {
   }
 
   const prePourPhase = preStepIndex < preSteps.length;
-  const sawMachineComplete = effectiveTerminal?.state === 'complete';
+  const sawMachineComplete = effectiveTerminal?.state === "complete";
   const postPourPhase =
     pourStarted &&
     !flowComplete &&
     postStepIndex < postSteps.length &&
-    (jobState === 'prompt' ||
-      (jobState === 'complete' && sawActiveJob) ||
-      sawMachineComplete);
+    (jobState === "prompt" || (jobState === "complete" && sawActiveJob) || sawMachineComplete);
   const pourFlowComplete =
     flowComplete ||
     (!postPourPhase &&
       postSteps.length === 0 &&
-      (sawMachineComplete ||
-        (pourStarted && sawActiveJob && jobState === 'complete')));
+      (sawMachineComplete || (pourStarted && sawActiveJob && jobState === "complete")));
 
   const jobRef = useLatestRef(job);
   const recipeIdRef = useLatestRef(recipeId);
@@ -163,7 +135,7 @@ export function PourPage() {
   const foreignActivePour = Boolean(
     job && recipe && job.recipeId !== recipe.id && isActivePourJob(job),
   );
-  const pumpBusy = status?.pumpJob?.state === 'running';
+  const pumpBusy = status?.pumpJob?.state === "running";
   // Previous pour's terminal job still in /status while this attempt starts.
   const staleTerminalJob = Boolean(
     pourStarted &&
@@ -185,9 +157,7 @@ export function PourPage() {
     !pourFlowComplete &&
     !pumpBusy &&
     !foreignActivePour &&
-    (!job ||
-      job.recipeId !== recipe.id ||
-      (!isActivePourJob(job) && !isTerminalPourJob(job))),
+    (!job || job.recipeId !== recipe.id || (!isActivePourJob(job) && !isTerminalPourJob(job))),
   );
   const waitingForJob = Boolean(
     recipe &&
@@ -202,15 +172,13 @@ export function PourPage() {
     (!job ||
       staleTerminalJob ||
       (job.recipeId !== recipe.id && isTerminalPourJob(job)) ||
-      (job.recipeId === recipe.id &&
-        !isActivePourJob(job) &&
-        !isTerminalPourJob(job))),
+      (job.recipeId === recipe.id && !isActivePourJob(job) && !isTerminalPourJob(job))),
   );
   const waitTimedOut = useDelayedTrue(waitingForJob, WAIT_FOR_JOB_MS);
 
   const beginPour = useCallback(async () => {
     if (!recipe || !status?.connected || deviceError) {
-      setStartError(deviceError ?? 'Device offline');
+      setStartError(deviceError ?? "Device offline");
       return;
     }
 
@@ -218,24 +186,22 @@ export function PourPage() {
     try {
       latest = await fetchDeviceStatus(queryClient);
     } catch {
-      setStartError('Could not verify device status — try again.');
+      setStartError("Could not verify device status — try again.");
       return;
     }
 
-    if (latest.job?.state === 'pouring' || latest.job?.state === 'prompt') {
-      setStartError('Machine is busy — wait for the current pour to finish.');
+    if (latest.job?.state === "pouring" || latest.job?.state === "prompt") {
+      setStartError("Machine is busy — wait for the current pour to finish.");
       return;
     }
 
-    if (latest.pumpJob?.state === 'running') {
-      setStartError('Machine is busy in setup — finish setup before pouring.');
+    if (latest.pumpJob?.state === "running") {
+      setStartError("Machine is busy in setup — finish setup before pouring.");
       return;
     }
 
     const availability = getDrinkAvailability(recipe, latest);
-    if (
-      effectiveBlockingIssues(availability.issues, bypassInventory).length > 0
-    ) {
+    if (effectiveBlockingIssues(availability.issues, bypassInventory).length > 0) {
       setStartError(firstBlockingMessage(availability.issues, bypassInventory));
       return;
     }
@@ -249,9 +215,7 @@ export function PourPage() {
     setFlowComplete(false);
     setPourTracker(createPumpPourTracker());
     setPriorTerminalKey(
-      latest.job &&
-        latest.job.recipeId === recipe.id &&
-        isTerminalPourJob(latest.job)
+      latest.job && latest.job.recipeId === recipe.id && isTerminalPourJob(latest.job)
         ? pourJobIdentityKey(latest.job)
         : null,
     );
@@ -278,14 +242,7 @@ export function PourPage() {
     } finally {
       setStartingPour(false);
     }
-  }, [
-    recipe,
-    status?.connected,
-    deviceError,
-    queryClient,
-    bypassInventory,
-    startPour,
-  ]);
+  }, [recipe, status?.connected, deviceError, queryClient, bypassInventory, startPour]);
 
   useEffect(() => {
     if (prePourPhase || pourStarted || beginPourAttemptedRef.current) return;
@@ -302,7 +259,7 @@ export function PourPage() {
   }, [prePourPhase, pourStarted, recipe, status, beginPour]);
 
   useEffect(() => {
-    if (jobState !== 'prompt' || postSteps.length > 0 || flowComplete) return;
+    if (jobState !== "prompt" || postSteps.length > 0 || flowComplete) return;
     void acknowledgePrompt
       .mutateAsync()
       .then(() => {
@@ -318,13 +275,13 @@ export function PourPage() {
     return () => {
       pourPageActiveRef.current = false;
       // Intentionally read latest refs at unmount (not effect setup) for leave-cancel.
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- useLatestRef snapshot at cleanup
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- useLatestRef snapshot at cleanup
       const active = jobRef.current;
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- useLatestRef snapshot at cleanup
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- useLatestRef snapshot at cleanup
       const forRecipeId = recipeIdRef.current;
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- useLatestRef snapshot at cleanup
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- useLatestRef snapshot at cleanup
       const expectActivePour = expectActivePourRef.current;
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- useLatestRef snapshot at cleanup
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- useLatestRef snapshot at cleanup
       const cancelPour = cancelPourRef.current;
       queueMicrotask(() => {
         if (pourPageActiveRef.current) return;
@@ -338,7 +295,7 @@ export function PourPage() {
         }
 
         void cancelPour().catch((err: unknown) => {
-          console.error('Pour cancel on leave failed', err);
+          console.error("Pour cancel on leave failed", err);
         });
       });
     };
@@ -348,7 +305,7 @@ export function PourPage() {
     if (!recipe || !pourFlowComplete) return;
 
     const timer = window.setTimeout(() => {
-      navigate('/');
+      navigate("/");
     }, RETURN_TO_MENU_MS);
     return () => {
       window.clearTimeout(timer);
@@ -379,7 +336,7 @@ export function PourPage() {
     }
 
     try {
-      if (job?.state === 'prompt') {
+      if (job?.state === "prompt") {
         await acknowledgePrompt.mutateAsync();
       }
       setFlowComplete(true);
@@ -405,7 +362,7 @@ export function PourPage() {
         recipe={recipe}
         stepLabel={prePourStepLabel(step)}
         instruction={prePourStepInstruction(step)}
-        icon={step.kind === 'ice' ? 'ice' : 'hand'}
+        icon={step.kind === "ice" ? "ice" : "hand"}
         onConfirm={handlePreStepDone}
         onCancel={() => {
           navigate(`/drink/${recipe.id}`);
@@ -416,25 +373,14 @@ export function PourPage() {
 
   if (startingPour || (startError && !pourStarted)) {
     return (
-      <PourScreenShell
-        recipeId={recipeId}
-        category={recipe.categories[0]}
-        className="text-center"
-      >
-        {startingPour ? (
-          <Loader2 className="size-12 animate-spin text-primary" />
-        ) : null}
+      <PourScreenShell recipeId={recipeId} category={recipe.categories[0]} className="text-center">
+        {startingPour ? <Loader2 className="size-12 animate-spin text-primary" /> : null}
         <h1 className="font-heading text-3xl font-semibold">{recipe.name}</h1>
         <p className="text-lg text-muted-foreground">
-          {startError ??
-            (startingPour ? 'Starting pour…' : 'Preparing to pour…')}
+          {startError ?? (startingPour ? "Starting pour…" : "Preparing to pour…")}
         </p>
         {startError && (
-          <LinkButton
-            href={`/drink/${recipe.id}`}
-            variant="outline"
-            className="kiosk-touch"
-          >
+          <LinkButton href={`/drink/${recipe.id}`} variant="outline" className="kiosk-touch">
             Back
           </LinkButton>
         )}
@@ -466,9 +412,7 @@ export function PourPage() {
         <div className="rounded-full bg-emerald-500/15 p-6 ring-1 ring-emerald-500/30">
           <PartyPopper className="size-14 text-emerald-300" />
         </div>
-        <h1 className="font-heading text-4xl font-bold">
-          Enjoy your {recipe.name}
-        </h1>
+        <h1 className="font-heading text-4xl font-bold">Enjoy your {recipe.name}</h1>
         <PourProgressBar value={100} />
         <p className="text-lg text-muted-foreground">Returning to menu…</p>
       </PourScreenShell>
@@ -477,104 +421,67 @@ export function PourPage() {
 
   if (pourLostAfterStart) {
     return (
-      <PourScreenShell
-        recipeId={recipeId}
-        category={recipe.categories[0]}
-        className="text-center"
-      >
+      <PourScreenShell recipeId={recipeId} category={recipe.categories[0]} className="text-center">
         <p className="text-xl text-destructive">
           Pour stopped unexpectedly. Check the glass and scale, then try again.
         </p>
-        <LinkButton
-          href={`/drink/${recipe.id}`}
-          size="lg"
-          className="kiosk-cta"
-        >
+        <LinkButton href={`/drink/${recipe.id}`} size="lg" className="kiosk-cta">
           Back to drink
         </LinkButton>
       </PourScreenShell>
     );
   }
 
-  if (effectiveTerminal?.state === 'cancelled') {
+  if (effectiveTerminal?.state === "cancelled") {
     return (
       <PourScreenShell recipeId={recipeId} category={recipe.categories[0]}>
         <CheckCircle2 className="size-12 text-muted-foreground" />
         <p className="text-xl text-muted-foreground">Pour cancelled.</p>
-        <LinkButton
-          href={`/drink/${recipe.id}`}
-          size="lg"
-          className="kiosk-cta"
-        >
+        <LinkButton href={`/drink/${recipe.id}`} size="lg" className="kiosk-cta">
           Back to drink
         </LinkButton>
       </PourScreenShell>
     );
   }
 
-  if (effectiveTerminal?.state === 'error') {
+  if (effectiveTerminal?.state === "error") {
     return (
       <PourScreenShell recipeId={recipeId} category={recipe.categories[0]}>
-        <p className="text-xl text-destructive">
-          {effectiveTerminal.stepLabel || 'Pour failed.'}
-        </p>
-        <LinkButton
-          href={`/drink/${recipe.id}`}
-          size="lg"
-          className="kiosk-cta"
-        >
+        <p className="text-xl text-destructive">{effectiveTerminal.stepLabel || "Pour failed."}</p>
+        <LinkButton href={`/drink/${recipe.id}`} size="lg" className="kiosk-cta">
           Back to drink
         </LinkButton>
       </PourScreenShell>
     );
   }
 
-  if (
-    !status ||
-    pumpBusy ||
-    foreignActivePour ||
-    staleTerminalJob ||
-    !job ||
-    !isThisRecipe
-  ) {
+  if (!status || pumpBusy || foreignActivePour || staleTerminalJob || !job || !isThisRecipe) {
     const busyMessage = pumpBusy
-      ? 'Machine is busy in setup — finish setup before pouring.'
+      ? "Machine is busy in setup — finish setup before pouring."
       : foreignActivePour
-        ? 'Machine is pouring another drink — wait or cancel it first.'
+        ? "Machine is pouring another drink — wait or cancel it first."
         : null;
 
     return (
-      <PourScreenShell
-        recipeId={recipeId}
-        category={recipe.categories[0]}
-        className="text-center"
-      >
+      <PourScreenShell recipeId={recipeId} category={recipe.categories[0]} className="text-center">
         <Loader2 className="size-12 animate-spin text-primary" />
         <h1 className="font-heading text-3xl font-semibold">{recipe.name}</h1>
         <p className="text-lg text-muted-foreground">
           {busyMessage ??
             (waitTimedOut
-              ? 'Pour did not start. Check the machine or try again from the drink screen.'
-              : 'Waiting for pour to start…')}
+              ? "Pour did not start. Check the machine or try again from the drink screen."
+              : "Waiting for pour to start…")}
         </p>
-        <LinkButton
-          href={`/drink/${recipe.id}`}
-          variant="outline"
-          className="kiosk-touch"
-        >
+        <LinkButton href={`/drink/${recipe.id}`} variant="outline" className="kiosk-touch">
           Back
         </LinkButton>
       </PourScreenShell>
     );
   }
 
-  if (job.state === 'prompt') {
+  if (job.state === "prompt") {
     return (
-      <PourScreenShell
-        recipeId={recipeId}
-        category={recipe.categories[0]}
-        className="text-center"
-      >
+      <PourScreenShell recipeId={recipeId} category={recipe.categories[0]} className="text-center">
         {actionError ? (
           <>
             <p className="text-lg text-destructive">{actionError}</p>
@@ -631,7 +538,7 @@ export function PourPage() {
       <Button
         variant="destructive"
         size="lg"
-        className={cn('kiosk-touch min-w-36 text-base')}
+        className={cn("kiosk-touch min-w-36 text-base")}
         onClick={() => void handleCancel()}
       >
         Cancel

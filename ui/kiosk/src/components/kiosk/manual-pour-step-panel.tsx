@@ -1,15 +1,15 @@
-import { Hand, Snowflake } from 'lucide-react';
+import { Hand, Snowflake } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
-import { PourScreenShell } from '@/components/kiosk/pour-screen-shell';
-import type { Recipe } from '@/api/types';
-import { cn } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
+import { PourScreenShell } from "@/components/kiosk/pour-screen-shell";
+import type { Recipe } from "@/api/types";
+import { cn } from "@/lib/utils";
 
 type ManualPourStepPanelProps = {
   recipe: Recipe;
   stepLabel: string;
   instruction: string;
-  icon?: 'hand' | 'ice';
+  icon?: "hand" | "ice";
   actionError?: string | null;
   actionLabel?: string;
   onConfirm: () => void;
@@ -20,17 +20,17 @@ export function ManualPourStepPanel({
   recipe,
   stepLabel,
   instruction,
-  icon = 'hand',
+  icon = "hand",
   actionError,
-  actionLabel = 'Done',
+  actionLabel = "Done",
   onConfirm,
   onCancel,
 }: ManualPourStepPanelProps) {
-  const Icon = icon === 'ice' ? Snowflake : Hand;
+  const Icon = icon === "ice" ? Snowflake : Hand;
   const iconClass =
-    icon === 'ice'
-      ? 'bg-sky-500/15 ring-sky-500/30 text-sky-300'
-      : 'bg-amber-500/15 ring-amber-500/30 text-amber-300';
+    icon === "ice"
+      ? "bg-sky-500/15 ring-sky-500/30 text-sky-300"
+      : "bg-amber-500/15 ring-amber-500/30 text-amber-300";
 
   return (
     <PourScreenShell
@@ -48,29 +48,17 @@ export function ManualPourStepPanel({
         </p>
         <h1 className="font-heading text-4xl font-bold">{recipe.name}</h1>
       </div>
-      <p className="max-w-lg text-xl leading-relaxed text-muted-foreground">
-        {instruction}
-      </p>
+      <p className="max-w-lg text-xl leading-relaxed text-muted-foreground">{instruction}</p>
       {actionError && <p className="text-sm text-destructive">{actionError}</p>}
-      <div
-        className={cn(
-          'grid w-full max-w-lg gap-3',
-          onCancel ? 'grid-cols-2' : 'grid-cols-1',
-        )}
-      >
+      <div className={cn("grid w-full max-w-lg gap-3", onCancel ? "grid-cols-2" : "grid-cols-1")}>
         {onCancel && (
-          <Button
-            variant="outline"
-            size="kiosk"
-            className="w-full"
-            onClick={onCancel}
-          >
+          <Button variant="outline" size="kiosk" className="w-full" onClick={onCancel}>
             Back
           </Button>
         )}
         <Button
           size="kiosk"
-          className={cn('kiosk-cta w-full', !onCancel && 'mx-auto max-w-xs')}
+          className={cn("kiosk-cta w-full", !onCancel && "mx-auto max-w-xs")}
           onClick={onConfirm}
         >
           {actionLabel}

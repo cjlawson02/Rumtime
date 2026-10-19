@@ -1,8 +1,5 @@
-import { NumberPad, NumberValueDisplay } from '@/components/kiosk/number-pad';
-import {
-  PadDialogFooter,
-  PadDialogShell,
-} from '@/components/kiosk/pad-dialog-shell';
+import { NumberPad, NumberValueDisplay } from "@/components/kiosk/number-pad";
+import { PadDialogFooter, PadDialogShell } from "@/components/kiosk/pad-dialog-shell";
 
 export type NumberPadDialogProps = {
   open: boolean;
@@ -47,9 +44,7 @@ export function NumberPadDialog({
       title={title}
       description={description}
       className={className}
-      footer={
-        <PadDialogFooter onCancel={onCancel} onSave={onSave} saving={saving} />
-      }
+      footer={<PadDialogFooter onCancel={onCancel} onSave={onSave} saving={saving} />}
     >
       <div className="space-y-6 rounded-xl border border-border/60 px-4 py-6">
         <NumberValueDisplay value={value} suffix={suffix} />

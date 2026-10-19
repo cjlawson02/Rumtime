@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 /** Returns true after `delayMs` while `active` stays true. Resets when inactive. */
 export function useDelayedTrue(active: boolean, delayMs: number): boolean {

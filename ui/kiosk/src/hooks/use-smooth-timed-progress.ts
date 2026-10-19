@@ -1,21 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
-import type { PumpJob } from '@/api/types';
-import { roundProgressPercent } from '@/lib/utils';
+import type { PumpJob } from "@/api/types";
+import { roundProgressPercent } from "@/lib/utils";
 
-function getTimedDurationMs(
-  pumpJob: PumpJob,
-  mlPerSecond?: number,
-): number | null {
+function getTimedDurationMs(pumpJob: PumpJob, mlPerSecond?: number): number | null {
   if (pumpJob.continuous) return null;
   if (pumpJob.durationSeconds !== undefined) {
     return pumpJob.durationSeconds * 1000;
   }
-  if (
-    pumpJob.targetMl !== undefined &&
-    mlPerSecond !== undefined &&
-    mlPerSecond > 0
-  ) {
+  if (pumpJob.targetMl !== undefined && mlPerSecond !== undefined && mlPerSecond > 0) {
     return (pumpJob.targetMl / mlPerSecond) * 1000;
   }
   return null;
@@ -26,22 +19,18 @@ export function useSmoothTimedProgress(
   mlPerSecond?: number,
 ): number {
   const [animatedProgress, setAnimatedProgress] = useState(0);
-  const anchorRef = useRef<{ startedAt: number; durationMs: number } | null>(
-    null,
-  );
+  const anchorRef = useRef<{ startedAt: number; durationMs: number } | null>(null);
   const rafRef = useRef(0);
 
   const durationMs =
-    pumpJob && pumpJob.state === 'running'
-      ? getTimedDurationMs(pumpJob, mlPerSecond)
-      : null;
+    pumpJob && pumpJob.state === "running" ? getTimedDurationMs(pumpJob, mlPerSecond) : null;
   const isTimedRunning = durationMs !== null;
 
   useEffect(() => {
     cancelAnimationFrame(rafRef.current);
     anchorRef.current = null;
 
-    if (!pumpJob || pumpJob.state === 'complete' || !isTimedRunning) {
+    if (!pumpJob || pumpJob.state === "complete" || !isTimedRunning) {
       return;
     }
 
@@ -56,10 +45,7 @@ export function useSmoothTimedProgress(
       const anchor = anchorRef.current;
       if (!anchor) return;
 
-      const next = Math.min(
-        100,
-        ((now - anchor.startedAt) / anchor.durationMs) * 100,
-      );
+      const next = Math.min(100, ((now - anchor.startedAt) / anchor.durationMs) * 100);
       setAnimatedProgress(next);
 
       if (next < 100) {
@@ -86,7 +72,7 @@ export function useSmoothTimedProgress(
   ]);
 
   if (!pumpJob) return 0;
-  if (pumpJob.state === 'complete') return 100;
+  if (pumpJob.state === "complete") return 100;
   if (!isTimedRunning) {
     return roundProgressPercent(pumpJob.progress);
   }

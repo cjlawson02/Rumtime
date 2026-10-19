@@ -1,67 +1,64 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Droplets } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Droplets } from "lucide-react";
 
 import {
   getPumpDispenseViewState,
   PumpDispenseStatus,
-} from '@/components/kiosk/pump-dispense-panel';
-import {
-  SetupWizardShell,
-  WizardFooterActions,
-} from '@/components/kiosk/setup-wizard-shell';
-import { WizardErrorBanner } from '@/components/kiosk/wizard-error-banner';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { useUpdatePrimed } from '@/hooks/use-device-mutations';
-import { usePumpDispenseSession } from '@/hooks/use-pump-dispense-session';
-import { MAX_PRIME_SECONDS } from '@/lib/calibration';
-import { MAX_CLEANING_RUN_SECONDS } from '@/lib/cleaning';
-import { deviceErrorMessage } from '@/lib/device-errors';
+} from "@/components/kiosk/pump-dispense-panel";
+import { SetupWizardShell, WizardFooterActions } from "@/components/kiosk/setup-wizard-shell";
+import { WizardErrorBanner } from "@/components/kiosk/wizard-error-banner";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { useUpdatePrimed } from "@/hooks/use-device-mutations";
+import { usePumpDispenseSession } from "@/hooks/use-pump-dispense-session";
+import { MAX_PRIME_SECONDS } from "@/lib/calibration";
+import { MAX_CLEANING_RUN_SECONDS } from "@/lib/cleaning";
+import { deviceErrorMessage } from "@/lib/device-errors";
 import {
   resetPumpPourTracker,
   resolvePumpPourOutcome,
   type PumpPourTracker,
-} from '@/lib/pump-pour-lifecycle';
+} from "@/lib/pump-pour-lifecycle";
 
 type Phase =
-  | { kind: 'product-drain-run' }
-  | { kind: 'flush-run' }
-  | { kind: 'water-drain-run' }
-  | { kind: 'prime-run' }
-  | { kind: 'done' };
+  | { kind: "product-drain-run" }
+  | { kind: "flush-run" }
+  | { kind: "water-drain-run" }
+  | { kind: "prime-run" }
+  | { kind: "done" };
 
-const ASSIGN_STEPS: Phase['kind'][] = [
-  'product-drain-run',
-  'flush-run',
-  'water-drain-run',
-  'prime-run',
-  'done',
+const ASSIGN_STEPS: Phase["kind"][] = [
+  "product-drain-run",
+  "flush-run",
+  "water-drain-run",
+  "prime-run",
+  "done",
 ];
 
-const UNASSIGN_STEPS: Phase['kind'][] = [
-  'product-drain-run',
-  'flush-run',
-  'water-drain-run',
-  'done',
+const UNASSIGN_STEPS: Phase["kind"][] = [
+  "product-drain-run",
+  "flush-run",
+  "water-drain-run",
+  "done",
 ];
 
 function isRunPhase(phase: Phase): boolean {
   return (
-    phase.kind === 'product-drain-run' ||
-    phase.kind === 'flush-run' ||
-    phase.kind === 'water-drain-run' ||
-    phase.kind === 'prime-run'
+    phase.kind === "product-drain-run" ||
+    phase.kind === "flush-run" ||
+    phase.kind === "water-drain-run" ||
+    phase.kind === "prime-run"
   );
 }
 
-function runPurposeForPhase(phase: Phase): 'drain' | 'flush' | 'prime' | null {
+function runPurposeForPhase(phase: Phase): "drain" | "flush" | "prime" | null {
   switch (phase.kind) {
-    case 'product-drain-run':
-    case 'water-drain-run':
-      return 'drain';
-    case 'flush-run':
-      return 'flush';
-    case 'prime-run':
-      return 'prime';
+    case "product-drain-run":
+    case "water-drain-run":
+      return "drain";
+    case "flush-run":
+      return "flush";
+    case "prime-run":
+      return "prime";
     default:
       return null;
   }
@@ -74,23 +71,23 @@ function phaseTitle(
   runActive: boolean,
 ): string {
   switch (phase.kind) {
-    case 'product-drain-run':
-      return 'Drain the old liquid';
-    case 'flush-run':
-      return 'Flush with water';
-    case 'water-drain-run':
-      return 'Purge the line dry';
-    case 'prime-run':
+    case "product-drain-run":
+      return "Drain the old liquid";
+    case "flush-run":
+      return "Flush with water";
+    case "water-drain-run":
+      return "Purge the line dry";
+    case "prime-run":
       if (!runActive && !swapApplied) {
-        return 'Connect the new bottle';
+        return "Connect the new bottle";
       }
-      return 'Prime the new liquid';
-    case 'done':
-      return assigning ? 'Line ready' : 'Line stored dry';
+      return "Prime the new liquid";
+    case "done":
+      return assigning ? "Line ready" : "Line stored dry";
   }
 }
 
-function stepIndexFor(phase: Phase, steps: Phase['kind'][]): number {
+function stepIndexFor(phase: Phase, steps: Phase["kind"][]): number {
   return steps.indexOf(phase.kind);
 }
 
@@ -132,7 +129,7 @@ function LineSwapWizardSession({
     closeWizard: closeDispenseSession,
     createTracker,
   } = usePumpDispenseSession();
-  const [phase, setPhase] = useState<Phase>({ kind: 'product-drain-run' });
+  const [phase, setPhase] = useState<Phase>({ kind: "product-drain-run" });
   const [swapApplied, setSwapApplied] = useState(false);
   const completingRef = useRef(false);
   const runPourRef = useRef<PumpPourTracker>(createTracker());
@@ -143,13 +140,11 @@ function LineSwapWizardSession({
   const dispense = getPumpDispenseViewState(pumpId, status?.pumpJob);
   const runPurpose = status?.pumpJob?.purpose;
   const phasePurpose = runPurposeForPhase(phase);
-  const runActive = Boolean(
-    isRunPhase(phase) && phasePurpose === runPurpose && dispense?.active,
-  );
+  const runActive = Boolean(isRunPhase(phase) && phasePurpose === runPurpose && dispense?.active);
 
   const resetWizard = useCallback(() => {
     resetPumpPourTracker(runPourRef.current);
-    setPhase({ kind: 'product-drain-run' });
+    setPhase({ kind: "product-drain-run" });
     setError(null);
     setSwapApplied(false);
     completingRef.current = false;
@@ -164,17 +159,14 @@ function LineSwapWizardSession({
       phasePurpose,
       status?.pumpJob,
     );
-    if (outcome === 'cancelled') {
+    if (outcome === "cancelled") {
       resetPumpPourTracker(runPourRef.current);
-      const maxSeconds =
-        phasePurpose === 'prime' ? MAX_PRIME_SECONDS : MAX_CLEANING_RUN_SECONDS;
-      setError(
-        `Run stopped — check the line or try again (max ${maxSeconds}s).`,
-      );
+      const maxSeconds = phasePurpose === "prime" ? MAX_PRIME_SECONDS : MAX_CLEANING_RUN_SECONDS;
+      setError(`Run stopped — check the line or try again (max ${maxSeconds}s).`);
     }
   }, [phase, phasePurpose, pumpId, setError, status?.pumpJob]);
 
-  const startRunForPhase = (purpose: 'flush' | 'drain' | 'prime') =>
+  const startRunForPhase = (purpose: "flush" | "drain" | "prime") =>
     startRun({ pumpId, purpose, tracker: runPourRef });
 
   const stopRun = async (options?: {
@@ -210,14 +202,14 @@ function LineSwapWizardSession({
   const advance = useCallback(() => {
     setPhase((current) => {
       switch (current.kind) {
-        case 'product-drain-run':
-          return { kind: 'flush-run' };
-        case 'flush-run':
-          return { kind: 'water-drain-run' };
-        case 'water-drain-run':
-          return assigning ? { kind: 'prime-run' } : { kind: 'done' };
-        case 'prime-run':
-          return { kind: 'done' };
+        case "product-drain-run":
+          return { kind: "flush-run" };
+        case "flush-run":
+          return { kind: "water-drain-run" };
+        case "water-drain-run":
+          return assigning ? { kind: "prime-run" } : { kind: "done" };
+        case "prime-run":
+          return { kind: "done" };
         default:
           return current;
       }
@@ -225,7 +217,7 @@ function LineSwapWizardSession({
   }, [assigning]);
 
   const footer = (() => {
-    if (phase.kind === 'product-drain-run') {
+    if (phase.kind === "product-drain-run") {
       if (runActive) {
         return (
           <WizardFooterActions
@@ -250,14 +242,14 @@ function LineSwapWizardSession({
       return (
         <WizardFooterActions
           showBack={false}
-          onNext={() => void startRunForPhase('drain')}
-          nextLabel={starting ? 'Starting…' : 'Start drain'}
+          onNext={() => void startRunForPhase("drain")}
+          nextLabel={starting ? "Starting…" : "Start drain"}
           nextDisabled={starting}
         />
       );
     }
 
-    if (phase.kind === 'flush-run') {
+    if (phase.kind === "flush-run") {
       if (runActive) {
         return (
           <WizardFooterActions
@@ -282,16 +274,16 @@ function LineSwapWizardSession({
       return (
         <WizardFooterActions
           onBack={() => {
-            setPhase({ kind: 'product-drain-run' });
+            setPhase({ kind: "product-drain-run" });
           }}
-          onNext={() => void startRunForPhase('flush')}
-          nextLabel={starting ? 'Starting…' : 'Start flush'}
+          onNext={() => void startRunForPhase("flush")}
+          nextLabel={starting ? "Starting…" : "Start flush"}
           nextDisabled={starting}
         />
       );
     }
 
-    if (phase.kind === 'water-drain-run') {
+    if (phase.kind === "water-drain-run") {
       if (runActive) {
         return (
           <WizardFooterActions
@@ -324,16 +316,16 @@ function LineSwapWizardSession({
       return (
         <WizardFooterActions
           onBack={() => {
-            setPhase({ kind: 'flush-run' });
+            setPhase({ kind: "flush-run" });
           }}
-          onNext={() => void startRunForPhase('drain')}
-          nextLabel={starting ? 'Starting…' : 'Start purge'}
+          onNext={() => void startRunForPhase("drain")}
+          nextLabel={starting ? "Starting…" : "Start purge"}
           nextDisabled={starting}
         />
       );
     }
 
-    if (phase.kind === 'prime-run') {
+    if (phase.kind === "prime-run") {
       if (runActive) {
         return (
           <WizardFooterActions
@@ -366,7 +358,7 @@ function LineSwapWizardSession({
       return (
         <WizardFooterActions
           onBack={() => {
-            setPhase({ kind: 'water-drain-run' });
+            setPhase({ kind: "water-drain-run" });
           }}
           onNext={() => {
             void (async () => {
@@ -374,7 +366,7 @@ function LineSwapWizardSession({
                 if (!swapApplied) {
                   await applySwapIfNeeded();
                 }
-                await startRunForPhase('prime');
+                await startRunForPhase("prime");
               } catch (err) {
                 setError(deviceErrorMessage(err));
               }
@@ -382,12 +374,12 @@ function LineSwapWizardSession({
           }}
           nextLabel={
             starting
-              ? 'Starting…'
+              ? "Starting…"
               : swapApplied
-                ? 'Start priming'
+                ? "Start priming"
                 : newName
                   ? `${newName} connected`
-                  : 'Start priming'
+                  : "Start priming"
           }
           nextDisabled={starting}
         />
@@ -419,7 +411,7 @@ function LineSwapWizardSession({
     >
       <WizardErrorBanner error={error} />
 
-      {phase.kind === 'product-drain-run' &&
+      {phase.kind === "product-drain-run" &&
         (runActive ? (
           <PumpDispenseStatus
             pumpId={pumpId}
@@ -433,7 +425,7 @@ function LineSwapWizardSession({
               Line {pumpId} is on <strong>{oldName}</strong>
               {newName ? (
                 <>
-                  {' '}
+                  {" "}
                   and will move to <strong>{newName}</strong>
                 </>
               ) : null}
@@ -443,14 +435,13 @@ function LineSwapWizardSession({
               <li>Remove the pickup tube from the {oldName} bottle.</li>
               <li>Hold the tube over waste — do not put it in water yet.</li>
               <li>
-                Tap <strong>Start drain</strong> to pump leftover liquid out of
-                the line.
+                Tap <strong>Start drain</strong> to pump leftover liquid out of the line.
               </li>
             </ol>
           </div>
         ))}
 
-      {phase.kind === 'flush-run' &&
+      {phase.kind === "flush-run" &&
         (runActive ? (
           <PumpDispenseStatus
             pumpId={pumpId}
@@ -471,7 +462,7 @@ function LineSwapWizardSession({
           </div>
         ))}
 
-      {phase.kind === 'water-drain-run' &&
+      {phase.kind === "water-drain-run" &&
         (runActive ? (
           <PumpDispenseStatus
             pumpId={pumpId}
@@ -492,21 +483,16 @@ function LineSwapWizardSession({
           </div>
         ))}
 
-      {phase.kind === 'prime-run' &&
+      {phase.kind === "prime-run" &&
         (runActive ? (
-          <PumpDispenseStatus
-            pumpId={pumpId}
-            pumpJob={status?.pumpJob}
-            continuous
-          />
+          <PumpDispenseStatus pumpId={pumpId} pumpJob={status?.pumpJob} continuous />
         ) : (
           newName && (
             <div className="mx-auto max-w-xl space-y-4 text-lg leading-relaxed text-muted-foreground">
               <p>The line should be empty and dry.</p>
               <ol className="list-decimal space-y-3 pl-6">
                 <li>
-                  Connect the pickup tube to the <strong>{newName}</strong>{' '}
-                  bottle.
+                  Connect the pickup tube to the <strong>{newName}</strong> bottle.
                 </li>
                 <li>Confirm the tube reaches the liquid.</li>
                 <li>Place a spare glass under the nozzle.</li>
@@ -518,7 +504,7 @@ function LineSwapWizardSession({
           )
         ))}
 
-      {phase.kind === 'done' && (
+      {phase.kind === "done" && (
         <div className="mx-auto flex max-w-xl flex-col items-center gap-6 py-8 text-center">
           <div className="rounded-full bg-primary/15 p-6 ring-1 ring-primary/30">
             <Droplets className="size-14 text-primary" />

@@ -1,48 +1,44 @@
-import { lazy, Suspense } from 'react';
-import { Route, Switch } from 'wouter';
+import { lazy, Suspense } from "react";
+import { Route, Switch } from "wouter";
 
-import { ConnectionHelper } from '@/components/kiosk/connection-helper';
-import { KioskMessageScreen } from '@/components/kiosk/kiosk-message-screen';
-import { LinkButton } from '@/components/kiosk/link-button';
+import { ConnectionHelper } from "@/components/kiosk/connection-helper";
+import { KioskMessageScreen } from "@/components/kiosk/kiosk-message-screen";
+import { LinkButton } from "@/components/kiosk/link-button";
 
-const MenuPage = lazy(() =>
-  import('@/pages/menu-page').then((m) => ({ default: m.MenuPage })),
-);
+const MenuPage = lazy(() => import("@/pages/menu-page").then((m) => ({ default: m.MenuPage })));
 const DrinkDetailPage = lazy(() =>
-  import('@/pages/drink-detail-page').then((m) => ({
+  import("@/pages/drink-detail-page").then((m) => ({
     default: m.DrinkDetailPage,
   })),
 );
-const PourPage = lazy(() =>
-  import('@/pages/pour-page').then((m) => ({ default: m.PourPage })),
-);
+const PourPage = lazy(() => import("@/pages/pour-page").then((m) => ({ default: m.PourPage })));
 const SetupIndexPage = lazy(() =>
-  import('@/pages/setup-index-page').then((m) => ({
+  import("@/pages/setup-index-page").then((m) => ({
     default: m.SetupIndexPage,
   })),
 );
 const SetupPumpsPage = lazy(() =>
-  import('@/pages/setup-pumps-page').then((m) => ({
+  import("@/pages/setup-pumps-page").then((m) => ({
     default: m.SetupPumpsPage,
   })),
 );
 const SetupCalibrationPage = lazy(() =>
-  import('@/pages/setup-calibration-page').then((m) => ({
+  import("@/pages/setup-calibration-page").then((m) => ({
     default: m.SetupCalibrationPage,
   })),
 );
 const SetupCleaningPage = lazy(() =>
-  import('@/pages/setup-cleaning-page').then((m) => ({
+  import("@/pages/setup-cleaning-page").then((m) => ({
     default: m.SetupCleaningPage,
   })),
 );
 const SetupDevicePage = lazy(() =>
-  import('@/pages/setup-device-page').then((m) => ({
+  import("@/pages/setup-device-page").then((m) => ({
     default: m.SetupDevicePage,
   })),
 );
 const SetupSectionPage = lazy(() =>
-  import('@/pages/setup-section-page').then((m) => ({
+  import("@/pages/setup-section-page").then((m) => ({
     default: m.SetupSectionPage,
   })),
 );
@@ -77,12 +73,8 @@ export function App() {
           <Route path="/">
             <MenuPage />
           </Route>
-          <Route path="/drink/:id">
-            {(params) => <DrinkDetailPage key={params.id} />}
-          </Route>
-          <Route path="/pour/:id">
-            {(params) => <PourPage key={params.id} />}
-          </Route>
+          <Route path="/drink/:id">{(params) => <DrinkDetailPage key={params.id} />}</Route>
+          <Route path="/pour/:id">{(params) => <PourPage key={params.id} />}</Route>
           <Route path="/setup/pumps">
             <SetupPumpsPage />
           </Route>

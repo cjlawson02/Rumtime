@@ -1,8 +1,8 @@
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
-import type { DeviceStatus, PumpJob } from '@/api/types';
-import type { StartRunOptions } from '@/hooks/use-pump-dispense-session';
-import { createPumpPourTracker } from '@/lib/pump-pour-lifecycle';
+import type { DeviceStatus, PumpJob } from "@/api/types";
+import type { StartRunOptions } from "@/hooks/use-pump-dispense-session";
+import { createPumpPourTracker } from "@/lib/pump-pour-lifecycle";
 
 export function createMockPumpDispenseSession() {
   const state = {
@@ -53,13 +53,13 @@ export const wizardPumpStatus: DeviceStatus = {
   connected: true,
   bindings: {
     bourbon: {
-      ingredientId: 'bourbon',
+      ingredientId: "bourbon",
       remainingMl: 750,
       bottleSizeMl: 750,
       primed: true,
     },
     simple: {
-      ingredientId: 'simple',
+      ingredientId: "simple",
       remainingMl: 500,
       bottleSizeMl: 750,
       primed: true,
@@ -68,13 +68,13 @@ export const wizardPumpStatus: DeviceStatus = {
   pumps: [
     {
       pumpId: 1,
-      ingredientId: 'bourbon',
+      ingredientId: "bourbon",
       mlPerSecond: 2,
       antiDripMs: 100,
     },
     {
       pumpId: 2,
-      ingredientId: 'simple',
+      ingredientId: "simple",
       mlPerSecond: 1.5,
       antiDripMs: 80,
     },
@@ -83,12 +83,12 @@ export const wizardPumpStatus: DeviceStatus = {
 };
 
 export function runningPumpJob(
-  overrides: Partial<PumpJob> & Pick<PumpJob, 'pumpId' | 'purpose'>,
+  overrides: Partial<PumpJob> & Pick<PumpJob, "pumpId" | "purpose">,
 ): PumpJob {
   return {
-    state: 'running',
+    state: "running",
     progress: 40,
-    stepLabel: 'Running…',
+    stepLabel: "Running…",
     continuous: false,
     ...overrides,
   };

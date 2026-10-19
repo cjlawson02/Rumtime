@@ -1,16 +1,13 @@
-import { useCallback, useMemo } from 'react';
-import { useQuery, type QueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo } from "react";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 
-import { deviceClient } from '@/api';
-import type { DeviceStatus } from '@/api/types';
-import { useDeviceEndpoint } from '@/hooks/use-device-endpoint';
-import { kioskConfig } from '@/lib/config';
-import { deviceStatusQueryKey } from '@/lib/device-query-keys';
+import { deviceClient } from "@/api";
+import type { DeviceStatus } from "@/api/types";
+import { useDeviceEndpoint } from "@/hooks/use-device-endpoint";
+import { kioskConfig } from "@/lib/config";
+import { deviceStatusQueryKey } from "@/lib/device-query-keys";
 
-export {
-  deviceStatusQueryKey,
-  deviceStatusQueryKeyPrefix,
-} from '@/lib/device-query-keys';
+export { deviceStatusQueryKey, deviceStatusQueryKeyPrefix } from "@/lib/device-query-keys";
 
 export function deviceStatusQueryFn({ signal }: { signal?: AbortSignal }) {
   return deviceClient.getStatus({ signal });
@@ -39,17 +36,11 @@ export function statusPlaceholderData(
   return undefined;
 }
 
-export function deriveDeviceStatusLoading(
-  isFetched: boolean,
-  isFetching: boolean,
-): boolean {
+export function deriveDeviceStatusLoading(isFetched: boolean, isFetching: boolean): boolean {
   return !isFetched && isFetching;
 }
 
-export function deriveDeviceConnected(
-  data: DeviceStatus | undefined,
-  isError: boolean,
-): boolean {
+export function deriveDeviceConnected(data: DeviceStatus | undefined, isError: boolean): boolean {
   return !isError && Boolean(data?.connected);
 }
 
@@ -59,8 +50,8 @@ export function statusRefetchIntervalMs(
   pollMs: number,
   errorPollMs = 3000,
 ): number | false {
-  if (fetchStatus === 'fetching') return false;
-  if (status === 'error') return errorPollMs;
+  if (fetchStatus === "fetching") return false;
+  if (status === "error") return errorPollMs;
   return pollMs;
 }
 
@@ -83,11 +74,7 @@ export function useDeviceStatus(): UseDeviceStatusResult {
     queryKey: deviceStatusQueryKey(deviceApiBase),
     queryFn: deviceStatusQueryFn,
     refetchInterval: (query) =>
-      statusRefetchIntervalMs(
-        query.state.fetchStatus,
-        query.state.status,
-        pollIntervalMs(),
-      ),
+      statusRefetchIntervalMs(query.state.fetchStatus, query.state.status, pollIntervalMs()),
     placeholderData: (previousData, previousQuery) =>
       statusPlaceholderData(previousData, previousQuery, deviceApiBase),
     retry: false,
@@ -104,7 +91,7 @@ export function useDeviceStatus(): UseDeviceStatusResult {
   const error = query.isError
     ? query.error instanceof Error
       ? query.error.message
-      : 'Device unreachable'
+      : "Device unreachable"
     : null;
 
   const connected = deriveDeviceConnected(query.data, query.isError);

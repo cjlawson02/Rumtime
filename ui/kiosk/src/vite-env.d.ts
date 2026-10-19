@@ -11,23 +11,19 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-declare module 'virtual:pwa-register' {
+declare module "virtual:pwa-register" {
   export interface RegisterSWOptions {
     immediate?: boolean;
     onNeedRefresh?: () => void;
     onOfflineReady?: () => void;
-    onRegistered?: (
-      registration: ServiceWorkerRegistration | undefined,
-    ) => void;
+    onRegistered?: (registration: ServiceWorkerRegistration | undefined) => void;
     onRegisterError?: (error: unknown) => void;
   }
 
-  export function registerSW(
-    options?: RegisterSWOptions,
-  ): (reload?: boolean) => void;
+  export function registerSW(options?: RegisterSWOptions): (reload?: boolean) => void;
 }
 
-declare module '*.json' {
+declare module "*.json" {
   const value: unknown;
   export default value;
 }

@@ -1,12 +1,12 @@
-import userEvent from '@testing-library/user-event';
-import { act } from '@testing-library/react';
-import { useEffect } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from "@testing-library/user-event";
+import { act } from "@testing-library/react";
+import { useEffect } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SetupGate } from '@/components/kiosk/setup-gate';
-import { useSetSetupReturn } from '@/hooks/use-setup-return';
-import { resetSetupPinLockSuspensionForTests } from '@/lib/setup-pin-suspend';
-import { renderWithProviders } from '@/test/render';
+import { SetupGate } from "@/components/kiosk/setup-gate";
+import { useSetSetupReturn } from "@/hooks/use-setup-return";
+import { resetSetupPinLockSuspensionForTests } from "@/lib/setup-pin-suspend";
+import { renderWithProviders } from "@/test/render";
 
 function SetupGateWithReturn({
   returnTo,
@@ -33,25 +33,25 @@ let deviceStatus: { pumpJob: { state: string } | null } | undefined = {
   pumpJob: null,
 };
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/setup/pumps', navigate],
+vi.mock("wouter", () => ({
+  useLocation: () => ["/setup/pumps", navigate],
 }));
 
-vi.mock('@/hooks/use-device-status', () => ({
+vi.mock("@/hooks/use-device-status", () => ({
   useDeviceStatus: () => ({ status: deviceStatus }),
 }));
 
-vi.mock('@/lib/config', () => ({
+vi.mock("@/lib/config", () => ({
   isSetupPinConfigured: () => true,
-  verifySetupPin: (input: string) => input === '1234',
+  verifySetupPin: (input: string) => input === "1234",
 }));
 
-vi.mock('@/lib/setup-unlock', () => ({
+vi.mock("@/lib/setup-unlock", () => ({
   hasSetupUnlock,
   grantSetupUnlock,
 }));
 
-describe('SetupGate', () => {
+describe("SetupGate", () => {
   beforeEach(() => {
     hasSetupUnlock.mockReturnValue(false);
     grantSetupUnlock.mockReset();
@@ -64,7 +64,7 @@ describe('SetupGate', () => {
     sessionStorage.clear();
   });
 
-  it('renders children when setup is already unlocked', () => {
+  it("renders children when setup is already unlocked", () => {
     hasSetupUnlock.mockReturnValue(true);
 
     const { getByText, queryByText } = renderWithProviders(
@@ -74,11 +74,11 @@ describe('SetupGate', () => {
       { withSetupReturn: true },
     );
 
-    expect(getByText('Setup content')).toBeInTheDocument();
-    expect(queryByText('Setup PIN')).not.toBeInTheDocument();
+    expect(getByText("Setup content")).toBeInTheDocument();
+    expect(queryByText("Setup PIN")).not.toBeInTheDocument();
   });
 
-  it('shows the PIN dialog when setup is locked', () => {
+  it("shows the PIN dialog when setup is locked", () => {
     const { getByText } = renderWithProviders(
       <SetupGate>
         <div>Setup content</div>
@@ -86,13 +86,11 @@ describe('SetupGate', () => {
       { withSetupReturn: true },
     );
 
-    expect(getByText('Setup PIN')).toBeInTheDocument();
-    expect(
-      getByText('Enter the 4-digit PIN to access machine setup.'),
-    ).toBeInTheDocument();
+    expect(getByText("Setup PIN")).toBeInTheDocument();
+    expect(getByText("Enter the 4-digit PIN to access machine setup.")).toBeInTheDocument();
   });
 
-  it('unlocks and shows children after the operator enters the correct PIN', async () => {
+  it("unlocks and shows children after the operator enters the correct PIN", async () => {
     const user = userEvent.setup();
 
     const { getByRole, getByText } = renderWithProviders(
@@ -102,15 +100,15 @@ describe('SetupGate', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getByRole('button', { name: '1' }));
-    await user.click(getByRole('button', { name: '2' }));
-    await user.click(getByRole('button', { name: '3' }));
-    await user.click(getByRole('button', { name: '4' }));
+    await user.click(getByRole("button", { name: "1" }));
+    await user.click(getByRole("button", { name: "2" }));
+    await user.click(getByRole("button", { name: "3" }));
+    await user.click(getByRole("button", { name: "4" }));
 
-    expect(getByText('Setup content')).toBeInTheDocument();
+    expect(getByText("Setup content")).toBeInTheDocument();
   });
 
-  it('navigates to the return path when the operator cancels the PIN dialog', async () => {
+  it("navigates to the return path when the operator cancels the PIN dialog", async () => {
     const user = userEvent.setup();
 
     const { getByRole } = renderWithProviders(
@@ -120,13 +118,13 @@ describe('SetupGate', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getByRole('button', { name: 'Cancel' }));
+    await user.click(getByRole("button", { name: "Cancel" }));
 
     expect(navigate).toHaveBeenCalledOnce();
-    expect(navigate).toHaveBeenCalledWith('/');
+    expect(navigate).toHaveBeenCalledWith("/");
   });
 
-  it('navigates to the remembered guest path when canceling from setup', async () => {
+  it("navigates to the remembered guest path when canceling from setup", async () => {
     const user = userEvent.setup();
 
     const { getByRole } = renderWithProviders(
@@ -136,13 +134,13 @@ describe('SetupGate', () => {
       { withSetupReturn: true },
     );
 
-    await user.click(getByRole('button', { name: 'Cancel' }));
+    await user.click(getByRole("button", { name: "Cancel" }));
 
     expect(navigate).toHaveBeenCalledOnce();
-    expect(navigate).toHaveBeenCalledWith('/drink/old-fashioned');
+    expect(navigate).toHaveBeenCalledWith("/drink/old-fashioned");
   });
 
-  it('defers re-locking while a pump job is running', () => {
+  it("defers re-locking while a pump job is running", () => {
     hasSetupUnlock.mockReturnValue(true);
 
     const { rerender, getByText, queryByText } = renderWithProviders(
@@ -152,10 +150,10 @@ describe('SetupGate', () => {
       { withSetupReturn: true },
     );
 
-    expect(getByText('Setup content')).toBeInTheDocument();
+    expect(getByText("Setup content")).toBeInTheDocument();
 
     hasSetupUnlock.mockReturnValue(false);
-    deviceStatus = { pumpJob: { state: 'running' } };
+    deviceStatus = { pumpJob: { state: "running" } };
 
     rerender(
       <SetupGate>
@@ -163,11 +161,11 @@ describe('SetupGate', () => {
       </SetupGate>,
     );
 
-    expect(getByText('Setup content')).toBeInTheDocument();
-    expect(queryByText('Setup PIN')).not.toBeInTheDocument();
+    expect(getByText("Setup content")).toBeInTheDocument();
+    expect(queryByText("Setup PIN")).not.toBeInTheDocument();
   });
 
-  it('re-locks setup when the unlock session expires', async () => {
+  it("re-locks setup when the unlock session expires", async () => {
     vi.useFakeTimers();
     hasSetupUnlock.mockReturnValue(true);
 
@@ -178,7 +176,7 @@ describe('SetupGate', () => {
       { withSetupReturn: true },
     );
 
-    expect(getByText('Setup content')).toBeInTheDocument();
+    expect(getByText("Setup content")).toBeInTheDocument();
 
     hasSetupUnlock.mockReturnValue(false);
 
@@ -186,7 +184,7 @@ describe('SetupGate', () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
 
-    expect(queryByText('Setup PIN')).toBeInTheDocument();
+    expect(queryByText("Setup PIN")).toBeInTheDocument();
     vi.useRealTimers();
   });
 });

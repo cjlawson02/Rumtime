@@ -1,1 +1,1 @@
-export { deviceClient } from '@/api/device-instance';
+export { deviceClient } from "@/api/device-instance";

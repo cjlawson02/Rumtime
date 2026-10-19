@@ -1,9 +1,9 @@
-import { type ReactNode } from 'react';
+import { type ReactNode } from "react";
 
-import { NumberPadDialog } from '@/components/kiosk/number-pad-dialog';
-import { NumberPadTrigger } from '@/components/kiosk/number-pad-trigger';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
+import { NumberPadDialog } from "@/components/kiosk/number-pad-dialog";
+import { NumberPadTrigger } from "@/components/kiosk/number-pad-trigger";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 type NumberPadFieldProps = {
   id: string;
@@ -55,9 +55,7 @@ export function NumberPadField({
   className,
 }: NumberPadFieldProps) {
   return (
-    <div
-      className={cn(hideLabel && !hint ? 'space-y-0' : 'space-y-2', className)}
-    >
+    <div className={cn(hideLabel && !hint ? "space-y-0" : "space-y-2", className)}>
       {hideLabel ? null : (
         <Label htmlFor={id} className={labelClassName}>
           {label}
@@ -74,9 +72,7 @@ export function NumberPadField({
         />
         {trailing}
       </div>
-      {hint ? (
-        <p className="text-xs tabular-nums text-muted-foreground">{hint}</p>
-      ) : null}
+      {hint ? <p className="text-xs tabular-nums text-muted-foreground">{hint}</p> : null}
 
       <NumberPadDialog
         open={open}

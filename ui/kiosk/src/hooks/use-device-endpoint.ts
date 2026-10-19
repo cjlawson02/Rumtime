@@ -1,7 +1,7 @@
-import { useCallback, useSyncExternalStore } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useSyncExternalStore } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
-import { clearDeviceStatusCache } from '@/lib/clear-device-status-cache';
+import { clearDeviceStatusCache } from "@/lib/clear-device-status-cache";
 import {
   clearDeviceApiBaseOverride,
   DEFAULT_DEVICE_API_BASE,
@@ -10,7 +10,7 @@ import {
   readDeviceApiBaseOverride,
   setDeviceApiBaseOverride,
   subscribeDeviceEndpoint,
-} from '@/lib/device-endpoint';
+} from "@/lib/device-endpoint";
 
 export function useDeviceEndpoint() {
   const queryClient = useQueryClient();

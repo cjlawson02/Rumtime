@@ -1,13 +1,13 @@
-import { useMemo, useState } from 'react';
-import { Check } from 'lucide-react';
+import { useMemo, useState } from "react";
+import { Check } from "lucide-react";
 
-import type { PumpSlot } from '@/api/types';
-import { BottleLevelBar } from '@/components/kiosk/bottle-level-bar';
-import { BottleSizeInput } from '@/components/kiosk/bottle-size-input';
-import { LineSwapWizard } from '@/components/kiosk/line-swap-wizard';
-import { PrimeWizard } from '@/components/kiosk/prime-wizard';
-import { FillLevelInput } from '@/components/kiosk/fill-level-input';
-import { SetupSectionLayout } from '@/components/kiosk/setup-section-layout';
+import type { PumpSlot } from "@/api/types";
+import { BottleLevelBar } from "@/components/kiosk/bottle-level-bar";
+import { BottleSizeInput } from "@/components/kiosk/bottle-size-input";
+import { LineSwapWizard } from "@/components/kiosk/line-swap-wizard";
+import { PrimeWizard } from "@/components/kiosk/prime-wizard";
+import { FillLevelInput } from "@/components/kiosk/fill-level-input";
+import { SetupSectionLayout } from "@/components/kiosk/setup-section-layout";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,25 +17,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { PUMPS_SETUP_SECTION } from '@/data/setup-sections';
-import { getPumpedIngredients } from '@/data/pumped-ingredients';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { useIngredientNameLookup } from '@/hooks/use-ingredient-name-lookup';
-import {
-  useApplyIngredientSwap,
-  useRefillIngredient,
-} from '@/hooks/use-device-mutations';
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { PUMPS_SETUP_SECTION } from "@/data/setup-sections";
+import { getPumpedIngredients } from "@/data/pumped-ingredients";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { useIngredientNameLookup } from "@/hooks/use-ingredient-name-lookup";
+import { useApplyIngredientSwap, useRefillIngredient } from "@/hooks/use-device-mutations";
 import {
   ingredientSwapCopy,
   shouldPromptIngredientSwap,
   shouldPromptPrimeAfterAssign,
-} from '@/lib/cleaning';
-import { KIOSK_SELECT_CLASSNAME } from '@/lib/kiosk-input-styles';
-import { mutationErrorMessage } from '@/lib/device-errors';
-import { sortPumpSlots } from '@/lib/pumps';
+} from "@/lib/cleaning";
+import { KIOSK_SELECT_CLASSNAME } from "@/lib/kiosk-input-styles";
+import { mutationErrorMessage } from "@/lib/device-errors";
+import { sortPumpSlots } from "@/lib/pumps";
 
 const bottleBay = PUMPS_SETUP_SECTION;
 
@@ -63,9 +60,7 @@ function PumpInventoryPanel() {
   const [pendingSwap, setPendingSwap] = useState<PendingSwap | null>(null);
   const [activeSwap, setActiveSwap] = useState<PendingSwap | null>(null);
   const [pendingPrime, setPendingPrime] = useState<PendingPrime | null>(null);
-  const [activePrimePumpId, setActivePrimePumpId] = useState<number | null>(
-    null,
-  );
+  const [activePrimePumpId, setActivePrimePumpId] = useState<number | null>(null);
 
   const swapDialogCopy = pendingSwap
     ? ingredientSwapCopy(
@@ -97,7 +92,7 @@ function PumpInventoryPanel() {
       await refillIngredient.mutateAsync({ ingredientId });
       setRefilledIds((prev) => new Set(prev).add(ingredientId));
     } catch (err) {
-      setError(mutationErrorMessage(err, 'Refill failed'));
+      setError(mutationErrorMessage(err, "Refill failed"));
     } finally {
       setRefilling(null);
     }
@@ -115,18 +110,15 @@ function PumpInventoryPanel() {
         clearRefilled(swap.toIngredientId);
       }
     } catch (err) {
-      setError(mutationErrorMessage(err, 'Could not update pump'));
+      setError(mutationErrorMessage(err, "Could not update pump"));
       throw err;
     } finally {
       setSavingPump(null);
     }
   };
 
-  const handleIngredientChange = async (
-    pump: PumpSlot,
-    nextIngredientId: string,
-  ) => {
-    const toIngredientId = nextIngredientId === '' ? null : nextIngredientId;
+  const handleIngredientChange = async (pump: PumpSlot, nextIngredientId: string) => {
+    const toIngredientId = nextIngredientId === "" ? null : nextIngredientId;
     if (toIngredientId === pump.ingredientId) return;
 
     if (!shouldPromptIngredientSwap(pump.ingredientId, toIngredientId)) {
@@ -138,17 +130,14 @@ function PumpInventoryPanel() {
           fromIngredientId: pump.ingredientId,
           toIngredientId,
         });
-        if (
-          shouldPromptPrimeAfterAssign(pump.ingredientId, toIngredientId) &&
-          toIngredientId
-        ) {
+        if (shouldPromptPrimeAfterAssign(pump.ingredientId, toIngredientId) && toIngredientId) {
           setPendingPrime({
             pumpId: pump.pumpId,
             ingredientId: toIngredientId,
           });
         }
       } catch (err) {
-        setError(mutationErrorMessage(err, 'Could not update pump'));
+        setError(mutationErrorMessage(err, "Could not update pump"));
       } finally {
         setSavingPump(null);
       }
@@ -193,9 +182,7 @@ function PumpInventoryPanel() {
       <ul className="grid grid-cols-2 gap-4">
         {pumps.map((pump) => {
           const binding =
-            pump.ingredientId !== null
-              ? status.bindings[pump.ingredientId]
-              : undefined;
+            pump.ingredientId !== null ? status.bindings[pump.ingredientId] : undefined;
           const bottleSizeMl = binding?.bottleSizeMl ?? 750;
 
           return (
@@ -203,24 +190,18 @@ function PumpInventoryPanel() {
               key={pump.pumpId}
               className="flex min-w-0 flex-col gap-4 rounded-xl border border-border/60 bg-secondary/50 px-4 py-4"
             >
-              <p className="font-heading text-lg font-semibold">
-                Line {pump.pumpId}
-              </p>
+              <p className="font-heading text-lg font-semibold">Line {pump.pumpId}</p>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="min-w-0 space-y-2">
-                  <Label htmlFor={`pump-${pump.pumpId}-ingredient`}>
-                    Ingredient
-                  </Label>
+                  <Label htmlFor={`pump-${pump.pumpId}-ingredient`}>Ingredient</Label>
                   <select
                     id={`pump-${pump.pumpId}-ingredient`}
                     aria-label={`Line ${pump.pumpId} ingredient`}
                     className={KIOSK_SELECT_CLASSNAME}
-                    value={pump.ingredientId ?? ''}
+                    value={pump.ingredientId ?? ""}
                     disabled={savingPump === pump.pumpId}
-                    onChange={(event) =>
-                      void handleIngredientChange(pump, event.target.value)
-                    }
+                    onChange={(event) => void handleIngredientChange(pump, event.target.value)}
                   >
                     <option value="">Unassigned</option>
                     {ingredients.map((ingredient) => (
@@ -233,7 +214,7 @@ function PumpInventoryPanel() {
 
                 <BottleSizeInput
                   inputId={`pump-${pump.pumpId}-size`}
-                  ingredientId={pump.ingredientId ?? ''}
+                  ingredientId={pump.ingredientId ?? ""}
                   bottleSizeMl={bottleSizeMl}
                   disabled={!pump.ingredientId}
                   onSaved={() => {
@@ -273,17 +254,12 @@ function PumpInventoryPanel() {
                             if (ingredientId) void handleRefill(ingredientId);
                           }}
                         >
-                          {refilling === pump.ingredientId
-                            ? 'Refilling…'
-                            : 'Mark refilled'}
+                          {refilling === pump.ingredientId ? "Refilling…" : "Mark refilled"}
                         </Button>
                       )
                     }
                   />
-                  <BottleLevelBar
-                    remainingMl={binding.remainingMl}
-                    bottleSizeMl={bottleSizeMl}
-                  />
+                  <BottleLevelBar remainingMl={binding.remainingMl} bottleSizeMl={bottleSizeMl} />
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -299,29 +275,24 @@ function PumpInventoryPanel() {
         <AlertDialogContent className="max-w-md border-border/60 bg-popover">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-heading text-2xl">
-              {swapDialogCopy?.title ?? 'Change line liquid?'}
+              {swapDialogCopy?.title ?? "Change line liquid?"}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-base leading-relaxed">
               {swapDialogCopy?.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
-            <AlertDialogAction
-              className="kiosk-touch w-full"
-              onClick={handleCleanLineFirst}
-            >
-              {swapDialogCopy?.cleanLabel ?? 'Start swap'}
+            <AlertDialogAction className="kiosk-touch w-full" onClick={handleCleanLineFirst}>
+              {swapDialogCopy?.cleanLabel ?? "Start swap"}
             </AlertDialogAction>
             <AlertDialogAction
               className="kiosk-touch w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
               variant="destructive"
               onClick={() => void handleSaveSwapAnyway()}
             >
-              {swapDialogCopy?.saveLabel ?? 'Assign without cleaning'}
+              {swapDialogCopy?.saveLabel ?? "Assign without cleaning"}
             </AlertDialogAction>
-            <AlertDialogCancel className="kiosk-touch w-full">
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel className="kiosk-touch w-full">Cancel</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -354,9 +325,7 @@ function PumpInventoryPanel() {
             >
               Prime now
             </AlertDialogAction>
-            <AlertDialogCancel className="kiosk-touch w-full">
-              Later
-            </AlertDialogCancel>
+            <AlertDialogCancel className="kiosk-touch w-full">Later</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

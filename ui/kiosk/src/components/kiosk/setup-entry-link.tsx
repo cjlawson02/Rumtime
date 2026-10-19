@@ -1,11 +1,8 @@
-import type { ComponentProps } from 'react';
-import { useLocation } from 'wouter';
+import type { ComponentProps } from "react";
+import { useLocation } from "wouter";
 
-import { LinkButton } from '@/components/kiosk/link-button';
-import {
-  sanitizeReturnPath,
-  useSetSetupReturn,
-} from '@/hooks/use-setup-return';
+import { LinkButton } from "@/components/kiosk/link-button";
+import { sanitizeReturnPath, useSetSetupReturn } from "@/hooks/use-setup-return";
 
 type SetupEntryLinkProps = ComponentProps<typeof LinkButton>;
 
@@ -18,7 +15,7 @@ export function SetupEntryLink({ onClick, ...props }: SetupEntryLinkProps) {
     <LinkButton
       {...props}
       onClick={(event) => {
-        setReturnTo(sanitizeReturnPath(location, '/'));
+        setReturnTo(sanitizeReturnPath(location, "/"));
         onClick?.(event);
       }}
     />

@@ -14,9 +14,7 @@ export function isSetupPinLockSuspended(): boolean {
   return false;
 }
 
-export function subscribeSetupPinLockSuspension(
-  listener: () => void,
-): () => void {
+export function subscribeSetupPinLockSuspension(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

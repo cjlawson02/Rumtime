@@ -1,55 +1,42 @@
-import type { ManualTiming, Recipe, RecipeIngredient } from '@/api/types';
-import { formatVolumeMl } from '@/lib/volume';
+import type { ManualTiming, Recipe, RecipeIngredient } from "@/api/types";
+import { formatVolumeMl } from "@/lib/volume";
 
 /** Carbonated / top-off mixers added after the machine pour (v1 default). */
-export const POST_POUR_MANUAL_IDS = new Set([
-  'soda',
-  'tonic',
-  'ginger_beer',
-  'lemon_lime_soda',
-]);
+export const POST_POUR_MANUAL_IDS = new Set(["soda", "tonic", "ginger_beer", "lemon_lime_soda"]);
 
-export type PrePourStep =
-  { kind: 'ice' } | { kind: 'manual'; ingredient: RecipeIngredient };
+export type PrePourStep = { kind: "ice" } | { kind: "manual"; ingredient: RecipeIngredient };
 
-export function manualIngredientTiming(
-  ingredient: RecipeIngredient,
-): ManualTiming {
-  if (ingredient.kind !== 'manual') {
+export function manualIngredientTiming(ingredient: RecipeIngredient): ManualTiming {
+  if (ingredient.kind !== "manual") {
     throw new Error(`Expected manual ingredient, got ${ingredient.kind}`);
   }
   if (ingredient.when !== undefined) return ingredient.when;
-  return POST_POUR_MANUAL_IDS.has(ingredient.id) ? 'after' : 'before';
+  return POST_POUR_MANUAL_IDS.has(ingredient.id) ? "after" : "before";
 }
 
-export function manualIngredientsForTiming(
-  recipe: Recipe,
-  when: ManualTiming,
-): RecipeIngredient[] {
+export function manualIngredientsForTiming(recipe: Recipe, when: ManualTiming): RecipeIngredient[] {
   return recipe.ingredients.filter(
-    (ingredient) =>
-      ingredient.kind === 'manual' &&
-      manualIngredientTiming(ingredient) === when,
+    (ingredient) => ingredient.kind === "manual" && manualIngredientTiming(ingredient) === when,
   );
 }
 
 export function buildPrePourSteps(recipe: Recipe): PrePourStep[] {
   const steps: PrePourStep[] = [];
   if (recipe.needsIce) {
-    steps.push({ kind: 'ice' });
+    steps.push({ kind: "ice" });
   }
-  for (const ingredient of manualIngredientsForTiming(recipe, 'before')) {
-    steps.push({ kind: 'manual', ingredient });
+  for (const ingredient of manualIngredientsForTiming(recipe, "before")) {
+    steps.push({ kind: "manual", ingredient });
   }
   return steps;
 }
 
 export function buildPostPourSteps(recipe: Recipe): RecipeIngredient[] {
-  return manualIngredientsForTiming(recipe, 'after');
+  return manualIngredientsForTiming(recipe, "after");
 }
 
 export function prePourStepLabel(step: PrePourStep): string {
-  if (step.kind === 'ice') return 'Add ice';
+  if (step.kind === "ice") return "Add ice";
   return step.ingredient.name;
 }
 
@@ -59,8 +46,8 @@ function ingredientNameInSentence(name: string): string {
 }
 
 export function prePourStepInstruction(step: PrePourStep): string {
-  if (step.kind === 'ice') {
-    return 'Fill your glass with ice, then tap Done when ready.';
+  if (step.kind === "ice") {
+    return "Fill your glass with ice, then tap Done when ready.";
   }
   const { ingredient } = step;
   if (ingredient.ml !== undefined) {
@@ -71,7 +58,7 @@ export function prePourStepInstruction(step: PrePourStep): string {
 }
 
 export function postPourStepInstruction(ingredient: RecipeIngredient): string {
-  if (ingredient.id === 'bitters') {
+  if (ingredient.id === "bitters") {
     return `Dash ${ingredient.name} on top, then tap Done.`;
   }
   if (POST_POUR_MANUAL_IDS.has(ingredient.id)) {

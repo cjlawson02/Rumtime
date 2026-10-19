@@ -1,21 +1,21 @@
-import { Redirect, useRoute } from 'wouter';
+import { Redirect, useRoute } from "wouter";
 
-import { KioskMessageScreen } from '@/components/kiosk/kiosk-message-screen';
-import { LinkButton } from '@/components/kiosk/link-button';
-import { SetupSectionLayout } from '@/components/kiosk/setup-section-layout';
-import { getSetupSection } from '@/data/setup-sections';
-import { SETUP_ROOT } from '@/hooks/use-setup-return';
+import { KioskMessageScreen } from "@/components/kiosk/kiosk-message-screen";
+import { LinkButton } from "@/components/kiosk/link-button";
+import { SetupSectionLayout } from "@/components/kiosk/setup-section-layout";
+import { getSetupSection } from "@/data/setup-sections";
+import { SETUP_ROOT } from "@/hooks/use-setup-return";
 
 const DEDICATED_SECTION_ROUTES: Record<string, string> = {
-  pumps: '/setup/pumps',
-  calibration: '/setup/calibration',
-  cleaning: '/setup/cleaning',
-  device: '/setup/device',
+  pumps: "/setup/pumps",
+  calibration: "/setup/calibration",
+  cleaning: "/setup/cleaning",
+  device: "/setup/device",
 };
 
 export function SetupSectionPage() {
-  const [, params] = useRoute('/setup/:section');
-  const sectionId = params?.section ?? '';
+  const [, params] = useRoute("/setup/:section");
+  const sectionId = params?.section ?? "";
   const dedicatedRoute = DEDICATED_SECTION_ROUTES[sectionId];
 
   if (dedicatedRoute) {

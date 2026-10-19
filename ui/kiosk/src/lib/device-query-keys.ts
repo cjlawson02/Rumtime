@@ -1,9 +1,9 @@
-import { getDeviceApiBase } from '@/lib/device-endpoint';
+import { getDeviceApiBase } from "@/lib/device-endpoint";
 
-export const deviceStatusQueryKeyPrefix = ['device', 'status'] as const;
+export const deviceStatusQueryKeyPrefix = ["device", "status"] as const;
 
 export function deviceStatusQueryKey(
   deviceApiBase = getDeviceApiBase(),
-): readonly ['device', 'status', string] {
+): readonly ["device", "status", string] {
   return [...deviceStatusQueryKeyPrefix, deviceApiBase] as const;
 }

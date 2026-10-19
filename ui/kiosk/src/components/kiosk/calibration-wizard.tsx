@@ -1,25 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Gauge } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Gauge } from "lucide-react";
 
-import { PrimeWizard } from '@/components/kiosk/prime-wizard';
-import { PumpCalibrationFields } from '@/components/kiosk/pump-calibration-fields';
-import { NumberPad, NumberValueDisplay } from '@/components/kiosk/number-pad';
+import { PrimeWizard } from "@/components/kiosk/prime-wizard";
+import { PumpCalibrationFields } from "@/components/kiosk/pump-calibration-fields";
+import { NumberPad, NumberValueDisplay } from "@/components/kiosk/number-pad";
 import {
   getPumpDispenseViewState,
   PumpDispenseProgress,
   PumpDispenseStatus,
-} from '@/components/kiosk/pump-dispense-panel';
-import {
-  SetupWizardShell,
-  WizardFooterActions,
-} from '@/components/kiosk/setup-wizard-shell';
-import { WizardErrorBanner } from '@/components/kiosk/wizard-error-banner';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { useUpdatePumpCalibration } from '@/hooks/use-device-mutations';
-import { usePumpDispenseSession } from '@/hooks/use-pump-dispense-session';
+} from "@/components/kiosk/pump-dispense-panel";
+import { SetupWizardShell, WizardFooterActions } from "@/components/kiosk/setup-wizard-shell";
+import { WizardErrorBanner } from "@/components/kiosk/wizard-error-banner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { useUpdatePumpCalibration } from "@/hooks/use-device-mutations";
+import { usePumpDispenseSession } from "@/hooks/use-pump-dispense-session";
 import {
   CALIBRATION_SAMPLE_ML,
   DEFAULT_CALIBRATION_RUN_SECONDS,
@@ -27,25 +24,25 @@ import {
   formatMlPerSecond,
   resolvePumpCalibration,
   validateMeasuredFlowRate,
-} from '@/lib/calibration';
-import { deviceErrorMessage } from '@/lib/device-errors';
-import { findPumpSlot } from '@/lib/pumps';
+} from "@/lib/calibration";
+import { deviceErrorMessage } from "@/lib/device-errors";
+import { findPumpSlot } from "@/lib/pumps";
 import {
   resetPumpPourTracker,
   resolvePumpPourOutcome,
   type PumpPourTracker,
-} from '@/lib/pump-pour-lifecycle';
+} from "@/lib/pump-pour-lifecycle";
 
 const STEPS = [
-  { id: 'run-cal', title: 'Run calibration pour' },
-  { id: 'measure', title: 'Enter measured volume' },
-  { id: 'save-rate', title: 'Save flow rate' },
-  { id: 'verify', title: 'Verify test pours' },
-  { id: 'anti-drip', title: 'Tune anti-drip' },
-  { id: 'done', title: 'Calibration complete' },
+  { id: "run-cal", title: "Run calibration pour" },
+  { id: "measure", title: "Enter measured volume" },
+  { id: "save-rate", title: "Save flow rate" },
+  { id: "verify", title: "Verify test pours" },
+  { id: "anti-drip", title: "Tune anti-drip" },
+  { id: "done", title: "Calibration complete" },
 ] as const;
 
-type StepId = (typeof STEPS)[number]['id'];
+type StepId = (typeof STEPS)[number]["id"];
 
 function stepIndexFor(id: StepId): number {
   return STEPS.findIndex((step) => step.id === id);
@@ -81,7 +78,7 @@ function CalibrationWizardSession({
     statusRef,
   } = usePumpDispenseSession();
   const [stepIndex, setStepIndex] = useState(0);
-  const [measuredMl, setMeasuredMl] = useState('');
+  const [measuredMl, setMeasuredMl] = useState("");
   const [savedMlPerSecond, setSavedMlPerSecond] = useState<number | null>(null);
   const [primeWizardOpen, setPrimeWizardOpen] = useState(false);
   const [savingRate, setSavingRate] = useState(false);
@@ -93,20 +90,13 @@ function CalibrationWizardSession({
     return validateMeasuredFlowRate(parsed, DEFAULT_CALIBRATION_RUN_SECONDS);
   }, [measuredMl]);
 
-  const calculatedMlPerSecond = measuredFlowRate.ok
-    ? measuredFlowRate.mlPerSecond
-    : null;
+  const calculatedMlPerSecond = measuredFlowRate.ok ? measuredFlowRate.mlPerSecond : null;
   const measuredFlowError = measuredFlowRate.ok ? null : measuredFlowRate.error;
 
-  const selectedPump = useMemo(
-    () => findPumpSlot(status?.pumps, pumpId),
-    [status?.pumps, pumpId],
-  );
+  const selectedPump = useMemo(() => findPumpSlot(status?.pumps, pumpId), [status?.pumps, pumpId]);
   const ingredientId = selectedPump?.ingredientId ?? null;
   const binding = ingredientId ? status?.bindings[ingredientId] : undefined;
-  const calibration = selectedPump
-    ? resolvePumpCalibration(selectedPump)
-    : null;
+  const calibration = selectedPump ? resolvePumpCalibration(selectedPump) : null;
   const primed = binding?.primed ?? false;
 
   const resetWizard = useCallback(() => {
@@ -114,7 +104,7 @@ function CalibrationWizardSession({
     resetPumpPourTracker(verifyPourRef.current);
     setStepIndex(0);
     setError(null);
-    setMeasuredMl('');
+    setMeasuredMl("");
     setSavedMlPerSecond(null);
     setPrimeWizardOpen(false);
     setSavingRate(false);
@@ -124,10 +114,10 @@ function CalibrationWizardSession({
     () =>
       emergencyStop(pumpId, () => {
         const job = statusRef.current?.pumpJob;
-        if (job?.purpose === 'calibration') {
+        if (job?.purpose === "calibration") {
           calibrationPourRef.current.cancelRequested = true;
         }
-        if (job?.purpose === 'verify') {
+        if (job?.purpose === "verify") {
           verifyPourRef.current.cancelRequested = true;
         }
       }),
@@ -142,62 +132,57 @@ function CalibrationWizardSession({
   const verifyDispenseActive =
     pumpJob !== null &&
     pumpJob.pumpId === pumpId &&
-    pumpJob.purpose === 'verify' &&
-    pumpJob.state === 'running';
+    pumpJob.purpose === "verify" &&
+    pumpJob.state === "running";
   const activeVerifyMl = verifyDispenseActive ? pumpJob.targetMl : undefined;
   const verifyMlPerSecond = savedMlPerSecond ?? calibration?.mlPerSecond;
 
-  const calibrationDispense = getPumpDispenseViewState(
-    pumpId,
-    status?.pumpJob,
-    'calibration',
-  );
+  const calibrationDispense = getPumpDispenseViewState(pumpId, status?.pumpJob, "calibration");
 
   useEffect(() => {
-    if (stepIndex !== stepIndexFor('run-cal')) return;
+    if (stepIndex !== stepIndexFor("run-cal")) return;
 
     const outcome = resolvePumpPourOutcome(
       calibrationPourRef.current,
       pumpId,
-      'calibration',
+      "calibration",
       status?.pumpJob,
     );
-    if (outcome === 'finished') {
+    if (outcome === "finished") {
       resetPumpPourTracker(calibrationPourRef.current);
-      setStepIndex(stepIndexFor('measure'));
+      setStepIndex(stepIndexFor("measure"));
     }
-    if (outcome === 'cancelled') {
+    if (outcome === "cancelled") {
       resetPumpPourTracker(calibrationPourRef.current);
-      setError('Calibration run stopped.');
+      setError("Calibration run stopped.");
     }
-  }, [status?.pumpJob, pumpId, stepIndex]);
+  }, [status?.pumpJob, pumpId, stepIndex, setError]);
 
   useEffect(() => {
     const onVerifyStep =
-      stepIndex === stepIndexFor('verify') ||
-      stepIndex === stepIndexFor('anti-drip');
+      stepIndex === stepIndexFor("verify") || stepIndex === stepIndexFor("anti-drip");
     if (!onVerifyStep) return;
 
     const outcome = resolvePumpPourOutcome(
       verifyPourRef.current,
       pumpId,
-      'verify',
+      "verify",
       status?.pumpJob,
     );
-    if (outcome === 'finished') {
+    if (outcome === "finished") {
       resetPumpPourTracker(verifyPourRef.current);
     }
-    if (outcome === 'cancelled') {
+    if (outcome === "cancelled") {
       resetPumpPourTracker(verifyPourRef.current);
-      setError('Test pour stopped.');
+      setError("Test pour stopped.");
     }
-  }, [status?.pumpJob, pumpId, stepIndex]);
+  }, [status?.pumpJob, pumpId, stepIndex, setError]);
 
   const startCalibrationRun = () => {
     if (!pumpId || !primed) return;
     void startRun({
       pumpId,
-      purpose: 'calibration',
+      purpose: "calibration",
       durationSeconds: DEFAULT_CALIBRATION_RUN_SECONDS,
       tracker: calibrationPourRef,
     });
@@ -205,12 +190,12 @@ function CalibrationWizardSession({
 
   const startVerifyPour = (ml: number) => {
     if (!pumpId || !primed) {
-      setError('Line must be primed before pouring.');
+      setError("Line must be primed before pouring.");
       return;
     }
     void startRun({
       pumpId,
-      purpose: 'verify',
+      purpose: "verify",
       ml,
       tracker: verifyPourRef,
     });
@@ -227,7 +212,7 @@ function CalibrationWizardSession({
         antiDripMs: calibration.antiDripMs,
       });
       setSavedMlPerSecond(calculatedMlPerSecond);
-      setStepIndex(stepIndexFor('verify'));
+      setStepIndex(stepIndexFor("verify"));
     } catch (err) {
       setError(deviceErrorMessage(err));
     } finally {
@@ -242,7 +227,7 @@ function CalibrationWizardSession({
   const step = STEPS[stepIndex];
 
   const footer = (() => {
-    if (step.id === 'run-cal') {
+    if (step.id === "run-cal") {
       if (calibrationDispense?.active) {
         return (
           <WizardFooterActions
@@ -259,47 +244,30 @@ function CalibrationWizardSession({
           onNext={() => {
             startCalibrationRun();
           }}
-          nextLabel={
-            starting
-              ? 'Starting…'
-              : `Run ${DEFAULT_CALIBRATION_RUN_SECONDS}s pour`
-          }
+          nextLabel={starting ? "Starting…" : `Run ${DEFAULT_CALIBRATION_RUN_SECONDS}s pour`}
           nextDisabled={!primed || starting}
         />
       );
     }
 
-    if (
-      (step.id === 'verify' || step.id === 'anti-drip') &&
-      verifyDispenseActive
-    ) {
+    if ((step.id === "verify" || step.id === "anti-drip") && verifyDispenseActive) {
       return (
-        <WizardFooterActions
-          showBack={false}
-          onNext={() => void stopDispense()}
-          nextLabel="Stop"
-        />
+        <WizardFooterActions showBack={false} onNext={() => void stopDispense()} nextLabel="Stop" />
       );
     }
 
-    if (step.id === 'done') {
-      return (
-        <WizardFooterActions
-          showBack={false}
-          onNext={closeWizard}
-          nextLabel="Done"
-        />
-      );
+    if (step.id === "done") {
+      return <WizardFooterActions showBack={false} onNext={closeWizard} nextLabel="Done" />;
     }
 
-    if (step.id === 'measure') {
+    if (step.id === "measure") {
       return (
         <WizardFooterActions
           onBack={() => {
-            goToStep('run-cal');
+            goToStep("run-cal");
           }}
           onNext={() => {
-            goToStep('save-rate');
+            goToStep("save-rate");
           }}
           nextDisabled={calculatedMlPerSecond === null}
           nextLabel="Review flow rate"
@@ -307,27 +275,27 @@ function CalibrationWizardSession({
       );
     }
 
-    if (step.id === 'save-rate') {
+    if (step.id === "save-rate") {
       return (
         <WizardFooterActions
           onBack={() => {
-            goToStep('measure');
+            goToStep("measure");
           }}
           onNext={() => void saveFlowRate()}
           nextDisabled={calculatedMlPerSecond === null || savingRate}
-          nextLabel={savingRate ? 'Saving…' : 'Save flow rate'}
+          nextLabel={savingRate ? "Saving…" : "Save flow rate"}
         />
       );
     }
 
-    if (step.id === 'verify') {
+    if (step.id === "verify") {
       return (
         <WizardFooterActions
           onBack={() => {
-            goToStep('save-rate');
+            goToStep("save-rate");
           }}
           onNext={() => {
-            goToStep('anti-drip');
+            goToStep("anti-drip");
           }}
           nextLabel="Continue to anti-drip"
         />
@@ -337,10 +305,10 @@ function CalibrationWizardSession({
     return (
       <WizardFooterActions
         onBack={() => {
-          goToStep('verify');
+          goToStep("verify");
         }}
         onNext={() => {
-          goToStep('done');
+          goToStep("done");
         }}
         nextLabel="Finish calibration"
       />
@@ -362,19 +330,19 @@ function CalibrationWizardSession({
       >
         <WizardErrorBanner error={error} />
 
-        {step.id === 'run-cal' && selectedPump && (
+        {step.id === "run-cal" && selectedPump && (
           <div className="mx-auto max-w-xl space-y-6">
             {!calibrationDispense?.active && (
               <>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-lg text-muted-foreground">
-                    Line {selectedPump.pumpId} ·{' '}
+                    Line {selectedPump.pumpId} ·{" "}
                     {selectedPump.ingredientId
                       ? ingredientName(selectedPump.ingredientId)
-                      : 'Unassigned'}
+                      : "Unassigned"}
                   </span>
-                  <Badge variant={primed ? 'default' : 'destructive'}>
-                    {primed ? 'Primed' : 'Needs prime'}
+                  <Badge variant={primed ? "default" : "destructive"}>
+                    {primed ? "Primed" : "Needs prime"}
                   </Badge>
                   <Button
                     type="button"
@@ -384,45 +352,37 @@ function CalibrationWizardSession({
                       setPrimeWizardOpen(true);
                     }}
                   >
-                    {primed ? 'Re-prime line' : 'Prime this line'}
+                    {primed ? "Re-prime line" : "Prime this line"}
                   </Button>
                 </div>
                 {!primed && (
                   <p className="text-muted-foreground">
-                    Calibrating on a dry line gives bad numbers. Prime first, or
-                    mark primed only if you already primed manually.
+                    Calibrating on a dry line gives bad numbers. Prime first, or mark primed only if
+                    you already primed manually.
                   </p>
                 )}
                 <ol className="list-decimal space-y-3 pl-6 text-lg leading-relaxed text-muted-foreground">
                   <li>Use a spare glass or measuring cup under the nozzle.</li>
                   <li>
-                    Run lasts {DEFAULT_CALIBRATION_RUN_SECONDS} seconds —
-                    measure total output when it stops.
+                    Run lasts {DEFAULT_CALIBRATION_RUN_SECONDS} seconds — measure total output when
+                    it stops.
                   </li>
-                  <li>
-                    You will enter the volume on the next step to calculate
-                    ml/s.
-                  </li>
+                  <li>You will enter the volume on the next step to calculate ml/s.</li>
                 </ol>
               </>
             )}
             <PumpDispenseStatus
               pumpId={pumpId}
-              pumpJob={
-                status?.pumpJob?.purpose === 'calibration'
-                  ? status.pumpJob
-                  : null
-              }
+              pumpJob={status?.pumpJob?.purpose === "calibration" ? status.pumpJob : null}
               mlPerSecond={savedMlPerSecond ?? calibration?.mlPerSecond}
             />
           </div>
         )}
 
-        {step.id === 'measure' && (
+        {step.id === "measure" && (
           <div className="mx-auto max-w-md space-y-6">
             <p className="text-muted-foreground">
-              Run time was {DEFAULT_CALIBRATION_RUN_SECONDS} seconds. Enter the
-              volume you measured.
+              Run time was {DEFAULT_CALIBRATION_RUN_SECONDS} seconds. Enter the volume you measured.
             </p>
             <div className="space-y-4 rounded-xl border border-border/60 px-4 py-6">
               <Label>Measured output</Label>
@@ -437,19 +397,17 @@ function CalibrationWizardSession({
             </div>
             {calculatedMlPerSecond !== null && (
               <p className="rounded-xl border border-border/60 bg-secondary/50 px-4 py-3 text-lg tabular-nums">
-                Suggested flow rate:{' '}
+                Suggested flow rate:{" "}
                 <span className="font-semibold text-primary">
                   {formatMlPerSecond(calculatedMlPerSecond)}
                 </span>
               </p>
             )}
-            {measuredFlowError && (
-              <p className="text-sm text-destructive">{measuredFlowError}</p>
-            )}
+            {measuredFlowError && <p className="text-sm text-destructive">{measuredFlowError}</p>}
           </div>
         )}
 
-        {step.id === 'save-rate' && calculatedMlPerSecond !== null && (
+        {step.id === "save-rate" && calculatedMlPerSecond !== null && (
           <div className="mx-auto max-w-md space-y-4 text-center">
             <div className="rounded-full bg-primary/15 p-6 ring-1 ring-primary/30 mx-auto w-fit">
               <Gauge className="size-14 text-primary" />
@@ -458,13 +416,12 @@ function CalibrationWizardSession({
               {formatMlPerSecond(calculatedMlPerSecond)}
             </p>
             <p className="text-muted-foreground">
-              From {measuredMl} ml in {DEFAULT_CALIBRATION_RUN_SECONDS} s on
-              line {pumpId}
+              From {measuredMl} ml in {DEFAULT_CALIBRATION_RUN_SECONDS} s on line {pumpId}
             </p>
           </div>
         )}
 
-        {step.id === 'verify' && pumpId && (
+        {step.id === "verify" && pumpId && (
           <div className="mx-auto max-w-xl space-y-6">
             <p className="text-center text-muted-foreground">
               Optional spot-check pours at common volumes.
@@ -482,7 +439,7 @@ function CalibrationWizardSession({
                 <Button
                   key={ml}
                   type="button"
-                  variant={activeVerifyMl === ml ? 'default' : 'outline'}
+                  variant={activeVerifyMl === ml ? "default" : "outline"}
                   className="kiosk-touch h-20 text-2xl font-semibold tabular-nums"
                   disabled={verifyPourDisabled}
                   onClick={() => {
@@ -504,12 +461,11 @@ function CalibrationWizardSession({
           </div>
         )}
 
-        {step.id === 'anti-drip' && selectedPump && calibration && (
+        {step.id === "anti-drip" && selectedPump && calibration && (
           <div className="mx-auto max-w-xl space-y-6">
             <p className="text-lg leading-relaxed text-muted-foreground">
-              Pour {CALIBRATION_SAMPLE_ML} ml, then watch the nozzle after the
-              pump stops. Increase anti-drip if it drips; decrease if the next
-              pour starts low (line de-primed).
+              Pour {CALIBRATION_SAMPLE_ML} ml, then watch the nozzle after the pump stops. Increase
+              anti-drip if it drips; decrease if the next pour starts low (line de-primed).
             </p>
             {savedMlPerSecond !== null && (
               <p className="text-sm tabular-nums text-muted-foreground">
@@ -518,7 +474,7 @@ function CalibrationWizardSession({
             )}
             <Button
               type="button"
-              variant={verifyDispenseActive ? 'default' : 'outline'}
+              variant={verifyDispenseActive ? "default" : "outline"}
               className="kiosk-touch"
               disabled={verifyPourDisabled}
               onClick={() => {
@@ -545,15 +501,11 @@ function CalibrationWizardSession({
           </div>
         )}
 
-        {step.id === 'done' && selectedPump && (
+        {step.id === "done" && selectedPump && (
           <div className="mx-auto max-w-xl py-8 text-center">
-            <p className="text-2xl font-semibold">
-              Line {selectedPump.pumpId} calibrated
-            </p>
+            <p className="text-2xl font-semibold">Line {selectedPump.pumpId} calibrated</p>
             <p className="mt-4 text-lg text-muted-foreground">
-              {selectedPump.ingredientId
-                ? ingredientName(selectedPump.ingredientId)
-                : 'Unassigned'}{' '}
+              {selectedPump.ingredientId ? ingredientName(selectedPump.ingredientId) : "Unassigned"}{" "}
               flow rate and anti-drip are saved on the machine.
             </p>
           </div>

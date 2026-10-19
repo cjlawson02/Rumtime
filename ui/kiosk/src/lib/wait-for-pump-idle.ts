@@ -1,14 +1,14 @@
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient } from "@tanstack/react-query";
 
-import type { DeviceStatus } from '@/api/types';
-import { fetchDeviceStatus } from '@/hooks/use-device-status';
+import type { DeviceStatus } from "@/api/types";
+import { fetchDeviceStatus } from "@/hooks/use-device-status";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_POLL_MS = 250;
 
 function isPumpJobIdle(status: DeviceStatus, pumpId?: number): boolean {
   const job = status.pumpJob;
-  if (!job || job.state !== 'running') return true;
+  if (!job || job.state !== "running") return true;
   if (pumpId !== undefined && job.pumpId !== pumpId) return true;
   return false;
 }
@@ -32,7 +32,7 @@ export async function waitForPumpJobIdle(
   let latest = await fetchDeviceStatus(queryClient);
   while (!isPumpJobIdle(latest, pumpId)) {
     if (Date.now() >= deadline) {
-      throw new Error('Timed out waiting for pump to stop');
+      throw new Error("Timed out waiting for pump to stop");
     }
     await sleep(pollMs);
     latest = await fetchDeviceStatus(queryClient);

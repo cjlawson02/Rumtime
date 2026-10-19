@@ -1,31 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Droplets } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Droplets } from "lucide-react";
 
 import {
   getPumpDispenseViewState,
   PumpDispenseStatus,
-} from '@/components/kiosk/pump-dispense-panel';
-import {
-  SetupWizardShell,
-  WizardFooterActions,
-} from '@/components/kiosk/setup-wizard-shell';
-import { WizardErrorBanner } from '@/components/kiosk/wizard-error-banner';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { useUpdatePrimed } from '@/hooks/use-device-mutations';
-import { usePumpDispenseSession } from '@/hooks/use-pump-dispense-session';
-import { MAX_PRIME_SECONDS } from '@/lib/calibration';
-import { deviceErrorMessage } from '@/lib/device-errors';
-import { findPumpSlot } from '@/lib/pumps';
+} from "@/components/kiosk/pump-dispense-panel";
+import { SetupWizardShell, WizardFooterActions } from "@/components/kiosk/setup-wizard-shell";
+import { WizardErrorBanner } from "@/components/kiosk/wizard-error-banner";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { useUpdatePrimed } from "@/hooks/use-device-mutations";
+import { usePumpDispenseSession } from "@/hooks/use-pump-dispense-session";
+import { MAX_PRIME_SECONDS } from "@/lib/calibration";
+import { deviceErrorMessage } from "@/lib/device-errors";
+import { findPumpSlot } from "@/lib/pumps";
 import {
   resetPumpPourTracker,
   resolvePumpPourOutcome,
   type PumpPourTracker,
-} from '@/lib/pump-pour-lifecycle';
+} from "@/lib/pump-pour-lifecycle";
 
 const STEPS = [
-  { id: 'prepare', title: 'Get ready to prime' },
-  { id: 'run', title: 'Prime until the nozzle is wet' },
-  { id: 'done', title: 'Line primed' },
+  { id: "prepare", title: "Get ready to prime" },
+  { id: "run", title: "Prime until the nozzle is wet" },
+  { id: "done", title: "Line primed" },
 ] as const;
 
 type PrimeWizardProps = {
@@ -40,11 +37,7 @@ export function PrimeWizard(props: PrimeWizardProps) {
   return <PrimeWizardSession {...props} />;
 }
 
-function PrimeWizardSession({
-  pumpId,
-  onOpenChange,
-  ingredientName,
-}: PrimeWizardProps) {
+function PrimeWizardSession({ pumpId, onOpenChange, ingredientName }: PrimeWizardProps) {
   const { status } = useDeviceStatus();
   const updatePrimed = useUpdatePrimed();
   const {
@@ -62,13 +55,10 @@ function PrimeWizardSession({
   const completingRef = useRef(false);
   const primePourRef = useRef<PumpPourTracker>(createTracker());
 
-  const selectedPump = useMemo(
-    () => findPumpSlot(status?.pumps, pumpId),
-    [status?.pumps, pumpId],
-  );
+  const selectedPump = useMemo(() => findPumpSlot(status?.pumps, pumpId), [status?.pumps, pumpId]);
 
   const ingredientId = selectedPump?.ingredientId ?? null;
-  const dispense = getPumpDispenseViewState(pumpId, status?.pumpJob, 'prime');
+  const dispense = getPumpDispenseViewState(pumpId, status?.pumpJob, "prime");
   const step = STEPS[stepIndex];
 
   const resetWizard = useCallback(() => {
@@ -83,21 +73,14 @@ function PrimeWizardSession({
   }, [closeDispenseSession, onOpenChange, pumpId, resetWizard]);
 
   useEffect(() => {
-    if (step.id !== 'run' || completingRef.current) return;
+    if (step.id !== "run" || completingRef.current) return;
 
-    const outcome = resolvePumpPourOutcome(
-      primePourRef.current,
-      pumpId,
-      'prime',
-      status?.pumpJob,
-    );
-    if (outcome === null || outcome === 'running') return;
+    const outcome = resolvePumpPourOutcome(primePourRef.current, pumpId, "prime", status?.pumpJob);
+    if (outcome === null || outcome === "running") return;
 
     resetPumpPourTracker(primePourRef.current);
-    if (outcome === 'cancelled') {
-      setError(
-        `Priming stopped — check the line or try again (max ${MAX_PRIME_SECONDS}s).`,
-      );
+    if (outcome === "cancelled") {
+      setError(`Priming stopped — check the line or try again (max ${MAX_PRIME_SECONDS}s).`);
     }
   }, [status?.pumpJob, pumpId, step.id, setError]);
 
@@ -106,8 +89,7 @@ function PrimeWizardSession({
     await updatePrimed.mutateAsync({ ingredientId, primed: true });
   };
 
-  const startPrimeRun = () =>
-    startRun({ pumpId, purpose: 'prime', tracker: primePourRef });
+  const startPrimeRun = () => startRun({ pumpId, purpose: "prime", tracker: primePourRef });
 
   const finishPrime = async () => {
     if (completingRef.current) return;
@@ -132,7 +114,7 @@ function PrimeWizardSession({
   };
 
   const footer = (() => {
-    if (step.id === 'prepare') {
+    if (step.id === "prepare") {
       return (
         <WizardFooterActions
           showBack={false}
@@ -140,13 +122,13 @@ function PrimeWizardSession({
             setStepIndex(1);
             void startPrimeRun();
           }}
-          nextLabel={starting ? 'Starting…' : 'Start priming'}
+          nextLabel={starting ? "Starting…" : "Start priming"}
           nextDisabled={starting}
         />
       );
     }
 
-    if (step.id === 'run') {
+    if (step.id === "run") {
       if (dispense?.active) {
         return (
           <WizardFooterActions
@@ -158,7 +140,7 @@ function PrimeWizardSession({
               })
             }
             onNext={() => void finishPrime()}
-            nextLabel={finishing ? 'Stopping…' : 'Nozzle is wet'}
+            nextLabel={finishing ? "Stopping…" : "Nozzle is wet"}
             nextDisabled={finishing}
           />
         );
@@ -170,7 +152,7 @@ function PrimeWizardSession({
             setStepIndex(0);
           }}
           onNext={() => void startPrimeRun()}
-          nextLabel={starting ? 'Starting…' : 'Start priming'}
+          nextLabel={starting ? "Starting…" : "Start priming"}
           nextDisabled={starting}
         />
       );
@@ -199,25 +181,22 @@ function PrimeWizardSession({
     >
       <WizardErrorBanner error={error} />
 
-      {step.id === 'prepare' && selectedPump?.ingredientId && (
+      {step.id === "prepare" && selectedPump?.ingredientId && (
         <div className="mx-auto max-w-xl space-y-4 text-lg leading-relaxed text-muted-foreground">
           <p>{ingredientName(selectedPump.ingredientId)}</p>
           <ol className="list-decimal space-y-3 pl-6">
             <li>Confirm the pickup tube reaches the liquid in the bottle.</li>
             <li>Place a spare glass under the nozzle.</li>
             <li>
-              Tap <strong>Start priming</strong>, then{' '}
-              <strong>Nozzle is wet</strong> when liquid reaches the nozzle.
+              Tap <strong>Start priming</strong>, then <strong>Nozzle is wet</strong> when liquid
+              reaches the nozzle.
             </li>
-            <li>
-              Safety cutoff after {MAX_PRIME_SECONDS} seconds if you forget to
-              stop.
-            </li>
+            <li>Safety cutoff after {MAX_PRIME_SECONDS} seconds if you forget to stop.</li>
           </ol>
         </div>
       )}
 
-      {step.id === 'run' && (
+      {step.id === "run" && (
         <PumpDispenseStatus
           pumpId={pumpId}
           pumpJob={status?.pumpJob}
@@ -226,17 +205,14 @@ function PrimeWizardSession({
         />
       )}
 
-      {step.id === 'done' && selectedPump?.ingredientId && (
+      {step.id === "done" && selectedPump?.ingredientId && (
         <div className="mx-auto flex max-w-xl flex-col items-center gap-6 py-8 text-center">
           <div className="rounded-full bg-primary/15 p-6 ring-1 ring-primary/30">
             <Droplets className="size-14 text-primary" />
           </div>
-          <p className="text-2xl font-semibold">
-            Line {pumpId} is marked primed
-          </p>
+          <p className="text-2xl font-semibold">Line {pumpId} is marked primed</p>
           <p className="text-lg text-muted-foreground">
-            {ingredientName(selectedPump.ingredientId)} is ready for calibration
-            or recipe pours.
+            {ingredientName(selectedPump.ingredientId)} is ready for calibration or recipe pours.
           </p>
         </div>
       )}

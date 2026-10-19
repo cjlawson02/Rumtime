@@ -1,20 +1,20 @@
-import { useState } from 'react';
-import { ArrowLeft, Droplets, Hand, RefreshCw, Sparkles } from 'lucide-react';
-import { useLocation, useRoute } from 'wouter';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LinkButton } from '@/components/kiosk/link-button';
-import { KioskMessageScreen } from '@/components/kiosk/kiosk-message-screen';
-import { KioskShell } from '@/components/kiosk/kiosk-shell';
-import { DrinkImage } from '@/components/kiosk/drink-image';
-import { SetupPinDialog } from '@/components/kiosk/setup-pin-dialog';
-import { getCategoryStyle } from '@/data/category-styles';
-import { getRecipeById } from '@/data/load-recipes';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { SetupEntryLink } from '@/components/kiosk/setup-entry-link';
-import { useEnterSetup, setupSectionPath } from '@/hooks/use-setup-return';
+import { useState } from "react";
+import { ArrowLeft, Droplets, Hand, RefreshCw, Sparkles } from "lucide-react";
+import { useLocation, useRoute } from "wouter";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LinkButton } from "@/components/kiosk/link-button";
+import { KioskMessageScreen } from "@/components/kiosk/kiosk-message-screen";
+import { KioskShell } from "@/components/kiosk/kiosk-shell";
+import { DrinkImage } from "@/components/kiosk/drink-image";
+import { SetupPinDialog } from "@/components/kiosk/setup-pin-dialog";
+import { getCategoryStyle } from "@/data/category-styles";
+import { getRecipeById } from "@/data/load-recipes";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { SetupEntryLink } from "@/components/kiosk/setup-entry-link";
+import { useEnterSetup, setupSectionPath } from "@/hooks/use-setup-return";
 import {
   canShowRefillCta,
   effectiveBlockingIssues,
@@ -24,9 +24,9 @@ import {
   isPourBlocked,
   issueStatusChipLabel,
   refillButtonLabel,
-} from '@/lib/availability';
-import { isSetupPinConfigured } from '@/lib/config';
-import { grantPourInventoryBypass } from '@/lib/pour-inventory-bypass';
+} from "@/lib/availability";
+import { isSetupPinConfigured } from "@/lib/config";
+import { grantPourInventoryBypass } from "@/lib/pour-inventory-bypass";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,15 +36,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { formatVolumeMl } from '@/lib/volume';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/alert-dialog";
+import { formatVolumeMl } from "@/lib/volume";
+import { cn } from "@/lib/utils";
 
 export function DrinkDetailPage() {
-  const [, params] = useRoute('/drink/:id');
+  const [, params] = useRoute("/drink/:id");
   const [, navigate] = useLocation();
   const enterSetup = useEnterSetup();
-  const recipe = getRecipeById(params?.id ?? '');
+  const recipe = getRecipeById(params?.id ?? "");
   const { status, error, loading, refresh } = useDeviceStatus();
   const [refillPinOpen, setRefillPinOpen] = useState(false);
   const [inventoryChoiceOpen, setInventoryChoiceOpen] = useState(false);
@@ -70,7 +70,7 @@ export function DrinkDetailPage() {
   if (!status) {
     return (
       <KioskMessageScreen
-        message={error ?? 'Device unreachable'}
+        message={error ?? "Device unreachable"}
         action={
           <div className="flex flex-wrap justify-center gap-3">
             <Button className="kiosk-touch" onClick={() => void refresh()}>
@@ -93,16 +93,15 @@ export function DrinkDetailPage() {
   const pourBlocked = isPourBlocked(availability.issues);
   const unboundBlocked = hasUnboundIssues(blockingIssues);
   const showRefillCta =
-    canShowRefillCta(blockingIssues) &&
-    (import.meta.env.DEV || isSetupPinConfigured());
+    canShowRefillCta(blockingIssues) && (import.meta.env.DEV || isSetupPinConfigured());
   const refillLabel = refillButtonLabel(blockingIssues);
   const primaryCategory = recipe.categories[0];
-  const pumped = recipe.ingredients.filter((i) => i.kind === 'pumped');
-  const setupPumpsPath = setupSectionPath('pumps');
+  const pumped = recipe.ingredients.filter((i) => i.kind === "pumped");
+  const setupPumpsPath = setupSectionPath("pumps");
 
   const goToPour = ({ bypassInventory = false } = {}) => {
     if (!deviceReady) {
-      setPourError(error ?? 'Device offline');
+      setPourError(error ?? "Device offline");
       return;
     }
 
@@ -173,7 +172,7 @@ export function DrinkDetailPage() {
                   <span
                     key={categoryId}
                     className={cn(
-                      'inline-block rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wider',
+                      "inline-block rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wider",
                       style.pillActive,
                     )}
                   >
@@ -190,9 +189,7 @@ export function DrinkDetailPage() {
       </header>
 
       <main className="flex flex-1 flex-col gap-6 p-6 pb-36">
-        <p className="text-lg leading-relaxed text-muted-foreground">
-          {recipe.description}
-        </p>
+        <p className="text-lg leading-relaxed text-muted-foreground">{recipe.description}</p>
 
         <div className="flex flex-wrap items-stretch gap-4">
           <Card className="min-w-[min(100%,16rem)] flex-1 border-border/60 bg-card/80 backdrop-blur-sm">
@@ -204,24 +201,22 @@ export function DrinkDetailPage() {
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               {pumped.map((i) => {
-                const issue = blockingIssues.find(
-                  (candidate) => candidate.ingredient.id === i.id,
-                );
+                const issue = blockingIssues.find((candidate) => candidate.ingredient.id === i.id);
                 if (i.ml === undefined) return null;
 
                 return (
                   <div
                     key={i.id}
                     className={cn(
-                      'inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-secondary/50 px-4 py-3 text-base',
-                      issue && 'border border-destructive/30 bg-destructive/5',
+                      "inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-secondary/50 px-4 py-3 text-base",
+                      issue && "border border-destructive/30 bg-destructive/5",
                     )}
                   >
                     <span>{i.name}</span>
                     <span
                       className={cn(
-                        'font-medium tabular-nums',
-                        issue ? 'text-muted-foreground' : 'text-primary',
+                        "font-medium tabular-nums",
+                        issue ? "text-muted-foreground" : "text-primary",
                       )}
                     >
                       {formatVolumeMl(i.ml)}
@@ -284,11 +279,7 @@ export function DrinkDetailPage() {
 
       <div className="fixed inset-x-0 bottom-0 border-t border-border/60 bg-background/90 p-6 backdrop-blur-md">
         {unboundBlocked ? (
-          <SetupEntryLink
-            href={setupPumpsPath}
-            size="lg"
-            className="kiosk-cta w-full gap-2"
-          >
+          <SetupEntryLink href={setupPumpsPath} size="lg" className="kiosk-cta w-full gap-2">
             Open bottle bay
           </SetupEntryLink>
         ) : showRefillCta && refillLabel ? (
@@ -318,29 +309,23 @@ export function DrinkDetailPage() {
       <SetupPinDialog
         open={refillPinOpen}
         onOpenChange={setRefillPinOpen}
-        title={refillLabel ?? 'Refill'}
+        title={refillLabel ?? "Refill"}
         description="Enter the setup PIN to continue."
         onSuccess={tryRefillPin}
       />
 
-      <AlertDialog
-        open={inventoryChoiceOpen}
-        onOpenChange={setInventoryChoiceOpen}
-      >
+      <AlertDialog open={inventoryChoiceOpen} onOpenChange={setInventoryChoiceOpen}>
         <AlertDialogContent className="border-border/60 bg-popover">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-heading text-2xl">
-              {refillLabel ?? 'Low inventory'}
+              {refillLabel ?? "Low inventory"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               Refill the bottle in setup, or pour with what is left anyway.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
-            <AlertDialogAction
-              className="kiosk-touch w-full"
-              onClick={handleRefillInSetup}
-            >
+            <AlertDialogAction className="kiosk-touch w-full" onClick={handleRefillInSetup}>
               Refill in bottle bay
             </AlertDialogAction>
             <AlertDialogAction
@@ -349,9 +334,7 @@ export function DrinkDetailPage() {
             >
               Pour anyway
             </AlertDialogAction>
-            <AlertDialogCancel className="kiosk-touch w-full">
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel className="kiosk-touch w-full">Cancel</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

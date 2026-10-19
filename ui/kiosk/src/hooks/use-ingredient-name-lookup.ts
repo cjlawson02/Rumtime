@@ -1,9 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
-import {
-  formatIngredientId,
-  getPumpedIngredients,
-} from '@/data/pumped-ingredients';
+import { formatIngredientId, getPumpedIngredients } from "@/data/pumped-ingredients";
 
 export function useIngredientNameLookup(): (id: string) => string {
   return useMemo(() => {

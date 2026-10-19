@@ -1,10 +1,10 @@
-import type { MouseEvent, ReactNode } from 'react';
-import { Link } from 'wouter';
+import type { MouseEvent, ReactNode } from "react";
+import { Link } from "wouter";
 
-import { sanitizeInternalPath } from '@/lib/safe-href';
-import { buttonVariants } from '@/components/ui/button';
-import type { VariantProps } from 'class-variance-authority';
-import { cn } from '@/lib/utils';
+import { sanitizeInternalPath } from "@/lib/safe-href";
+import { buttonVariants } from "@/components/ui/button";
+import type { VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
 
 type LinkButtonProps = {
   href: string;
@@ -17,11 +17,11 @@ export function LinkButton({
   href,
   children,
   className,
-  variant = 'default',
-  size = 'default',
+  variant = "default",
+  size = "default",
   onClick,
 }: LinkButtonProps) {
-  const safeHref = sanitizeInternalPath(href) ?? '/';
+  const safeHref = sanitizeInternalPath(href) ?? "/";
 
   return (
     <Link

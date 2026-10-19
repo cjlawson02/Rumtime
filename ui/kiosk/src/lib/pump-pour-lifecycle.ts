@@ -1,5 +1,5 @@
-import type { PourJob, PumpJob, PumpJobPurpose } from '@/api/types';
-import { isActivePourJob } from '@/lib/pour-job';
+import type { PourJob, PumpJob, PumpJobPurpose } from "@/api/types";
+import { isActivePourJob } from "@/lib/pour-job";
 
 export type PumpPourTracker = {
   pending: boolean;
@@ -7,9 +7,9 @@ export type PumpPourTracker = {
   cancelRequested: boolean;
 };
 
-export type PumpPourOutcome = 'running' | 'finished' | 'cancelled';
+export type PumpPourOutcome = "running" | "finished" | "cancelled";
 
-export type RecipePourOutcome = 'active' | 'complete' | 'cancelled' | 'error';
+export type RecipePourOutcome = "active" | "complete" | "cancelled" | "error";
 
 export function createPumpPourTracker(): PumpPourTracker {
   return { pending: false, seenRunning: false, cancelRequested: false };
@@ -48,15 +48,10 @@ export function resolveRecipePourOutcome(
   const matches = job != null && job.recipeId === recipeId;
 
   if (matches && isActivePourJob(job)) {
-    return 'active';
+    return "active";
   }
 
-  if (
-    matches &&
-    (job.state === 'complete' ||
-      job.state === 'cancelled' ||
-      job.state === 'error')
-  ) {
+  if (matches && (job.state === "complete" || job.state === "cancelled" || job.state === "error")) {
     if (
       !tracker.seenRunning &&
       priorTerminalKey !== null &&
@@ -80,29 +75,26 @@ export function resolvePumpPourOutcome(
   if (!tracker.pending) return null;
 
   const matches =
-    job !== null &&
-    job !== undefined &&
-    job.pumpId === pumpId &&
-    job.purpose === purpose;
+    job !== null && job !== undefined && job.pumpId === pumpId && job.purpose === purpose;
 
-  if (matches && job.state === 'running') {
+  if (matches && job.state === "running") {
     tracker.seenRunning = true;
-    return 'running';
+    return "running";
   }
 
-  if (matches && job.state === 'complete') {
-    return 'finished';
+  if (matches && job.state === "complete") {
+    return "finished";
   }
-  if (matches && job.state === 'cancelled') {
-    return 'cancelled';
+  if (matches && job.state === "cancelled") {
+    return "cancelled";
   }
 
   if (!tracker.seenRunning) return null;
 
   // Idle contract: job cleared from status after our run ended.
   if (!matches) {
-    if (tracker.cancelRequested) return 'cancelled';
-    if (job === null || job === undefined) return 'finished';
+    if (tracker.cancelRequested) return "cancelled";
+    if (job === null || job === undefined) return "finished";
     return null;
   }
 

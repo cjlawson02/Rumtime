@@ -1,32 +1,32 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import type { Recipe } from '@/api/types';
-import { DEFAULT_ANTI_DRIP_MS, DEFAULT_ML_PER_SECOND } from '@/api/types';
-import { estimateRecipePourDurationMs } from '@/lib/pour-progress';
+import type { Recipe } from "@/api/types";
+import { DEFAULT_ANTI_DRIP_MS, DEFAULT_ML_PER_SECOND } from "@/api/types";
+import { estimateRecipePourDurationMs } from "@/lib/pour-progress";
 
 const recipe: Recipe = {
-  id: 'old-fashioned',
-  name: 'Old Fashioned',
-  categories: ['whiskey'],
-  description: 'test',
+  id: "old-fashioned",
+  name: "Old Fashioned",
+  categories: ["whiskey"],
+  description: "test",
   ingredients: [
-    { id: 'bourbon', name: 'Bourbon', kind: 'pumped', ml: 45 },
-    { id: 'simple', name: 'Simple syrup', kind: 'pumped', ml: 10 },
+    { id: "bourbon", name: "Bourbon", kind: "pumped", ml: 45 },
+    { id: "simple", name: "Simple syrup", kind: "pumped", ml: 10 },
   ],
 };
 
-describe('estimateRecipePourDurationMs', () => {
-  it('sums pour time and anti-drip across pumped steps', () => {
+describe("estimateRecipePourDurationMs", () => {
+  it("sums pour time and anti-drip across pumped steps", () => {
     const ms = estimateRecipePourDurationMs(recipe, [
       {
         pumpId: 1,
-        ingredientId: 'bourbon',
+        ingredientId: "bourbon",
         mlPerSecond: 1.75,
         antiDripMs: 100,
       },
       {
         pumpId: 2,
-        ingredientId: 'simple',
+        ingredientId: "simple",
         mlPerSecond: 1.75,
         antiDripMs: 100,
       },
@@ -36,10 +36,10 @@ describe('estimateRecipePourDurationMs', () => {
     expect(ms).toBeCloseTo(expected);
   });
 
-  it('falls back to default calibration when pump rates are missing', () => {
+  it("falls back to default calibration when pump rates are missing", () => {
     const ms = estimateRecipePourDurationMs(recipe, [
-      { pumpId: 1, ingredientId: 'bourbon' },
-      { pumpId: 2, ingredientId: 'simple' },
+      { pumpId: 1, ingredientId: "bourbon" },
+      { pumpId: 2, ingredientId: "simple" },
     ]);
 
     const expected =

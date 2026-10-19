@@ -1,11 +1,11 @@
-import { QueryClient } from '@tanstack/react-query';
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient } from "@tanstack/react-query";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
-import type { DeviceStatus } from '@/api/types';
-import { fetchDeviceStatus } from '@/hooks/use-device-status';
-import { waitForPumpJobIdle } from '@/lib/wait-for-pump-idle';
+import type { DeviceStatus } from "@/api/types";
+import { fetchDeviceStatus } from "@/hooks/use-device-status";
+import { waitForPumpJobIdle } from "@/lib/wait-for-pump-idle";
 
-vi.mock('@/hooks/use-device-status', () => ({
+vi.mock("@/hooks/use-device-status", () => ({
   fetchDeviceStatus: vi.fn(),
 }));
 
@@ -13,22 +13,22 @@ const fetchDeviceStatusMock = vi.mocked(fetchDeviceStatus);
 
 function statusWithPumpJob(
   pumpId: number,
-  state: 'running' | 'complete' | 'cancelled' = 'running',
+  state: "running" | "complete" | "cancelled" = "running",
 ): DeviceStatus {
   return {
     connected: true,
     bindings: {},
     pumpJob: {
       pumpId,
-      purpose: 'prime',
+      purpose: "prime",
       state,
       continuous: true,
-      stepLabel: 'Priming',
+      stepLabel: "Priming",
     },
   } as DeviceStatus;
 }
 
-describe('waitForPumpJobIdle', () => {
+describe("waitForPumpJobIdle", () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
@@ -41,7 +41,7 @@ describe('waitForPumpJobIdle', () => {
     vi.useRealTimers();
   });
 
-  it('returns immediately when the pump is already idle', async () => {
+  it("returns immediately when the pump is already idle", async () => {
     const idle = {
       connected: true,
       bindings: {},
@@ -49,13 +49,11 @@ describe('waitForPumpJobIdle', () => {
     } as DeviceStatus;
     fetchDeviceStatusMock.mockResolvedValue(idle);
 
-    await expect(waitForPumpJobIdle(queryClient, { pumpId: 1 })).resolves.toBe(
-      idle,
-    );
+    await expect(waitForPumpJobIdle(queryClient, { pumpId: 1 })).resolves.toBe(idle);
     expect(fetchDeviceStatusMock).toHaveBeenCalledOnce();
   });
 
-  it('polls until the target pump stops running', async () => {
+  it("polls until the target pump stops running", async () => {
     fetchDeviceStatusMock
       .mockResolvedValueOnce(statusWithPumpJob(1))
       .mockResolvedValueOnce(statusWithPumpJob(1))
@@ -71,7 +69,7 @@ describe('waitForPumpJobIdle', () => {
     expect(fetchDeviceStatusMock).toHaveBeenCalledTimes(3);
   });
 
-  it('times out if the pump keeps running', async () => {
+  it("times out if the pump keeps running", async () => {
     fetchDeviceStatusMock.mockResolvedValue(statusWithPumpJob(1));
 
     const promise = waitForPumpJobIdle(queryClient, {
@@ -79,9 +77,7 @@ describe('waitForPumpJobIdle', () => {
       timeoutMs: 500,
       pollMs: 100,
     });
-    const assertion = expect(promise).rejects.toThrow(
-      'Timed out waiting for pump to stop',
-    );
+    const assertion = expect(promise).rejects.toThrow("Timed out waiting for pump to stop");
 
     await vi.advanceTimersByTimeAsync(600);
     await assertion;

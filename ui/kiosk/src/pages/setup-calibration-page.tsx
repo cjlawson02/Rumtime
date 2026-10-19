@@ -1,17 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState } from "react";
 
-import type { PumpSlot } from '@/api/types';
-import { CalibrationWizard } from '@/components/kiosk/calibration-wizard';
-import { PrimeWizard } from '@/components/kiosk/prime-wizard';
-import { PumpCalibrationMetrics } from '@/components/kiosk/pump-calibration-metrics';
-import { SetupSectionLayout } from '@/components/kiosk/setup-section-layout';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { CALIBRATION_SETUP_SECTION } from '@/data/setup-sections';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { useIngredientNameLookup } from '@/hooks/use-ingredient-name-lookup';
-import { resolvePumpCalibration } from '@/lib/calibration';
-import { sortPumpSlots } from '@/lib/pumps';
+import type { PumpSlot } from "@/api/types";
+import { CalibrationWizard } from "@/components/kiosk/calibration-wizard";
+import { PrimeWizard } from "@/components/kiosk/prime-wizard";
+import { PumpCalibrationMetrics } from "@/components/kiosk/pump-calibration-metrics";
+import { SetupSectionLayout } from "@/components/kiosk/setup-section-layout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CALIBRATION_SETUP_SECTION } from "@/data/setup-sections";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { useIngredientNameLookup } from "@/hooks/use-ingredient-name-lookup";
+import { resolvePumpCalibration } from "@/lib/calibration";
+import { sortPumpSlots } from "@/lib/pumps";
 
 const pourTuning = CALIBRATION_SETUP_SECTION;
 
@@ -33,16 +33,14 @@ function PourTuningPanel() {
   return (
     <div className="space-y-6">
       <p className="max-w-2xl text-sm text-muted-foreground">
-        {pourTuning.description} Use Prime or Calibrate on each assigned line to
-        update flow rate and anti-drip.
+        {pourTuning.description} Use Prime or Calibrate on each assigned line to update flow rate
+        and anti-drip.
       </p>
 
       <ul className="grid grid-cols-3 gap-4">
         {pumps.map((pump: PumpSlot) => {
           const binding =
-            pump.ingredientId !== null
-              ? status.bindings[pump.ingredientId]
-              : undefined;
+            pump.ingredientId !== null ? status.bindings[pump.ingredientId] : undefined;
           const calibration = resolvePumpCalibration(pump);
           const primed = binding?.primed ?? false;
 
@@ -54,19 +52,15 @@ function PourTuningPanel() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-heading text-lg font-semibold">
-                      Line {pump.pumpId}
-                    </p>
+                    <p className="font-heading text-lg font-semibold">Line {pump.pumpId}</p>
                     {pump.ingredientId && binding ? (
-                      <Badge variant={primed ? 'default' : 'destructive'}>
-                        {primed ? 'Primed' : 'Needs prime'}
+                      <Badge variant={primed ? "default" : "destructive"}>
+                        {primed ? "Primed" : "Needs prime"}
                       </Badge>
                     ) : null}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {pump.ingredientId
-                      ? nameForIngredient(pump.ingredientId)
-                      : 'Unassigned'}
+                    {pump.ingredientId ? nameForIngredient(pump.ingredientId) : "Unassigned"}
                   </p>
                 </div>
 

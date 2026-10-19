@@ -1,4 +1,4 @@
-import type { DeviceClient } from '@/api/device-client';
+import type { DeviceClient } from "@/api/device-client";
 import type {
   BottleSizeCommand,
   DeviceStatus,
@@ -13,23 +13,23 @@ import type {
   PumpJob,
   PumpSlot,
   RefillCommand,
-} from '@/api/types';
+} from "@/api/types";
 import {
   DEFAULT_ANTI_DRIP_MS,
   DEFAULT_ML_PER_SECOND,
   deviceStatusSchema,
   INVENTORY_RESERVE_ML,
-} from '@/api/types';
-import { getRecipeById } from '@/data/load-recipes';
-import { POST_POUR_MANUAL_IDS } from '@/lib/manual-pour';
-import { resolvePumpCalibration, MAX_PRIME_SECONDS } from '@/lib/calibration';
+} from "@/api/types";
+import { getRecipeById } from "@/data/load-recipes";
+import { POST_POUR_MANUAL_IDS } from "@/lib/manual-pour";
+import { resolvePumpCalibration, MAX_PRIME_SECONDS } from "@/lib/calibration";
 import {
   cleaningPurposeLabel,
   isCleaningPurpose,
   isContinuousDispensePurpose,
   MAX_CLEANING_RUN_SECONDS,
   skipsInventoryDeduction,
-} from '@/lib/cleaning';
+} from "@/lib/cleaning";
 
 /** JSON clone — validates against device schema after clone. */
 function cloneStatus(status: DeviceStatus): DeviceStatus {
@@ -37,10 +37,8 @@ function cloneStatus(status: DeviceStatus): DeviceStatus {
   return deviceStatusSchema.parse(cloned);
 }
 
-function cloneBindings(
-  bindings: DeviceStatus['bindings'],
-): DeviceStatus['bindings'] {
-  return JSON.parse(JSON.stringify(bindings)) as DeviceStatus['bindings'];
+function cloneBindings(bindings: DeviceStatus["bindings"]): DeviceStatus["bindings"] {
+  return JSON.parse(JSON.stringify(bindings)) as DeviceStatus["bindings"];
 }
 
 const DEFAULT_BOTTLE_ML = 750;
@@ -49,51 +47,51 @@ const MOCK_PUMP_COUNT = 2;
 /** Matches firmware `kJobTerminalLatchMs`. */
 const JOB_TERMINAL_LATCH_MS = 500;
 
-const INITIAL_BINDINGS: DeviceStatus['bindings'] = {
+const INITIAL_BINDINGS: DeviceStatus["bindings"] = {
   bourbon: {
-    ingredientId: 'bourbon',
+    ingredientId: "bourbon",
     remainingMl: 420,
     bottleSizeMl: 750,
     primed: true,
   },
   simple: {
-    ingredientId: 'simple',
+    ingredientId: "simple",
     remainingMl: 180,
     bottleSizeMl: 750,
     primed: true,
   },
   tequila: {
-    ingredientId: 'tequila',
+    ingredientId: "tequila",
     remainingMl: 500,
     bottleSizeMl: 750,
     primed: true,
   },
   triple_sec: {
-    ingredientId: 'triple_sec',
+    ingredientId: "triple_sec",
     remainingMl: 35,
     bottleSizeMl: 750,
     primed: true,
   },
   vodka: {
-    ingredientId: 'vodka',
+    ingredientId: "vodka",
     remainingMl: 600,
     bottleSizeMl: 750,
     primed: true,
   },
   gin: {
-    ingredientId: 'gin',
+    ingredientId: "gin",
     remainingMl: 400,
     bottleSizeMl: 750,
     primed: true,
   },
   rum: {
-    ingredientId: 'rum',
+    ingredientId: "rum",
     remainingMl: 12,
     bottleSizeMl: 750,
     primed: true,
   },
   blue_curacao: {
-    ingredientId: 'blue_curacao',
+    ingredientId: "blue_curacao",
     remainingMl: 500,
     bottleSizeMl: 750,
     primed: true,
@@ -101,7 +99,7 @@ const INITIAL_BINDINGS: DeviceStatus['bindings'] = {
 };
 
 function buildInitialPumps(): PumpSlot[] {
-  const assignedIds = ['bourbon', 'simple'];
+  const assignedIds = ["bourbon", "simple"];
 
   return Array.from({ length: MOCK_PUMP_COUNT }, (_, index) => ({
     pumpId: index + 1,
@@ -121,11 +119,11 @@ type MockState = {
 const state: MockState = {
   status: {
     connected: true,
-    firmwareVersion: 'mock-0.1.0',
-    hostname: 'rumtime.local',
+    firmwareVersion: "mock-0.1.0",
+    hostname: "rumtime.local",
     link: {
-      ssid: 'MockNet',
-      ip: '192.168.1.50',
+      ssid: "MockNet",
+      ip: "192.168.1.50",
       rssi: -55,
       lastDisconnectReason: 0,
       uptimeSeconds: 120,
@@ -172,10 +170,7 @@ function clearAllTimers() {
 function totalMlPerIngredient(steps: PourStep[]): Map<string, number> {
   const totals = new Map<string, number>();
   for (const step of steps) {
-    totals.set(
-      step.ingredientId,
-      (totals.get(step.ingredientId) ?? 0) + step.ml,
-    );
+    totals.set(step.ingredientId, (totals.get(step.ingredientId) ?? 0) + step.ml);
   }
   return totals;
 }
@@ -185,7 +180,7 @@ function validatePourInventory(steps: PourStep[]) {
     if (!(ingredientId in state.status.bindings)) continue;
     const binding = state.status.bindings[ingredientId];
     if (binding.remainingMl < totalMl + INVENTORY_RESERVE_ML) {
-      throw new Error('422: low inventory');
+      throw new Error("422: low inventory");
     }
   }
 }
@@ -205,11 +200,11 @@ function manualPromptForRecipe(recipeId: string): string | undefined {
   if (!recipe) return undefined;
 
   const postPour = recipe.ingredients.filter(
-    (i) => i.kind === 'manual' && POST_POUR_MANUAL_IDS.has(i.id),
+    (i) => i.kind === "manual" && POST_POUR_MANUAL_IDS.has(i.id),
   );
   if (postPour.length === 0) return undefined;
 
-  const names = postPour.map((i) => i.name).join(', ');
+  const names = postPour.map((i) => i.name).join(", ");
   return `Top with ${names}, then tap Done.`;
 }
 
@@ -231,25 +226,14 @@ function subtractIngredientMl(ingredientId: string, ml: number) {
   binding.remainingMl = Math.max(0, binding.remainingMl - ml);
 }
 
-function finishTimedPumpJob(
-  pump: PumpSlot,
-  command: PumpDispenseCommand,
-  volumeMl: number,
-) {
-  if (
-    !skipsInventoryDeduction(command.purpose) &&
-    pump.ingredientId &&
-    volumeMl > 0
-  ) {
+function finishTimedPumpJob(pump: PumpSlot, command: PumpDispenseCommand, volumeMl: number) {
+  if (!skipsInventoryDeduction(command.purpose) && pump.ingredientId && volumeMl > 0) {
     subtractIngredientMl(pump.ingredientId, volumeMl);
   }
   clearPumpJob();
 }
 
-function dispenseDurationMs(
-  pump: PumpSlot,
-  command: PumpDispenseCommand,
-): number {
+function dispenseDurationMs(pump: PumpSlot, command: PumpDispenseCommand): number {
   const calibration = resolvePumpCalibration(pump);
   if (command.durationSeconds !== undefined) {
     return command.durationSeconds * 1000;
@@ -257,10 +241,7 @@ function dispenseDurationMs(
   return ((command.ml ?? 0) / calibration.mlPerSecond) * 1000;
 }
 
-function dispenseVolumeMl(
-  pump: PumpSlot,
-  command: PumpDispenseCommand,
-): number {
+function dispenseVolumeMl(pump: PumpSlot, command: PumpDispenseCommand): number {
   const calibration = resolvePumpCalibration(pump);
   if (command.ml !== undefined) {
     return command.ml;
@@ -270,11 +251,9 @@ function dispenseVolumeMl(
 
 function startPumpDispenseSimulation(command: PumpDispenseCommand) {
   clearPumpTimer();
-  const pump = state.status.pumps?.find(
-    (slot) => slot.pumpId === command.pumpId,
-  );
+  const pump = state.status.pumps?.find((slot) => slot.pumpId === command.pumpId);
   if (!pump) {
-    throw new Error('422: pump not found');
+    throw new Error("422: pump not found");
   }
 
   const isContinuousPrime =
@@ -288,12 +267,12 @@ function startPumpDispenseSimulation(command: PumpDispenseCommand) {
       : MAX_PRIME_SECONDS;
     const stepLabel = isCleaningPurpose(command.purpose)
       ? cleaningPurposeLabel(command.purpose)
-      : 'Priming line…';
+      : "Priming line…";
     const startedAt = Date.now();
     setPumpJob({
       pumpId: command.pumpId,
       purpose: command.purpose,
-      state: 'running',
+      state: "running",
       progress: 0,
       stepLabel,
       continuous: true,
@@ -302,7 +281,7 @@ function startPumpDispenseSimulation(command: PumpDispenseCommand) {
 
     state.pumpTimer = setInterval(() => {
       const job = state.status.pumpJob;
-      if (!job || job.state !== 'running') {
+      if (!job || job.state !== "running") {
         clearPumpTimer();
         return;
       }
@@ -328,18 +307,18 @@ function startPumpDispenseSimulation(command: PumpDispenseCommand) {
   const durationMs = Math.max(500, dispenseDurationMs(pump, command));
   const volumeMl = dispenseVolumeMl(pump, command);
   const label =
-    command.purpose === 'prime'
-      ? 'Priming line…'
+    command.purpose === "prime"
+      ? "Priming line…"
       : isCleaningPurpose(command.purpose)
         ? cleaningPurposeLabel(command.purpose)
-        : command.purpose === 'calibration'
-          ? 'Calibration run…'
+        : command.purpose === "calibration"
+          ? "Calibration run…"
           : `Pouring ${Math.round(volumeMl)} ml…`;
 
   setPumpJob({
     pumpId: command.pumpId,
     purpose: command.purpose,
-    state: 'running',
+    state: "running",
     progress: 0,
     stepLabel: label,
     targetMl: command.ml,
@@ -349,7 +328,7 @@ function startPumpDispenseSimulation(command: PumpDispenseCommand) {
   const startedAt = Date.now();
   state.pumpTimer = setInterval(() => {
     const job = state.status.pumpJob;
-    if (!job || job.state !== 'running') {
+    if (!job || job.state !== "running") {
       clearPumpTimer();
       return;
     }
@@ -370,23 +349,22 @@ function startPumpDispenseSimulation(command: PumpDispenseCommand) {
 function startPourSimulation(command: PourCommand) {
   clearPourTimer();
   const recipe = getRecipeById(command.recipeId);
-  const pumped = recipe?.ingredients.filter((i) => i.kind === 'pumped') ?? [];
+  const pumped = recipe?.ingredients.filter((i) => i.kind === "pumped") ?? [];
   const steps = command.steps;
   let completedSteps = 0;
 
-  const stepName = (index: number) =>
-    pumped[index]?.name ?? steps[index].ingredientId;
+  const stepName = (index: number) => pumped[index]?.name ?? steps[index].ingredientId;
 
   setJob({
     recipeId: command.recipeId,
-    state: 'pouring',
+    state: "pouring",
     progress: 0,
     stepLabel: `Pouring ${stepName(0)}…`,
   });
 
   state.pourTimer = setInterval(() => {
     const job = state.status.job;
-    if (!job || job.state !== 'pouring') {
+    if (!job || job.state !== "pouring") {
       clearPourTimer();
       return;
     }
@@ -396,10 +374,7 @@ function startPourSimulation(command: PourCommand) {
 
     const stepThreshold = ((completedSteps + 1) / steps.length) * 100;
     if (nextProgress >= stepThreshold && completedSteps < steps.length) {
-      subtractIngredientMl(
-        steps[completedSteps].ingredientId,
-        steps[completedSteps].ml,
-      );
+      subtractIngredientMl(steps[completedSteps].ingredientId, steps[completedSteps].ml);
       completedSteps += 1;
       if (completedSteps < steps.length) {
         stepLabel = `Pouring ${stepName(completedSteps)}…`;
@@ -414,17 +389,17 @@ function startPourSimulation(command: PourCommand) {
         // Kiosk-only UX — firmware has no prompt state yet.
         setJob({
           recipeId: command.recipeId,
-          state: 'prompt',
+          state: "prompt",
           progress: 100,
-          stepLabel: 'Manual step',
+          stepLabel: "Manual step",
           promptMessage: prompt,
         });
       } else {
         setJob({
           recipeId: command.recipeId,
-          state: 'complete',
+          state: "complete",
           progress: 100,
-          stepLabel: 'Pour complete',
+          stepLabel: "Pour complete",
         });
         armJobTerminalLatch();
       }
@@ -443,11 +418,11 @@ export function resetMockDevice() {
   clearAllTimers();
   state.status = {
     connected: true,
-    firmwareVersion: 'mock-0.1.0',
-    hostname: 'rumtime.local',
+    firmwareVersion: "mock-0.1.0",
+    hostname: "rumtime.local",
     link: {
-      ssid: 'MockNet',
-      ip: '192.168.1.50',
+      ssid: "MockNet",
+      ip: "192.168.1.50",
       rssi: -55,
       lastDisconnectReason: 0,
       uptimeSeconds: 120,
@@ -462,19 +437,16 @@ export function resetMockDevice() {
 }
 
 function isActivePourJob(job: PourJob | null | undefined): boolean {
-  return job?.state === 'pouring' || job?.state === 'prompt';
+  return job?.state === "pouring" || job?.state === "prompt";
 }
 
 function isActivePumpJob(job: PumpJob | null | undefined): boolean {
-  return job?.state === 'running';
+  return job?.state === "running";
 }
 
 function assertDeviceIdle() {
-  if (
-    isActivePourJob(state.status.job) ||
-    isActivePumpJob(state.status.pumpJob)
-  ) {
-    throw new Error('409: device busy');
+  if (isActivePourJob(state.status.job) || isActivePumpJob(state.status.pumpJob)) {
+    throw new Error("409: device busy");
   }
 }
 
@@ -493,7 +465,7 @@ export class MockDeviceClient implements DeviceClient {
 
       for (const step of command.steps) {
         if (!(step.ingredientId in state.status.bindings)) {
-          throw new Error('422: ingredient not bound');
+          throw new Error("422: ingredient not bound");
         }
         const binding = state.status.bindings[step.ingredientId];
 
@@ -502,12 +474,12 @@ export class MockDeviceClient implements DeviceClient {
             (pump) => pump.ingredientId === step.ingredientId,
           );
           if (!assigned) {
-            throw new Error('422: pump unassigned');
+            throw new Error("422: pump unassigned");
           }
         }
 
         if (!binding.primed) {
-          throw new Error('422: line not primed');
+          throw new Error("422: line not primed");
         }
       }
 
@@ -527,8 +499,8 @@ export class MockDeviceClient implements DeviceClient {
       if (state.status.job) {
         setJob({
           ...state.status.job,
-          state: 'cancelled',
-          stepLabel: 'Pour cancelled',
+          state: "cancelled",
+          stepLabel: "Pour cancelled",
         });
         armJobTerminalLatch();
       }
@@ -538,12 +510,12 @@ export class MockDeviceClient implements DeviceClient {
   acknowledgePrompt(): Promise<void> {
     return runDeviceMutation(() => {
       const job = state.status.job;
-      if (!job || job.state !== 'prompt') return;
+      if (!job || job.state !== "prompt") return;
 
       setJob({
         ...job,
-        state: 'complete',
-        stepLabel: 'Pour complete',
+        state: "complete",
+        stepLabel: "Pour complete",
         promptMessage: undefined,
       });
       armJobTerminalLatch();
@@ -553,7 +525,7 @@ export class MockDeviceClient implements DeviceClient {
   refillIngredient(command: RefillCommand): Promise<void> {
     return runDeviceMutation(() => {
       if (!(command.ingredientId in state.status.bindings)) {
-        throw new Error('422: ingredient not bound');
+        throw new Error("422: ingredient not bound");
       }
       const binding = state.status.bindings[command.ingredientId];
 
@@ -563,19 +535,14 @@ export class MockDeviceClient implements DeviceClient {
 
   updatePumpBinding(command: PumpBindingCommand): Promise<void> {
     return runDeviceMutation(() => {
-      const pump = state.status.pumps?.find(
-        (slot) => slot.pumpId === command.pumpId,
-      );
+      const pump = state.status.pumps?.find((slot) => slot.pumpId === command.pumpId);
       if (!pump) {
-        throw new Error('422: pump not found');
+        throw new Error("422: pump not found");
       }
 
       if (command.ingredientId) {
         for (const slot of state.status.pumps ?? []) {
-          if (
-            slot.pumpId !== command.pumpId &&
-            slot.ingredientId === command.ingredientId
-          ) {
+          if (slot.pumpId !== command.pumpId && slot.ingredientId === command.ingredientId) {
             slot.ingredientId = null;
           }
         }
@@ -597,7 +564,7 @@ export class MockDeviceClient implements DeviceClient {
   updateBottleSize(command: BottleSizeCommand): Promise<void> {
     return runDeviceMutation(() => {
       if (!(command.ingredientId in state.status.bindings)) {
-        throw new Error('422: ingredient not bound');
+        throw new Error("422: ingredient not bound");
       }
       const binding = state.status.bindings[command.ingredientId];
 
@@ -611,7 +578,7 @@ export class MockDeviceClient implements DeviceClient {
   updateInventoryLevel(command: InventoryLevelCommand): Promise<void> {
     return runDeviceMutation(() => {
       if (!(command.ingredientId in state.status.bindings)) {
-        throw new Error('422: ingredient not bound');
+        throw new Error("422: ingredient not bound");
       }
       const binding = state.status.bindings[command.ingredientId];
 
@@ -622,11 +589,9 @@ export class MockDeviceClient implements DeviceClient {
 
   updatePumpCalibration(command: PumpCalibrationCommand): Promise<void> {
     return runDeviceMutation(() => {
-      const pump = state.status.pumps?.find(
-        (slot) => slot.pumpId === command.pumpId,
-      );
+      const pump = state.status.pumps?.find((slot) => slot.pumpId === command.pumpId);
       if (!pump) {
-        throw new Error('422: pump not found');
+        throw new Error("422: pump not found");
       }
 
       pump.mlPerSecond = command.mlPerSecond;
@@ -637,7 +602,7 @@ export class MockDeviceClient implements DeviceClient {
   updatePrimed(command: PrimedCommand): Promise<void> {
     return runDeviceMutation(() => {
       if (!(command.ingredientId in state.status.bindings)) {
-        throw new Error('422: ingredient not bound');
+        throw new Error("422: ingredient not bound");
       }
       const binding = state.status.bindings[command.ingredientId];
 
@@ -649,26 +614,22 @@ export class MockDeviceClient implements DeviceClient {
     return runDeviceMutation(() => {
       assertDeviceIdle();
 
-      const pump = state.status.pumps?.find(
-        (slot) => slot.pumpId === command.pumpId,
-      );
+      const pump = state.status.pumps?.find((slot) => slot.pumpId === command.pumpId);
       if (!pump) {
-        throw new Error('422: pump not found');
+        throw new Error("422: pump not found");
       }
       if (!pump.ingredientId && !isCleaningPurpose(command.purpose)) {
-        throw new Error('422: pump unassigned');
+        throw new Error("422: pump unassigned");
       }
 
-      const binding = pump.ingredientId
-        ? state.status.bindings[pump.ingredientId]
-        : undefined;
+      const binding = pump.ingredientId ? state.status.bindings[pump.ingredientId] : undefined;
       if (
-        command.purpose !== 'prime' &&
+        command.purpose !== "prime" &&
         binding &&
         !binding.primed &&
         !isCleaningPurpose(command.purpose)
       ) {
-        throw new Error('422: line not primed');
+        throw new Error("422: line not primed");
       }
 
       if (state.status.pumpJob) {

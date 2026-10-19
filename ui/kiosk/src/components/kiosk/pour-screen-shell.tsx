@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
-import { DrinkImage } from '@/components/kiosk/drink-image';
-import { KioskShell } from '@/components/kiosk/kiosk-shell';
-import { cn } from '@/lib/utils';
+import { DrinkImage } from "@/components/kiosk/drink-image";
+import { KioskShell } from "@/components/kiosk/kiosk-shell";
+import { cn } from "@/lib/utils";
 
 type PourBackdropProps = {
   recipeId: string;
@@ -23,7 +23,7 @@ export function PourBackdrop({ recipeId, category }: PourBackdropProps) {
 }
 
 const defaultContentClassName =
-  'relative flex min-h-dvh flex-col items-center justify-center gap-6 p-8';
+  "relative flex min-h-dvh flex-col items-center justify-center gap-6 p-8";
 
 type PourScreenShellProps = {
   recipeId: string;

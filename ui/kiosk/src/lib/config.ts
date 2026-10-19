@@ -1,6 +1,6 @@
 /** Kiosk runtime config — env-backed, not hardcoded in components. */
 export const kioskConfig = {
-  setupPin: import.meta.env.VITE_SETUP_PIN ?? '',
+  setupPin: import.meta.env.VITE_SETUP_PIN ?? "",
   devicePollMs: Number(import.meta.env.VITE_DEVICE_POLL_MS ?? 500),
 } as const;
 
@@ -13,7 +13,7 @@ export function verifySetupPin(input: string): boolean {
   const expected = kioskConfig.setupPin;
   if (!expected) {
     if (import.meta.env.DEV) {
-      console.warn('VITE_SETUP_PIN is unset — setup gate disabled in dev only');
+      console.warn("VITE_SETUP_PIN is unset — setup gate disabled in dev only");
       return true;
     }
     return false;

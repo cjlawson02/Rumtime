@@ -1,14 +1,9 @@
-import {
-  useEffect,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
-} from 'react';
-import { useLocation } from 'wouter';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useLocation } from "wouter";
 
-import { LinkButton } from '@/components/kiosk/link-button';
-import { KioskShell } from '@/components/kiosk/kiosk-shell';
-import { SetupPinDialog } from '@/components/kiosk/setup-pin-dialog';
+import { LinkButton } from "@/components/kiosk/link-button";
+import { KioskShell } from "@/components/kiosk/kiosk-shell";
+import { SetupPinDialog } from "@/components/kiosk/setup-pin-dialog";
 import {
   Dialog,
   DialogContent,
@@ -16,16 +11,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { useSetupReturn } from '@/hooks/use-setup-return';
-import { isSetupPinConfigured } from '@/lib/config';
-import { KIOSK_DIALOG_CONTENT_CLASSNAME } from '@/lib/kiosk-input-styles';
-import { hasSetupUnlock } from '@/lib/setup-unlock';
-import {
-  isSetupPinLockSuspended,
-  subscribeSetupPinLockSuspension,
-} from '@/lib/setup-pin-suspend';
+} from "@/components/ui/dialog";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { useSetupReturn } from "@/hooks/use-setup-return";
+import { isSetupPinConfigured } from "@/lib/config";
+import { KIOSK_DIALOG_CONTENT_CLASSNAME } from "@/lib/kiosk-input-styles";
+import { hasSetupUnlock } from "@/lib/setup-unlock";
+import { isSetupPinLockSuspended, subscribeSetupPinLockSuspension } from "@/lib/setup-pin-suspend";
 
 const UNLOCK_RECHECK_MS = 30_000;
 
@@ -42,15 +34,15 @@ function useDeferSetupPinLock(): boolean {
     () => false,
   );
   const { status } = useDeviceStatus();
-  const pumpRunning = status?.pumpJob?.state === 'running';
+  const pumpRunning = status?.pumpJob?.state === "running";
 
   return pinSuspended || pumpRunning;
 }
 
 export function SetupGate({
   children,
-  pinTitle = 'Setup PIN',
-  pinDescription = 'Enter the 4-digit PIN to access machine setup.',
+  pinTitle = "Setup PIN",
+  pinDescription = "Enter the 4-digit PIN to access machine setup.",
 }: SetupGateProps) {
   const returnTo = useSetupReturn();
   const [, navigate] = useLocation();
@@ -106,26 +98,17 @@ export function SetupGate({
     return (
       <KioskShell>
         <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
-          <DialogContent
-            showCloseButton={false}
-            className={KIOSK_DIALOG_CONTENT_CLASSNAME}
-          >
+          <DialogContent showCloseButton={false} className={KIOSK_DIALOG_CONTENT_CLASSNAME}>
             <DialogHeader>
-              <DialogTitle className="font-heading text-2xl">
-                Setup unavailable
-              </DialogTitle>
+              <DialogTitle className="font-heading text-2xl">Setup unavailable</DialogTitle>
               <DialogDescription>
-                Setup PIN was not configured at build time. Set{' '}
-                <code className="text-xs">VITE_SETUP_PIN</code> when building
-                the production bundle and redeploy.
+                Setup PIN was not configured at build time. Set{" "}
+                <code className="text-xs">VITE_SETUP_PIN</code> when building the production bundle
+                and redeploy.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <LinkButton
-                href={returnTo}
-                variant="outline"
-                className="kiosk-touch"
-              >
+              <LinkButton href={returnTo} variant="outline" className="kiosk-touch">
                 Back
               </LinkButton>
             </DialogFooter>

@@ -1,10 +1,6 @@
-import {
-  useMutation,
-  useQueryClient,
-  type QueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
-import { deviceClient } from '@/api';
+import { deviceClient } from "@/api";
 import type {
   BottleSizeCommand,
   DeviceStatus,
@@ -15,9 +11,9 @@ import type {
   PumpCalibrationCommand,
   PumpDispenseCommand,
   RefillCommand,
-} from '@/api/types';
-import { deviceStatusQueryKeyPrefix } from '@/hooks/use-device-status';
-import { isActivePourJob, isTerminalPourJob } from '@/lib/pour-job';
+} from "@/api/types";
+import { deviceStatusQueryKeyPrefix } from "@/hooks/use-device-status";
+import { isActivePourJob, isTerminalPourJob } from "@/lib/pour-job";
 
 function invalidateDeviceStatus(queryClient: QueryClient) {
   return queryClient.invalidateQueries({
@@ -25,9 +21,7 @@ function invalidateDeviceStatus(queryClient: QueryClient) {
   });
 }
 
-function getCachedDeviceStatus(
-  queryClient: QueryClient,
-): DeviceStatus | undefined {
+function getCachedDeviceStatus(queryClient: QueryClient): DeviceStatus | undefined {
   const matches = queryClient.getQueriesData<DeviceStatus>({
     queryKey: deviceStatusQueryKeyPrefix,
   });
@@ -36,25 +30,19 @@ function getCachedDeviceStatus(
 
 /** Drop a prior attempt's terminal job so UI does not sticky-show it until poll. */
 function clearStaleTerminalPourJob(queryClient: QueryClient) {
-  queryClient.setQueriesData<DeviceStatus>(
-    { queryKey: deviceStatusQueryKeyPrefix },
-    (prev) => {
-      if (!prev?.job || isActivePourJob(prev.job)) return prev;
-      if (!isTerminalPourJob(prev.job)) return prev;
-      return { ...prev, job: null };
-    },
-  );
+  queryClient.setQueriesData<DeviceStatus>({ queryKey: deviceStatusQueryKeyPrefix }, (prev) => {
+    if (!prev?.job || isActivePourJob(prev.job)) return prev;
+    if (!isTerminalPourJob(prev.job)) return prev;
+    return { ...prev, job: null };
+  });
 }
 
 /** Drop a prior pump dispense terminal so wizards do not sticky-show it. */
 function clearStaleTerminalPumpJob(queryClient: QueryClient) {
-  queryClient.setQueriesData<DeviceStatus>(
-    { queryKey: deviceStatusQueryKeyPrefix },
-    (prev) => {
-      if (!prev?.pumpJob || prev.pumpJob.state === 'running') return prev;
-      return { ...prev, pumpJob: null };
-    },
-  );
+  queryClient.setQueriesData<DeviceStatus>({ queryKey: deviceStatusQueryKeyPrefix }, (prev) => {
+    if (!prev?.pumpJob || prev.pumpJob.state === "running") return prev;
+    return { ...prev, pumpJob: null };
+  });
 }
 
 function bindingPrimed(
@@ -99,8 +87,7 @@ export function useAcknowledgePrompt() {
 export function useStartPumpDispense() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (command: PumpDispenseCommand) =>
-      deviceClient.startPumpDispense(command),
+    mutationFn: (command: PumpDispenseCommand) => deviceClient.startPumpDispense(command),
     onSuccess: () => {
       clearStaleTerminalPumpJob(queryClient);
       return invalidateDeviceStatus(queryClient);
@@ -119,8 +106,7 @@ export function useCancelPumpDispense() {
 export function useUpdatePumpBinding() {
   const invalidate = useDeviceStatusInvalidator();
   return useMutation({
-    mutationFn: (command: PumpBindingCommand) =>
-      deviceClient.updatePumpBinding(command),
+    mutationFn: (command: PumpBindingCommand) => deviceClient.updatePumpBinding(command),
     onSuccess: invalidate,
   });
 }
@@ -136,8 +122,7 @@ export function useUpdatePrimed() {
 export function useRefillIngredient() {
   const invalidate = useDeviceStatusInvalidator();
   return useMutation({
-    mutationFn: (command: RefillCommand) =>
-      deviceClient.refillIngredient(command),
+    mutationFn: (command: RefillCommand) => deviceClient.refillIngredient(command),
     onSuccess: invalidate,
   });
 }
@@ -145,8 +130,7 @@ export function useRefillIngredient() {
 export function useUpdateBottleSize() {
   const invalidate = useDeviceStatusInvalidator();
   return useMutation({
-    mutationFn: (command: BottleSizeCommand) =>
-      deviceClient.updateBottleSize(command),
+    mutationFn: (command: BottleSizeCommand) => deviceClient.updateBottleSize(command),
     onSuccess: invalidate,
   });
 }
@@ -154,8 +138,7 @@ export function useUpdateBottleSize() {
 export function useUpdateInventoryLevel() {
   const invalidate = useDeviceStatusInvalidator();
   return useMutation({
-    mutationFn: (command: InventoryLevelCommand) =>
-      deviceClient.updateInventoryLevel(command),
+    mutationFn: (command: InventoryLevelCommand) => deviceClient.updateInventoryLevel(command),
     onSuccess: invalidate,
   });
 }
@@ -163,8 +146,7 @@ export function useUpdateInventoryLevel() {
 export function useUpdatePumpCalibration() {
   const invalidate = useDeviceStatusInvalidator();
   return useMutation({
-    mutationFn: (command: PumpCalibrationCommand) =>
-      deviceClient.updatePumpCalibration(command),
+    mutationFn: (command: PumpCalibrationCommand) => deviceClient.updatePumpCalibration(command),
     onSuccess: invalidate,
   });
 }
@@ -178,14 +160,9 @@ type IngredientSwapInput = {
 export function useApplyIngredientSwap() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      pumpId,
-      fromIngredientId,
-      toIngredientId,
-    }: IngredientSwapInput) => {
+    mutationFn: async ({ pumpId, fromIngredientId, toIngredientId }: IngredientSwapInput) => {
       const cachedStatus = getCachedDeviceStatus(queryClient);
-      const primedRollback: Array<{ ingredientId: string; primed: boolean }> =
-        [];
+      const primedRollback: Array<{ ingredientId: string; primed: boolean }> = [];
 
       await deviceClient.updatePumpBinding({
         pumpId,

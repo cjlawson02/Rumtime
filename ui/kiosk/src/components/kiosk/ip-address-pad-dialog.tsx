@@ -1,9 +1,6 @@
-import { IpAddressPad } from '@/components/kiosk/ip-address-pad';
-import {
-  PadDialogFooter,
-  PadDialogShell,
-} from '@/components/kiosk/pad-dialog-shell';
-import { isValidIpv4 } from '@/lib/ip-address';
+import { IpAddressPad } from "@/components/kiosk/ip-address-pad";
+import { PadDialogFooter, PadDialogShell } from "@/components/kiosk/pad-dialog-shell";
+import { isValidIpv4 } from "@/lib/ip-address";
 
 export type IpAddressPadDialogProps = {
   open: boolean;
@@ -71,9 +68,7 @@ export function IpAddressPadDialog({
       <div className="space-y-3 rounded-xl border border-border/60 px-4 py-6">
         <IpAddressPad value={value} onChange={onChange} disabled={saving} />
         {value.length > 0 && !canSave ? (
-          <p className="text-center text-sm text-destructive">
-            Enter a valid IP address
-          </p>
+          <p className="text-center text-sm text-destructive">Enter a valid IP address</p>
         ) : null}
       </div>
     </PadDialogShell>

@@ -1,7 +1,7 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from "react";
 
-import { Button } from '@/components/ui/button';
-import { KioskMessageScreen } from '@/components/kiosk/kiosk-message-screen';
+import { Button } from "@/components/ui/button";
+import { KioskMessageScreen } from "@/components/kiosk/kiosk-message-screen";
 
 type ErrorBoundaryProps = {
   children: ReactNode;
@@ -11,10 +11,7 @@ type ErrorBoundaryState = {
   error: Error | null;
 };
 
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
@@ -22,7 +19,7 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Kiosk render error', error, info.componentStack);
+    console.error("Kiosk render error", error, info.componentStack);
   }
 
   render() {
@@ -31,9 +28,7 @@ export class ErrorBoundary extends Component<
         <KioskMessageScreen
           message={
             <div className="max-w-md space-y-2">
-              <h1 className="font-heading text-2xl font-semibold">
-                Something went wrong
-              </h1>
+              <h1 className="font-heading text-2xl font-semibold">Something went wrong</h1>
               <p className="text-muted-foreground">
                 Return to the menu or reload the kiosk app to continue.
               </p>
@@ -45,7 +40,7 @@ export class ErrorBoundary extends Component<
                 className="kiosk-cta"
                 onClick={() => {
                   this.setState({ error: null });
-                  window.location.assign('/');
+                  window.location.assign("/");
                 }}
               >
                 Return to menu

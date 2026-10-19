@@ -1,13 +1,10 @@
-import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DeviceStatus, PumpJob } from '@/api/types';
-import { usePumpDispenseSession } from '@/hooks/use-pump-dispense-session';
-import {
-  createPumpPourTracker,
-  markPumpPourDispenseStarted,
-} from '@/lib/pump-pour-lifecycle';
-import { createWrapper } from '@/test/render';
+import type { DeviceStatus, PumpJob } from "@/api/types";
+import { usePumpDispenseSession } from "@/hooks/use-pump-dispense-session";
+import { createPumpPourTracker, markPumpPourDispenseStarted } from "@/lib/pump-pour-lifecycle";
+import { createWrapper } from "@/test/render";
 
 const startMutateAsync = vi.fn();
 const cancelMutateAsync = vi.fn();
@@ -17,26 +14,26 @@ const { fetchDeviceStatus } = vi.hoisted(() => ({
 
 let deviceStatus: DeviceStatus | undefined;
 
-vi.mock('@/hooks/use-device-status', () => ({
+vi.mock("@/hooks/use-device-status", () => ({
   useDeviceStatus: () => ({ status: deviceStatus }),
   fetchDeviceStatus,
 }));
 
-vi.mock('@/hooks/use-device-mutations', () => ({
+vi.mock("@/hooks/use-device-mutations", () => ({
   useStartPumpDispense: () => ({ mutateAsync: startMutateAsync }),
   useCancelPumpDispense: () => ({ mutateAsync: cancelMutateAsync }),
 }));
 
 const runningJob: PumpJob = {
   pumpId: 2,
-  purpose: 'calibration',
-  state: 'running',
+  purpose: "calibration",
+  state: "running",
   progress: 40,
-  stepLabel: 'Running',
+  stepLabel: "Running",
   durationSeconds: 20,
 };
 
-describe('usePumpDispenseSession', () => {
+describe("usePumpDispenseSession", () => {
   const wrapper = createWrapper();
 
   beforeEach(() => {
@@ -49,14 +46,14 @@ describe('usePumpDispenseSession', () => {
     deviceStatus = { connected: true, bindings: {}, pumpJob: null };
   });
 
-  it('starts a dispense run and marks the tracker on success', async () => {
+  it("starts a dispense run and marks the tracker on success", async () => {
     const trackerRef = { current: createPumpPourTracker() };
     const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
 
     await act(async () => {
       await result.current.startRun({
         pumpId: 2,
-        purpose: 'calibration',
+        purpose: "calibration",
         durationSeconds: 20,
         tracker: trackerRef,
       });
@@ -64,7 +61,7 @@ describe('usePumpDispenseSession', () => {
 
     expect(startMutateAsync).toHaveBeenCalledWith({
       pumpId: 2,
-      purpose: 'calibration',
+      purpose: "calibration",
       durationSeconds: 20,
     });
     expect(trackerRef.current.pending).toBe(true);
@@ -73,15 +70,15 @@ describe('usePumpDispenseSession', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('refuses to start when a recipe pour is active', async () => {
+  it("refuses to start when a recipe pour is active", async () => {
     fetchDeviceStatus.mockResolvedValue({
       connected: true,
       bindings: {},
       job: {
-        recipeId: 'gin-tonic',
-        state: 'pouring',
+        recipeId: "gin-tonic",
+        state: "pouring",
         progress: 40,
-        stepLabel: 'Pouring gin',
+        stepLabel: "Pouring gin",
       },
     });
     const trackerRef = { current: createPumpPourTracker() };
@@ -90,7 +87,7 @@ describe('usePumpDispenseSession', () => {
     await act(async () => {
       await result.current.startRun({
         pumpId: 2,
-        purpose: 'prime',
+        purpose: "prime",
         tracker: trackerRef,
       });
     });
@@ -100,8 +97,8 @@ describe('usePumpDispenseSession', () => {
     expect(result.current.error).toMatch(/pouring a drink/i);
   });
 
-  it('resets the tracker and surfaces errors when start fails', async () => {
-    startMutateAsync.mockRejectedValue(new Error('Device offline'));
+  it("resets the tracker and surfaces errors when start fails", async () => {
+    startMutateAsync.mockRejectedValue(new Error("Device offline"));
     const trackerRef = { current: createPumpPourTracker() };
     markPumpPourDispenseStarted(trackerRef.current);
     const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
@@ -109,16 +106,16 @@ describe('usePumpDispenseSession', () => {
     await act(async () => {
       await result.current.startRun({
         pumpId: 2,
-        purpose: 'prime',
+        purpose: "prime",
         tracker: trackerRef,
       });
     });
 
     expect(trackerRef.current).toEqual(createPumpPourTracker());
-    expect(result.current.error).toBe('Device offline');
+    expect(result.current.error).toBe("Device offline");
   });
 
-  it('waits for the pump to stop before config updates when requested', async () => {
+  it("waits for the pump to stop before config updates when requested", async () => {
     fetchDeviceStatus
       .mockResolvedValueOnce({
         connected: true,
@@ -141,7 +138,7 @@ describe('usePumpDispenseSession', () => {
     expect(trackerRef.current).toEqual(createPumpPourTracker());
   });
 
-  it('calls cancel and optionally resets the tracker on stop', async () => {
+  it("calls cancel and optionally resets the tracker on stop", async () => {
     const trackerRef = { current: createPumpPourTracker() };
     markPumpPourDispenseStarted(trackerRef.current);
     const { result } = renderHook(() => usePumpDispenseSession(), { wrapper });
@@ -154,7 +151,7 @@ describe('usePumpDispenseSession', () => {
     expect(trackerRef.current).toEqual(createPumpPourTracker());
   });
 
-  it('notifies emergency stop when the matching pump is running', async () => {
+  it("notifies emergency stop when the matching pump is running", async () => {
     deviceStatus = {
       connected: true,
       bindings: {},
@@ -171,7 +168,7 @@ describe('usePumpDispenseSession', () => {
     expect(cancelMutateAsync).toHaveBeenCalledOnce();
   });
 
-  it('cancels an active run when closing a wizard for that pump', () => {
+  it("cancels an active run when closing a wizard for that pump", () => {
     deviceStatus = {
       connected: true,
       bindings: {},

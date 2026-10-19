@@ -8,7 +8,7 @@ import type {
   PumpCalibrationCommand,
   PumpDispenseCommand,
   RefillCommand,
-} from '@/api/types';
+} from "@/api/types";
 
 export type GetStatusOptions = {
   signal?: AbortSignal;
@@ -30,4 +30,4 @@ export interface DeviceClient {
   cancelPumpDispense(): Promise<void>;
 }
 
-export { DEFAULT_DEVICE_API_BASE as DEVICE_API_BASE } from '@/lib/device-endpoint';
+export { DEFAULT_DEVICE_API_BASE as DEVICE_API_BASE } from "@/lib/device-endpoint";

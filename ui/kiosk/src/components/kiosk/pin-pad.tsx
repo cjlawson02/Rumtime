@@ -1,5 +1,5 @@
-import { NumberPad } from '@/components/kiosk/number-pad';
-import { cn } from '@/lib/utils';
+import { NumberPad } from "@/components/kiosk/number-pad";
+import { cn } from "@/lib/utils";
 
 type PinPadProps = {
   length?: number;
@@ -21,20 +21,17 @@ function PinDisplay({
   error?: boolean;
 }) {
   return (
-    <div
-      className="flex justify-center gap-4"
-      aria-label={`${filled} of ${length} digits entered`}
-    >
+    <div className="flex justify-center gap-4" aria-label={`${filled} of ${length} digits entered`}>
       {Array.from({ length }, (_, i) => (
         <span
           key={i}
           className={cn(
-            'size-4 rounded-full border-2 transition-colors',
+            "size-4 rounded-full border-2 transition-colors",
             i < filled
               ? error
-                ? 'border-destructive bg-destructive'
-                : 'border-primary bg-primary'
-              : 'border-muted-foreground/40 bg-transparent',
+                ? "border-destructive bg-destructive"
+                : "border-primary bg-primary"
+              : "border-muted-foreground/40 bg-transparent",
           )}
         />
       ))}
@@ -52,7 +49,7 @@ export function PinPad({
   className,
 }: PinPadProps) {
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn("space-y-6", className)}>
       <PinDisplay length={length} filled={value.length} error={error} />
 
       <NumberPad
@@ -72,8 +69,8 @@ export function PinPadWithError({ error, ...props }: PinPadProps) {
     <div className="space-y-2">
       <div
         className={cn(
-          'rounded-xl border px-4 py-6',
-          error ? 'border-destructive/50 bg-destructive/5' : 'border-border/60',
+          "rounded-xl border px-4 py-6",
+          error ? "border-destructive/50 bg-destructive/5" : "border-border/60",
         )}
       >
         <PinPad {...props} error={error} />

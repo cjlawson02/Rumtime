@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { grantSetupUnlock, hasSetupUnlock } from '@/lib/setup-unlock';
+import { grantSetupUnlock, hasSetupUnlock } from "@/lib/setup-unlock";
 
 function createSessionStorageMock() {
   const store = new Map<string, string>();
@@ -18,9 +18,9 @@ function createSessionStorageMock() {
   };
 }
 
-describe('setup unlock session', () => {
+describe("setup unlock session", () => {
   beforeEach(() => {
-    vi.stubGlobal('sessionStorage', createSessionStorageMock());
+    vi.stubGlobal("sessionStorage", createSessionStorageMock());
     vi.useFakeTimers();
   });
 
@@ -29,12 +29,12 @@ describe('setup unlock session', () => {
     vi.unstubAllGlobals();
   });
 
-  it('grants and reads unlock within TTL', () => {
+  it("grants and reads unlock within TTL", () => {
     grantSetupUnlock();
     expect(hasSetupUnlock()).toBe(true);
   });
 
-  it('expires after 15 minutes', () => {
+  it("expires after 15 minutes", () => {
     grantSetupUnlock();
     vi.advanceTimersByTime(15 * 60 * 1000 + 1);
     expect(hasSetupUnlock()).toBe(false);

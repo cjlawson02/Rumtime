@@ -1,4 +1,4 @@
-const KEY_PREFIX = 'kiosk-pour-bypass-inventory:';
+const KEY_PREFIX = "kiosk-pour-bypass-inventory:";
 const MAX_AGE_MS = 5 * 60 * 1000;
 
 function storageKey(recipeId: string): string {

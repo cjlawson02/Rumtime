@@ -4,7 +4,7 @@ import {
   MAX_ANTI_DRIP_MS,
   MAX_ML_PER_SECOND,
   MIN_ML_PER_SECOND,
-} from '@/api/types';
+} from "@/api/types";
 
 export const CALIBRATION_SAMPLE_ML = 30;
 /** US fluid ounce — 1 standard shot for spirits */
@@ -32,27 +32,25 @@ export function clampAntiDripMs(value: number): number {
   return Math.min(MAX_ANTI_DRIP_MS, Math.max(0, Math.round(value)));
 }
 
-export function resolvePumpCalibration(pump: {
-  mlPerSecond?: number;
-  antiDripMs?: number;
-}): { mlPerSecond: number; antiDripMs: number } {
+export function resolvePumpCalibration(pump: { mlPerSecond?: number; antiDripMs?: number }): {
+  mlPerSecond: number;
+  antiDripMs: number;
+} {
   return {
     mlPerSecond: pump.mlPerSecond ?? DEFAULT_ML_PER_SECOND,
     antiDripMs: pump.antiDripMs ?? DEFAULT_ANTI_DRIP_MS,
   };
 }
 
-export function computeMlPerSecond(
-  outputMl: number,
-  durationSeconds: number,
-): number | null {
+export function computeMlPerSecond(outputMl: number, durationSeconds: number): number | null {
   if (!Number.isFinite(outputMl) || outputMl <= 0) return null;
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return null;
   return clampMlPerSecond(outputMl / durationSeconds);
 }
 
 export type MeasuredFlowRateResult =
-  { ok: true; mlPerSecond: number } | { ok: false; error: string };
+  | { ok: true; mlPerSecond: number }
+  | { ok: false; error: string };
 
 /** Validates measured calibration output without silently clamping to bounds. */
 export function validateMeasuredFlowRate(
@@ -60,10 +58,10 @@ export function validateMeasuredFlowRate(
   durationSeconds: number,
 ): MeasuredFlowRateResult {
   if (!Number.isFinite(outputMl) || outputMl <= 0) {
-    return { ok: false, error: 'Enter a measured volume greater than 0 ml' };
+    return { ok: false, error: "Enter a measured volume greater than 0 ml" };
   }
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
-    return { ok: false, error: 'Invalid calibration run duration' };
+    return { ok: false, error: "Invalid calibration run duration" };
   }
 
   const maxMeasuredMl = MAX_ML_PER_SECOND * durationSeconds;

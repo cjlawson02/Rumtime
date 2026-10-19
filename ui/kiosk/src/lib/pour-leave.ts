@@ -1,4 +1,4 @@
-import type { PourJob } from '@/api/types';
+import type { PourJob } from "@/api/types";
 
 type CancelPourOnLeaveOptions = {
   /** True once the device pour has been requested (not during guest pre-steps). */
@@ -14,5 +14,5 @@ export function shouldCancelPourOnLeave(
   if (!recipeId) return false;
   if (!job) return options.expectActivePour ?? false;
   if (job.recipeId !== recipeId) return false;
-  return job.state === 'pouring';
+  return job.state === "pouring";
 }

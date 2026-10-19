@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearDeviceApiBaseOverride,
@@ -8,13 +8,13 @@ import {
   getDeviceApiBase,
   readDeviceApiBaseOverride,
   setDeviceApiBaseOverride,
-} from '@/lib/device-endpoint';
+} from "@/lib/device-endpoint";
 
 function installBrowserStorageMock() {
   const store = new Map<string, string>();
   const listeners = new Map<string, Set<() => void>>();
 
-  vi.stubGlobal('localStorage', {
+  vi.stubGlobal("localStorage", {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, value: string) => {
       store.set(key, value);
@@ -27,7 +27,7 @@ function installBrowserStorageMock() {
     },
   });
 
-  vi.stubGlobal('window', {
+  vi.stubGlobal("window", {
     dispatchEvent: (event: Event) => {
       const handlers = listeners.get(event.type);
       handlers?.forEach((handler) => {
@@ -46,26 +46,24 @@ function installBrowserStorageMock() {
   });
 }
 
-describe('deviceApiBaseFromIpv4', () => {
-  it('builds an http base URL from a valid IPv4 address', () => {
-    expect(deviceApiBaseFromIpv4('192.168.1.42')).toBe('http://192.168.1.42');
+describe("deviceApiBaseFromIpv4", () => {
+  it("builds an http base URL from a valid IPv4 address", () => {
+    expect(deviceApiBaseFromIpv4("192.168.1.42")).toBe("http://192.168.1.42");
   });
 
-  it('rejects non-IPv4 input', () => {
-    expect(() => deviceApiBaseFromIpv4('rumtime.local')).toThrow(
-      'Enter a valid IP address',
-    );
+  it("rejects non-IPv4 input", () => {
+    expect(() => deviceApiBaseFromIpv4("rumtime.local")).toThrow("Enter a valid IP address");
   });
 });
 
-describe('formatHostnameInput', () => {
-  it('returns hostname without scheme', () => {
-    expect(formatHostnameInput('http://rumtime.local')).toBe('rumtime.local');
-    expect(formatHostnameInput('http://192.168.0.10')).toBe('192.168.0.10');
+describe("formatHostnameInput", () => {
+  it("returns hostname without scheme", () => {
+    expect(formatHostnameInput("http://rumtime.local")).toBe("rumtime.local");
+    expect(formatHostnameInput("http://192.168.0.10")).toBe("192.168.0.10");
   });
 });
 
-describe('device endpoint override storage', () => {
+describe("device endpoint override storage", () => {
   beforeEach(() => {
     installBrowserStorageMock();
   });
@@ -74,25 +72,23 @@ describe('device endpoint override storage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('persists a valid IPv4 override in localStorage', () => {
-    setDeviceApiBaseOverride('10.0.0.5');
-    expect(readDeviceApiBaseOverride()).toBe('http://10.0.0.5');
-    expect(getDeviceApiBase()).toBe('http://10.0.0.5');
+  it("persists a valid IPv4 override in localStorage", () => {
+    setDeviceApiBaseOverride("10.0.0.5");
+    expect(readDeviceApiBaseOverride()).toBe("http://10.0.0.5");
+    expect(getDeviceApiBase()).toBe("http://10.0.0.5");
   });
 
-  it('rejects mDNS hostnames as overrides', () => {
-    expect(() => setDeviceApiBaseOverride('rumtime.local')).toThrow(
-      'Enter a valid IP address',
-    );
+  it("rejects mDNS hostnames as overrides", () => {
+    expect(() => setDeviceApiBaseOverride("rumtime.local")).toThrow("Enter a valid IP address");
   });
 
-  it('clears invalid persisted overrides', () => {
-    localStorage.setItem('rumtime.deviceApiBase', 'http://rumtime.local');
+  it("clears invalid persisted overrides", () => {
+    localStorage.setItem("rumtime.deviceApiBase", "http://rumtime.local");
     expect(readDeviceApiBaseOverride()).toBeNull();
-    expect(localStorage.getItem('rumtime.deviceApiBase')).toBeNull();
+    expect(localStorage.getItem("rumtime.deviceApiBase")).toBeNull();
   });
 
-  it('falls back to the build default when not overridden', () => {
+  it("falls back to the build default when not overridden", () => {
     expect(getDeviceApiBase()).toBe(DEFAULT_DEVICE_API_BASE);
     clearDeviceApiBaseOverride();
     expect(getDeviceApiBase()).toBe(DEFAULT_DEVICE_API_BASE);

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Kiosk ↔ ESP32 HTTP contract.
@@ -11,10 +11,10 @@ import { z } from 'zod';
 
 export const INVENTORY_RESERVE_ML = 10;
 
-export const ingredientKindSchema = z.enum(['pumped', 'manual']);
+export const ingredientKindSchema = z.enum(["pumped", "manual"]);
 
 /** When a manual ingredient is added relative to the pumped pour. */
-export const manualTimingSchema = z.enum(['before', 'after']);
+export const manualTimingSchema = z.enum(["before", "after"]);
 
 export const recipeIngredientSchema = z
   .object({
@@ -26,25 +26,16 @@ export const recipeIngredientSchema = z
     when: manualTimingSchema.optional(),
   })
   .superRefine((ingredient, ctx) => {
-    if (
-      ingredient.kind === 'pumped' &&
-      (ingredient.ml === undefined || ingredient.ml <= 0)
-    ) {
+    if (ingredient.kind === "pumped" && (ingredient.ml === undefined || ingredient.ml <= 0)) {
       ctx.addIssue({
-        code: 'custom',
+        code: "custom",
         message: `Pumped ingredient "${ingredient.id}" requires ml > 0`,
-        path: ['ml'],
+        path: ["ml"],
       });
     }
   });
 
-export const spiritCategorySchema = z.enum([
-  'whiskey',
-  'vodka',
-  'gin',
-  'rum',
-  'tequila',
-]);
+export const spiritCategorySchema = z.enum(["whiskey", "vodka", "gin", "rum", "tequila"]);
 
 export const recipeSchema = z.object({
   id: z.string(),
@@ -66,12 +57,12 @@ export const ingredientBindingSchema = z.object({
 });
 
 export const pourJobStateSchema = z.enum([
-  'idle',
-  'pouring',
-  'prompt',
-  'complete',
-  'cancelled',
-  'error',
+  "idle",
+  "pouring",
+  "prompt",
+  "complete",
+  "cancelled",
+  "error",
 ]);
 
 export const pourJobSchema = z.object({
@@ -83,15 +74,15 @@ export const pourJobSchema = z.object({
 });
 
 export const pumpJobPurposeSchema = z.enum([
-  'prime',
-  'calibration',
-  'verify',
-  'flush',
-  'sanitize',
-  'drain',
+  "prime",
+  "calibration",
+  "verify",
+  "flush",
+  "sanitize",
+  "drain",
 ]);
 
-export const pumpJobStateSchema = z.enum(['running', 'complete', 'cancelled']);
+export const pumpJobStateSchema = z.enum(["running", "complete", "cancelled"]);
 
 export const pumpJobSchema = z.object({
   pumpId: z.number().int().positive(),
@@ -115,15 +106,11 @@ export const MAX_ANTI_DRIP_MS = 5000;
 export const pumpSlotSchema = z.object({
   pumpId: z.number().int().positive(),
   ingredientId: z.string().nullable(),
-  mlPerSecond: z
-    .number()
-    .min(MIN_ML_PER_SECOND)
-    .max(MAX_ML_PER_SECOND)
-    .optional(),
+  mlPerSecond: z.number().min(MIN_ML_PER_SECOND).max(MAX_ML_PER_SECOND).optional(),
   antiDripMs: z.number().int().min(0).max(MAX_ANTI_DRIP_MS).optional(),
 });
 
-export const notificationSeveritySchema = z.enum(['info', 'warning', 'error']);
+export const notificationSeveritySchema = z.enum(["info", "warning", "error"]);
 
 /** Firmware-originated alerts surfaced in the kiosk notification center. */
 export const deviceNotificationSchema = z.object({
@@ -206,18 +193,18 @@ export const pumpDispenseCommandSchema = z
   })
   .superRefine((command, ctx) => {
     if (
-      command.purpose === 'prime' ||
-      command.purpose === 'flush' ||
-      command.purpose === 'sanitize' ||
-      command.purpose === 'drain'
+      command.purpose === "prime" ||
+      command.purpose === "flush" ||
+      command.purpose === "sanitize" ||
+      command.purpose === "drain"
     ) {
       return;
     }
     if (command.ml === undefined && command.durationSeconds === undefined) {
       ctx.addIssue({
-        code: 'custom',
-        message: 'Provide ml or durationSeconds for pump dispense',
-        path: ['ml'],
+        code: "custom",
+        message: "Provide ml or durationSeconds for pump dispense",
+        path: ["ml"],
       });
     }
   });
@@ -243,8 +230,6 @@ export type DeviceNotification = z.infer<typeof deviceNotificationSchema>;
 export type PumpBindingCommand = z.infer<typeof pumpBindingCommandSchema>;
 export type BottleSizeCommand = z.infer<typeof bottleSizeCommandSchema>;
 export type InventoryLevelCommand = z.infer<typeof inventoryLevelCommandSchema>;
-export type PumpCalibrationCommand = z.infer<
-  typeof pumpCalibrationCommandSchema
->;
+export type PumpCalibrationCommand = z.infer<typeof pumpCalibrationCommandSchema>;
 export type PrimedCommand = z.infer<typeof primedCommandSchema>;
 export type PumpDispenseCommand = z.infer<typeof pumpDispenseCommandSchema>;

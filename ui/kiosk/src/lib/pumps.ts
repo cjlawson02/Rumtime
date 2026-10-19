@@ -1,4 +1,4 @@
-import type { PumpSlot } from '@/api/types';
+import type { PumpSlot } from "@/api/types";
 
 export function sortPumpSlots(pumps: PumpSlot[]): PumpSlot[] {
   return [...pumps].sort((a, b) => a.pumpId - b.pumpId);

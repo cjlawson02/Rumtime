@@ -1,19 +1,16 @@
-import { useState } from 'react';
+import { useState } from "react";
 
-import { NumberPadDialog } from '@/components/kiosk/number-pad-dialog';
-import { NumberPadTrigger } from '@/components/kiosk/number-pad-trigger';
-import { maxDigitsForValue } from '@/components/kiosk/number-pad';
-import {
-  BOTTLE_SIZE_OPTIONS,
-  isPresetBottleSize,
-} from '@/data/pumped-ingredients';
-import { useUpdateBottleSize } from '@/hooks/use-device-mutations';
-import { Label } from '@/components/ui/label';
-import { mutationErrorMessage } from '@/lib/device-errors';
-import { KIOSK_SELECT_CLASSNAME } from '@/lib/kiosk-input-styles';
-import { cn } from '@/lib/utils';
+import { NumberPadDialog } from "@/components/kiosk/number-pad-dialog";
+import { NumberPadTrigger } from "@/components/kiosk/number-pad-trigger";
+import { maxDigitsForValue } from "@/components/kiosk/number-pad";
+import { BOTTLE_SIZE_OPTIONS, isPresetBottleSize } from "@/data/pumped-ingredients";
+import { useUpdateBottleSize } from "@/hooks/use-device-mutations";
+import { Label } from "@/components/ui/label";
+import { mutationErrorMessage } from "@/lib/device-errors";
+import { KIOSK_SELECT_CLASSNAME } from "@/lib/kiosk-input-styles";
+import { cn } from "@/lib/utils";
 
-const CUSTOM_VALUE = 'custom';
+const CUSTOM_VALUE = "custom";
 const MAX_BOTTLE_ML = 5000;
 
 type BottleSizeInputProps = {
@@ -43,10 +40,8 @@ function BottleSizeInputInner({
   onError,
   className,
 }: BottleSizeInputProps) {
-  const [selectValue, setSelectValue] = useState(() =>
-    selectValueForSize(bottleSizeMl),
-  );
-  const [draft, setDraft] = useState('');
+  const [selectValue, setSelectValue] = useState(() => selectValueForSize(bottleSizeMl));
+  const [draft, setDraft] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const updateBottleSize = useUpdateBottleSize();
@@ -56,7 +51,7 @@ function BottleSizeInputInner({
 
   const saveSize = async (nextSize: number) => {
     if (nextSize === bottleSizeMl) {
-      setDraft('');
+      setDraft("");
       setDialogOpen(false);
       return;
     }
@@ -67,12 +62,12 @@ function BottleSizeInputInner({
         ingredientId,
         bottleSizeMl: nextSize,
       });
-      setDraft('');
+      setDraft("");
       setDialogOpen(false);
       await onSaved?.();
     } catch (err) {
       setSelectValue(selectValueForSize(bottleSizeMl));
-      onError?.(mutationErrorMessage(err, 'Could not update bottle size'));
+      onError?.(mutationErrorMessage(err, "Could not update bottle size"));
     } finally {
       setSaving(false);
     }
@@ -87,14 +82,14 @@ function BottleSizeInputInner({
       return;
     }
 
-    setDraft('');
+    setDraft("");
     setDialogOpen(false);
     await saveSize(Number(value));
   };
 
   const cancelCustom = () => {
     setSelectValue(selectValueForSize(bottleSizeMl));
-    setDraft('');
+    setDraft("");
     setDialogOpen(false);
   };
 
@@ -107,7 +102,7 @@ function BottleSizeInputInner({
   const saveCustom = async () => {
     const parsed = Number(draft);
     if (!Number.isFinite(parsed)) {
-      onError?.('Enter a valid bottle size in ml');
+      onError?.("Enter a valid bottle size in ml");
       return;
     }
 
@@ -115,7 +110,7 @@ function BottleSizeInputInner({
   };
 
   return (
-    <div className={cn('min-w-0 space-y-2', className)}>
+    <div className={cn("min-w-0 space-y-2", className)}>
       <Label htmlFor={inputId}>Bottle size</Label>
       <select
         id={inputId}
@@ -162,10 +157,5 @@ function BottleSizeInputInner({
 }
 
 export function BottleSizeInput(props: BottleSizeInputProps) {
-  return (
-    <BottleSizeInputInner
-      key={`${props.ingredientId}-${props.bottleSizeMl}`}
-      {...props}
-    />
-  );
+  return <BottleSizeInputInner key={`${props.ingredientId}-${props.bottleSizeMl}`} {...props} />;
 }

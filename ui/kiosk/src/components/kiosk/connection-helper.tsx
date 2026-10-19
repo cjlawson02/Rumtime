@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { WifiOff } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { WifiOff } from "lucide-react";
 
-import { IpAddressPad } from '@/components/kiosk/ip-address-pad';
-import { PadDialogFooter } from '@/components/kiosk/pad-dialog-shell';
-import { Button } from '@/components/ui/button';
+import { IpAddressPad } from "@/components/kiosk/ip-address-pad";
+import { PadDialogFooter } from "@/components/kiosk/pad-dialog-shell";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,12 +11,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { useDeviceEndpoint } from '@/hooks/use-device-endpoint';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { formatHostnameInput } from '@/lib/device-endpoint';
-import { ipv4DraftFromHostname, isValidIpv4 } from '@/lib/ip-address';
-import { KIOSK_DIALOG_CONTENT_CLASSNAME } from '@/lib/kiosk-input-styles';
+} from "@/components/ui/dialog";
+import { useDeviceEndpoint } from "@/hooks/use-device-endpoint";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { formatHostnameInput } from "@/lib/device-endpoint";
+import { ipv4DraftFromHostname, isValidIpv4 } from "@/lib/ip-address";
+import { KIOSK_DIALOG_CONTENT_CLASSNAME } from "@/lib/kiosk-input-styles";
 
 /**
  * Non-dismissible overlay while the pour controller is unreachable.
@@ -24,16 +24,11 @@ import { KIOSK_DIALOG_CONTENT_CLASSNAME } from '@/lib/kiosk-input-styles';
  */
 export function ConnectionHelper() {
   const { error, loading, connected, refresh } = useDeviceStatus();
-  const {
-    hostname,
-    isOverridden,
-    setHostname,
-    resetHostname,
-    defaultDeviceApiBase,
-  } = useDeviceEndpoint();
+  const { hostname, isOverridden, setHostname, resetHostname, defaultDeviceApiBase } =
+    useDeviceEndpoint();
 
   const [ipMode, setIpMode] = useState(false);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState("");
   const [retrying, setRetrying] = useState(false);
 
   const open = !loading && !connected;
@@ -77,31 +72,20 @@ export function ConnectionHelper() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className={KIOSK_DIALOG_CONTENT_CLASSNAME}
-      >
+      <DialogContent showCloseButton={false} className={KIOSK_DIALOG_CONTENT_CLASSNAME}>
         {ipMode ? (
           <>
             <DialogHeader>
-              <DialogTitle className="text-center font-heading text-2xl">
-                IP address
-              </DialogTitle>
+              <DialogTitle className="text-center font-heading text-2xl">IP address</DialogTitle>
               <DialogDescription className="text-center">
                 Enter the dispenser address on your home network.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3 rounded-xl border border-border/60 px-4 py-6">
-              <IpAddressPad
-                value={draft}
-                onChange={setDraft}
-                disabled={retrying}
-              />
+              <IpAddressPad value={draft} onChange={setDraft} disabled={retrying} />
               {draft.length > 0 && !isValidIpv4(draft) ? (
-                <p className="text-center text-sm text-destructive">
-                  Enter a valid IP address
-                </p>
+                <p className="text-center text-sm text-destructive">Enter a valid IP address</p>
               ) : null}
             </div>
 
@@ -121,10 +105,9 @@ export function ConnectionHelper() {
                 Device offline
               </DialogTitle>
               <DialogDescription className="text-center">
-                Can&apos;t reach the pour controller at{' '}
-                <span className="font-medium text-foreground">{hostname}</span>.
-                Check power and Wi‑Fi, then retry — or set an IP if discovery
-                fails.
+                Can&apos;t reach the pour controller at{" "}
+                <span className="font-medium text-foreground">{hostname}</span>. Check power and
+                Wi‑Fi, then retry — or set an IP if discovery fails.
               </DialogDescription>
             </DialogHeader>
 
@@ -136,8 +119,7 @@ export function ConnectionHelper() {
 
             {isOverridden ? (
               <p className="text-center text-sm text-muted-foreground">
-                Overriding build default (
-                {formatHostnameInput(defaultDeviceApiBase)}).{' '}
+                Overriding build default ({formatHostnameInput(defaultDeviceApiBase)}).{" "}
                 <button
                   type="button"
                   className="underline underline-offset-2 hover:text-foreground"
@@ -155,7 +137,7 @@ export function ConnectionHelper() {
                 disabled={retrying}
                 onClick={() => void handleRetry()}
               >
-                {retrying ? 'Retrying…' : 'Retry'}
+                {retrying ? "Retrying…" : "Retry"}
               </Button>
               <Button
                 type="button"

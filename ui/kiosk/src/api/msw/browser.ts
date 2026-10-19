@@ -1,14 +1,14 @@
-import { setupWorker } from 'msw/browser';
+import { setupWorker } from "msw/browser";
 
-import { deviceHandlers } from '@/api/msw/handlers';
+import { deviceHandlers } from "@/api/msw/handlers";
 
 const worker = setupWorker(...deviceHandlers);
 
 export async function startMockServiceWorker() {
   return worker.start({
-    onUnhandledFrame: 'bypass',
+    onUnhandledFrame: "bypass",
     serviceWorker: {
-      url: '/mockServiceWorker.js',
+      url: "/mockServiceWorker.js",
     },
   });
 }

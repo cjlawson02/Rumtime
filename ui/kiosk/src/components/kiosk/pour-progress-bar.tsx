@@ -1,9 +1,5 @@
-import {
-  Progress,
-  ProgressIndicator,
-  ProgressTrack,
-} from '@/components/ui/progress';
-import { roundProgressPercent } from '@/lib/utils';
+import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
+import { roundProgressPercent } from "@/lib/utils";
 
 type PourProgressBarProps = {
   value: number;

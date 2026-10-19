@@ -1,40 +1,35 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState } from "react";
 
-import type { PumpSlot } from '@/api/types';
-import { CleaningWizard } from '@/components/kiosk/cleaning-wizard';
-import { SetupSectionLayout } from '@/components/kiosk/setup-section-layout';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { CLEANING_SETUP_SECTION } from '@/data/setup-sections';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { useIngredientNameLookup } from '@/hooks/use-ingredient-name-lookup';
-import {
-  lineCleaningBadgeLabel,
-  type LineCleaningStatus,
-} from '@/lib/cleaning';
-import { sortPumpSlots } from '@/lib/pumps';
+import type { PumpSlot } from "@/api/types";
+import { CleaningWizard } from "@/components/kiosk/cleaning-wizard";
+import { SetupSectionLayout } from "@/components/kiosk/setup-section-layout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CLEANING_SETUP_SECTION } from "@/data/setup-sections";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { useIngredientNameLookup } from "@/hooks/use-ingredient-name-lookup";
+import { lineCleaningBadgeLabel, type LineCleaningStatus } from "@/lib/cleaning";
+import { sortPumpSlots } from "@/lib/pumps";
 
 const lineCleaning = CLEANING_SETUP_SECTION;
 
 function cleaningBadgeVariant(
   status: LineCleaningStatus,
-): 'default' | 'secondary' | 'destructive' | 'outline' {
+): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
-    case 'done':
-      return 'default';
-    case 'sanitized':
-    case 'flushed':
-      return 'secondary';
+    case "done":
+      return "default";
+    case "sanitized":
+    case "flushed":
+      return "secondary";
     default:
-      return 'outline';
+      return "outline";
   }
 }
 
 function LineCleaningPanel() {
   const { status } = useDeviceStatus();
-  const [lineStatuses, setLineStatuses] = useState<
-    Record<number, LineCleaningStatus>
-  >({});
+  const [lineStatuses, setLineStatuses] = useState<Record<number, LineCleaningStatus>>({});
   const [sessionWizardOpen, setSessionWizardOpen] = useState(false);
   const [lineWizardPumpId, setLineWizardPumpId] = useState<number | null>(null);
   const nameForIngredient = useIngredientNameLookup();
@@ -54,21 +49,16 @@ function LineCleaningPanel() {
       const next = { ...prev };
       for (const [pumpId, nextStatus] of Object.entries(updates)) {
         const id = Number(pumpId);
-        const current = prev[id] ?? 'idle';
-        if (nextStatus === 'done') {
-          next[id] = 'done';
+        const current = prev[id] ?? "idle";
+        if (nextStatus === "done") {
+          next[id] = "done";
         } else if (
-          nextStatus === 'sanitized' &&
-          (current === 'idle' ||
-            current === 'flushed' ||
-            current === 'sanitized')
+          nextStatus === "sanitized" &&
+          (current === "idle" || current === "flushed" || current === "sanitized")
         ) {
-          next[id] = 'sanitized';
-        } else if (
-          nextStatus === 'flushed' &&
-          (current === 'idle' || current === 'flushed')
-        ) {
-          next[id] = 'flushed';
+          next[id] = "sanitized";
+        } else if (nextStatus === "flushed" && (current === "idle" || current === "flushed")) {
+          next[id] = "flushed";
         }
       }
       return next;
@@ -83,9 +73,8 @@ function LineCleaningPanel() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          {lineCleaning.description} Pick up tubes from bottles, flush with warm
-          water, run sanitizer, drain into waste, then unassign lines for the
-          next session.
+          {lineCleaning.description} Pick up tubes from bottles, flush with warm water, run
+          sanitizer, drain into waste, then unassign lines for the next session.
         </p>
         <Button
           type="button"
@@ -101,11 +90,9 @@ function LineCleaningPanel() {
 
       <ul className="grid grid-cols-2 gap-4">
         {pumps.map((pump: PumpSlot) => {
-          const cleaningStatus = lineStatuses[pump.pumpId] ?? 'idle';
+          const cleaningStatus = lineStatuses[pump.pumpId] ?? "idle";
           const binding =
-            pump.ingredientId !== null
-              ? status.bindings[pump.ingredientId]
-              : undefined;
+            pump.ingredientId !== null ? status.bindings[pump.ingredientId] : undefined;
           const primed = binding?.primed ?? false;
 
           return (
@@ -116,17 +103,13 @@ function LineCleaningPanel() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-heading text-lg font-semibold">
-                      Line {pump.pumpId}
-                    </p>
+                    <p className="font-heading text-lg font-semibold">Line {pump.pumpId}</p>
                     <Badge variant={cleaningBadgeVariant(cleaningStatus)}>
                       {lineCleaningBadgeLabel(cleaningStatus)}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {pump.ingredientId
-                      ? nameForIngredient(pump.ingredientId)
-                      : 'Unassigned'}
+                    {pump.ingredientId ? nameForIngredient(pump.ingredientId) : "Unassigned"}
                   </p>
                 </div>
 
@@ -145,7 +128,7 @@ function LineCleaningPanel() {
 
               {pump.ingredientId && binding ? (
                 <p className="text-sm text-muted-foreground">
-                  {primed ? 'Primed — re-prime after cleaning.' : 'Needs prime'}
+                  {primed ? "Primed — re-prime after cleaning." : "Needs prime"}
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">

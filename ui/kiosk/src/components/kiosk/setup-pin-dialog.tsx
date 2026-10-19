@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Lock } from 'lucide-react';
+import { useState } from "react";
+import { Lock } from "lucide-react";
 
-import { PinPadWithError } from '@/components/kiosk/pin-pad';
-import { Button } from '@/components/ui/button';
+import { PinPadWithError } from "@/components/kiosk/pin-pad";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,10 +10,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { verifySetupPin } from '@/lib/config';
-import { KIOSK_DIALOG_CONTENT_CLASSNAME } from '@/lib/kiosk-input-styles';
-import { grantSetupUnlock } from '@/lib/setup-unlock';
+} from "@/components/ui/dialog";
+import { verifySetupPin } from "@/lib/config";
+import { KIOSK_DIALOG_CONTENT_CLASSNAME } from "@/lib/kiosk-input-styles";
+import { grantSetupUnlock } from "@/lib/setup-unlock";
 
 type SetupPinDialogProps = {
   open: boolean;
@@ -32,7 +32,7 @@ export function SetupPinDialog({
   onSuccess,
   onCancel,
 }: SetupPinDialogProps) {
-  const [pin, setPin] = useState('');
+  const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
 
   const handlePinChange = (next: string) => {
@@ -43,17 +43,17 @@ export function SetupPinDialog({
   const tryUnlock = (entered: string) => {
     if (verifySetupPin(entered)) {
       grantSetupUnlock();
-      setPin('');
+      setPin("");
       setError(false);
       onSuccess(entered);
       return;
     }
     setError(true);
-    setPin('');
+    setPin("");
   };
 
   const handleCancel = () => {
-    setPin('');
+    setPin("");
     setError(false);
     onCancel?.();
     onOpenChange(false);
@@ -61,20 +61,13 @@ export function SetupPinDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className={KIOSK_DIALOG_CONTENT_CLASSNAME}
-      >
+      <DialogContent showCloseButton={false} className={KIOSK_DIALOG_CONTENT_CLASSNAME}>
         <DialogHeader>
           <div className="mx-auto mb-2 flex size-14 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/30">
             <Lock className="size-7 text-primary" />
           </div>
-          <DialogTitle className="text-center font-heading text-2xl">
-            {title}
-          </DialogTitle>
-          <DialogDescription className="text-center">
-            {description}
-          </DialogDescription>
+          <DialogTitle className="text-center font-heading text-2xl">{title}</DialogTitle>
+          <DialogDescription className="text-center">{description}</DialogDescription>
         </DialogHeader>
 
         <PinPadWithError
@@ -85,11 +78,7 @@ export function SetupPinDialog({
         />
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            className="kiosk-touch w-full sm:w-auto"
-            onClick={handleCancel}
-          >
+          <Button variant="outline" className="kiosk-touch w-full sm:w-auto" onClick={handleCancel}>
             Cancel
           </Button>
         </DialogFooter>

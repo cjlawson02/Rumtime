@@ -1,28 +1,22 @@
-import { useState } from 'react';
-import { Wifi, WifiOff } from 'lucide-react';
+import { useState } from "react";
+import { Wifi, WifiOff } from "lucide-react";
 
-import { IpAddressPadDialog } from '@/components/kiosk/ip-address-pad-dialog';
-import { SetupSectionLayout } from '@/components/kiosk/setup-section-layout';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { DEVICE_SETUP_SECTION } from '@/data/setup-sections';
-import { useDeviceEndpoint } from '@/hooks/use-device-endpoint';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import { formatHostnameInput } from '@/lib/device-endpoint';
+import { IpAddressPadDialog } from "@/components/kiosk/ip-address-pad-dialog";
+import { SetupSectionLayout } from "@/components/kiosk/setup-section-layout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DEVICE_SETUP_SECTION } from "@/data/setup-sections";
+import { useDeviceEndpoint } from "@/hooks/use-device-endpoint";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import { formatHostnameInput } from "@/lib/device-endpoint";
 import {
   formatDisconnectReason,
   formatFreeHeap,
   formatUptime,
   formatWifiRssi,
-} from '@/lib/device-link';
-import { ipv4DraftFromHostname } from '@/lib/ip-address';
+} from "@/lib/device-link";
+import { ipv4DraftFromHostname } from "@/lib/ip-address";
 
 const machineStatus = DEVICE_SETUP_SECTION;
 
@@ -49,7 +43,7 @@ function HostnameRow({
   onReset: () => void;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState("");
 
   const openDialog = () => {
     setDraft(ipv4DraftFromHostname(hostname));
@@ -63,13 +57,9 @@ function HostnameRow({
   return (
     <>
       <div className="flex items-center justify-between gap-4 border-b border-border/60 py-3">
-        <dt className="text-sm text-muted-foreground">
-          {isOverridden ? 'IP address' : 'Address'}
-        </dt>
+        <dt className="text-sm text-muted-foreground">{isOverridden ? "IP address" : "Address"}</dt>
         <dd className="flex min-w-0 flex-1 items-center justify-end gap-2">
-          <span className="text-right text-sm font-medium tabular-nums">
-            {hostname}
-          </span>
+          <span className="text-right text-sm font-medium tabular-nums">{hostname}</span>
           <Button
             type="button"
             variant="ghost"
@@ -84,7 +74,7 @@ function HostnameRow({
       {isOverridden ? (
         <p className="border-b border-border/60 py-2 text-right text-sm text-muted-foreground">
           Overriding build default ({formatHostnameInput(defaultDeviceApiBase)}
-          ).{' '}
+          ).{" "}
           <button
             type="button"
             className="underline underline-offset-2 hover:text-foreground"
@@ -109,13 +99,8 @@ function HostnameRow({
 
 export function SetupDevicePage() {
   const { status, error, loading, connected } = useDeviceStatus();
-  const {
-    hostname,
-    isOverridden,
-    setHostname,
-    resetHostname,
-    defaultDeviceApiBase,
-  } = useDeviceEndpoint();
+  const { hostname, isOverridden, setHostname, resetHostname, defaultDeviceApiBase } =
+    useDeviceEndpoint();
   const link = status?.link;
 
   return (
@@ -143,8 +128,8 @@ export function SetupDevicePage() {
           </CardTitle>
           <CardDescription>
             {isOverridden
-              ? 'IPv4 address this kiosk uses to reach the pour controller.'
-              : 'Using the build default (mDNS). Set an IP address if discovery fails.'}
+              ? "IPv4 address this kiosk uses to reach the pour controller."
+              : "Using the build default (mDNS). Set an IP address if discovery fails."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -158,36 +143,19 @@ export function SetupDevicePage() {
             />
             {connected ? (
               <>
-                <StatusRow
-                  label="Firmware"
-                  value={status?.firmwareVersion ?? '—'}
-                />
-                <StatusRow
-                  label="Wi‑Fi SSID"
-                  value={link?.ssid?.trim() ? link.ssid : '—'}
-                />
-                <StatusRow
-                  label="Controller IP"
-                  value={link?.ip?.trim() ? link.ip : '—'}
-                />
+                <StatusRow label="Firmware" value={status?.firmwareVersion ?? "—"} />
+                <StatusRow label="Wi‑Fi SSID" value={link?.ssid?.trim() ? link.ssid : "—"} />
+                <StatusRow label="Controller IP" value={link?.ip?.trim() ? link.ip : "—"} />
                 <StatusRow label="RSSI" value={formatWifiRssi(link?.rssi)} />
-                <StatusRow
-                  label="Uptime"
-                  value={formatUptime(link?.uptimeSeconds)}
-                />
-                <StatusRow
-                  label="Free heap"
-                  value={formatFreeHeap(link?.freeHeap)}
-                />
+                <StatusRow label="Uptime" value={formatUptime(link?.uptimeSeconds)} />
+                <StatusRow label="Free heap" value={formatFreeHeap(link?.freeHeap)} />
                 <StatusRow
                   label="Last disconnect"
                   value={formatDisconnectReason(link?.lastDisconnectReason)}
                 />
               </>
             ) : null}
-            {!connected && error ? (
-              <StatusRow label="Last error" value={error} />
-            ) : null}
+            {!connected && error ? <StatusRow label="Last error" value={error} /> : null}
           </dl>
         </CardContent>
       </Card>

@@ -1,21 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
-import type { PourJob } from '@/api/types';
+import type { PourJob } from "@/api/types";
 
 /**
  * Deterministic pour progress from wall-clock elapsed / estimated total duration.
  * Starts once when the job becomes `pouring`; does not re-anchor to server samples.
  */
-export function useTimedPourProgress(
-  job: PourJob | null | undefined,
-  durationMs: number,
-): number {
+export function useTimedPourProgress(job: PourJob | null | undefined, durationMs: number): number {
   const [progress, setProgress] = useState(0);
   const startedAtRef = useRef<number | null>(null);
   const rafRef = useRef(0);
 
-  const pouring = job?.state === 'pouring';
-  const complete = job?.state === 'complete';
+  const pouring = job?.state === "pouring";
+  const complete = job?.state === "complete";
 
   useEffect(() => {
     cancelAnimationFrame(rafRef.current);

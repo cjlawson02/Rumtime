@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from "react";
 
-import { NumberPadField } from '@/components/kiosk/number-pad-field';
-import { maxDigitsForValue } from '@/components/kiosk/number-pad';
-import { useUpdateInventoryLevel } from '@/hooks/use-device-mutations';
-import { mutationErrorMessage } from '@/lib/device-errors';
-import { cn } from '@/lib/utils';
+import { NumberPadField } from "@/components/kiosk/number-pad-field";
+import { maxDigitsForValue } from "@/components/kiosk/number-pad";
+import { useUpdateInventoryLevel } from "@/hooks/use-device-mutations";
+import { mutationErrorMessage } from "@/lib/device-errors";
+import { cn } from "@/lib/utils";
 
 type FillLevelInputProps = {
   ingredientId: string;
@@ -31,7 +31,7 @@ function FillLevelInputInner({
   className,
   trailing,
 }: FillLevelInputProps) {
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const updateInventoryLevel = useUpdateInventoryLevel();
@@ -45,14 +45,14 @@ function FillLevelInputInner({
   };
 
   const cancel = () => {
-    setDraft('');
+    setDraft("");
     setDialogOpen(false);
   };
 
   const save = async () => {
     const parsed = Number(draft);
     if (!Number.isFinite(parsed)) {
-      onError?.('Enter a valid fill level in ml');
+      onError?.("Enter a valid fill level in ml");
       return;
     }
 
@@ -71,7 +71,7 @@ function FillLevelInputInner({
       cancel();
       await onSaved?.();
     } catch (err) {
-      onError?.(mutationErrorMessage(err, 'Could not update fill level'));
+      onError?.(mutationErrorMessage(err, "Could not update fill level"));
     } finally {
       setSaving(false);
     }
@@ -102,10 +102,5 @@ function FillLevelInputInner({
 }
 
 export function FillLevelInput(props: FillLevelInputProps) {
-  return (
-    <FillLevelInputInner
-      key={`${props.ingredientId}-${props.remainingMl}`}
-      {...props}
-    />
-  );
+  return <FillLevelInputInner key={`${props.ingredientId}-${props.remainingMl}`} {...props} />;
 }

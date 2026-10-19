@@ -1,13 +1,9 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from "lucide-react";
 
-import type { PumpJob, PumpJobPurpose } from '@/api/types';
-import {
-  Progress,
-  ProgressIndicator,
-  ProgressTrack,
-} from '@/components/ui/progress';
-import { useSmoothTimedProgress } from '@/hooks/use-smooth-timed-progress';
-import { cn, roundProgressPercent } from '@/lib/utils';
+import type { PumpJob, PumpJobPurpose } from "@/api/types";
+import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
+import { useSmoothTimedProgress } from "@/hooks/use-smooth-timed-progress";
+import { cn, roundProgressPercent } from "@/lib/utils";
 
 export type PumpDispenseViewState = {
   active: boolean;
@@ -30,7 +26,7 @@ export function getPumpDispenseViewState(
   }
 
   return {
-    active: pumpJob.state === 'running',
+    active: pumpJob.state === "running",
     isContinuous: Boolean(pumpJob.continuous),
     progress: roundProgressPercent(pumpJob.progress),
     stepLabel: pumpJob.stepLabel,
@@ -61,7 +57,7 @@ export function PumpDispenseProgress({
   }
 
   return (
-    <div className={cn('flex min-w-0 items-center gap-2', className)}>
+    <div className={cn("flex min-w-0 items-center gap-2", className)}>
       <Progress value={smoothProgress} className="min-w-0 flex-1 gap-0">
         <ProgressTrack className="h-2 bg-secondary">
           <ProgressIndicator className="rounded-full bg-primary transition-none" />
@@ -90,7 +86,7 @@ export function PumpDispenseStatus({
   pumpJob,
   mlPerSecond,
   continuous = false,
-  continuousHint = 'stop when the nozzle is wet',
+  continuousHint = "stop when the nozzle is wet",
   idleDescription,
 }: PumpDispenseStatusProps) {
   const state = getPumpDispenseViewState(pumpId, pumpJob);
@@ -101,9 +97,7 @@ export function PumpDispenseStatus({
 
     return (
       <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-6 py-8 text-center">
-        {isContinuous ? (
-          <Loader2 className="size-12 animate-spin text-primary" />
-        ) : null}
+        {isContinuous ? <Loader2 className="size-12 animate-spin text-primary" /> : null}
         <p className="text-xl">{state.stepLabel}</p>
         {isContinuous ? (
           <p className="text-lg tabular-nums text-muted-foreground">
@@ -125,9 +119,7 @@ export function PumpDispenseStatus({
   if (idleDescription) {
     return (
       <div className="mx-auto max-w-lg py-4 text-center">
-        <p className="text-lg leading-relaxed text-muted-foreground">
-          {idleDescription}
-        </p>
+        <p className="text-lg leading-relaxed text-muted-foreground">{idleDescription}</p>
       </div>
     );
   }

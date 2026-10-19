@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "builtin": true
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "coverage/**",
+    ".vitest-coverage/**",
+    "coverage-report/**",
+    "public/mockServiceWorker.js"
+  ]
+}

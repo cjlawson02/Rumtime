@@ -1,9 +1,9 @@
-import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useDelayedTrue } from '@/hooks/use-delayed-true';
+import { useDelayedTrue } from "@/hooks/use-delayed-true";
 
-describe('useDelayedTrue', () => {
+describe("useDelayedTrue", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -12,7 +12,7 @@ describe('useDelayedTrue', () => {
     vi.useRealTimers();
   });
 
-  it('stays false until the delay elapses while active', () => {
+  it("stays false until the delay elapses while active", () => {
     const { result } = renderHook(() => useDelayedTrue(true, 500));
 
     expect(result.current).toBe(false);
@@ -28,11 +28,10 @@ describe('useDelayedTrue', () => {
     expect(result.current).toBe(true);
   });
 
-  it('resets when active becomes false before the delay', () => {
-    const { result, rerender } = renderHook(
-      ({ active }) => useDelayedTrue(active, 500),
-      { initialProps: { active: true } },
-    );
+  it("resets when active becomes false before the delay", () => {
+    const { result, rerender } = renderHook(({ active }) => useDelayedTrue(active, 500), {
+      initialProps: { active: true },
+    });
 
     act(() => {
       vi.advanceTimersByTime(200);

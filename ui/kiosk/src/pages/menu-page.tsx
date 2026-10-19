@@ -1,28 +1,24 @@
-import { useMemo } from 'react';
-import { Settings, Wifi, WifiOff } from 'lucide-react';
+import { useMemo } from "react";
+import { Settings, Wifi, WifiOff } from "lucide-react";
 
-import { DrinkCard } from '@/components/kiosk/drink-card';
-import { NotificationCenter } from '@/components/kiosk/notification-center';
-import { SetupEntryLink } from '@/components/kiosk/setup-entry-link';
-import { KioskShell } from '@/components/kiosk/kiosk-shell';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import {
-  CATEGORIES,
-  type CategoryId,
-  recipeMatchesCategory,
-} from '@/data/categories';
-import { getCategoryStyle } from '@/data/category-styles';
-import { MENU_HERO_IMAGE } from '@/data/drink-images';
-import { useMenuCategory } from '@/hooks/use-menu-category';
-import { useDeviceEndpoint } from '@/hooks/use-device-endpoint';
-import { useDeviceStatus } from '@/hooks/use-device-status';
-import type { Recipe } from '@/api/types';
-import { getRecipes, getRecipeCatalogError } from '@/data/load-recipes';
-import { firstBlockingMessage, partitionMenuRecipes } from '@/lib/availability';
-import { collectKioskNotifications } from '@/lib/notifications';
-import { SETUP_ROOT } from '@/hooks/use-setup-return';
-import { cn } from '@/lib/utils';
+import { DrinkCard } from "@/components/kiosk/drink-card";
+import { NotificationCenter } from "@/components/kiosk/notification-center";
+import { SetupEntryLink } from "@/components/kiosk/setup-entry-link";
+import { KioskShell } from "@/components/kiosk/kiosk-shell";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { CATEGORIES, type CategoryId, recipeMatchesCategory } from "@/data/categories";
+import { getCategoryStyle } from "@/data/category-styles";
+import { MENU_HERO_IMAGE } from "@/data/drink-images";
+import { useMenuCategory } from "@/hooks/use-menu-category";
+import { useDeviceEndpoint } from "@/hooks/use-device-endpoint";
+import { useDeviceStatus } from "@/hooks/use-device-status";
+import type { Recipe } from "@/api/types";
+import { getRecipes, getRecipeCatalogError } from "@/data/load-recipes";
+import { firstBlockingMessage, partitionMenuRecipes } from "@/lib/availability";
+import { collectKioskNotifications } from "@/lib/notifications";
+import { SETUP_ROOT } from "@/hooks/use-setup-return";
+import { cn } from "@/lib/utils";
 
 function ConnectionBadge({
   loading,
@@ -56,7 +52,7 @@ function ConnectionBadge({
   return (
     <span className="inline-flex items-center gap-2 text-sm text-emerald-300/90">
       <Wifi className="size-4" />
-      Connected · {hostname ?? 'rumtime.local'}
+      Connected · {hostname ?? "rumtime.local"}
     </span>
   );
 }
@@ -75,55 +71,49 @@ export function MenuPage() {
   const availabilityKnown = Boolean(status) && !error;
 
   const filtered =
-    category === 'all'
+    category === "all"
       ? recipes
       : recipes.filter((r) => recipeMatchesCategory(r.categories, category));
 
-  const { menuEntries, notifications, unavailableCount, staleStatus } =
-    useMemo((): {
-      menuEntries: MenuEntry[];
-      notifications: ReturnType<typeof collectKioskNotifications>;
-      unavailableCount: number;
-      staleStatus: boolean;
-    } => {
-      if (!status) {
-        return {
-          menuEntries: [],
-          notifications: [],
-          unavailableCount: 0,
-          staleStatus: false,
-        };
-      }
-
-      const { available, unavailable } = partitionMenuRecipes(filtered, status);
-      const entries: MenuEntry[] = [
-        ...available.map((recipe): MenuEntry => ({ recipe })),
-        ...unavailable.map(({ recipe, availability }): MenuEntry => ({
-          recipe,
-          unavailableReason:
-            firstBlockingMessage(availability.issues) ?? undefined,
-        })),
-      ];
-
+  const { menuEntries, notifications, unavailableCount, staleStatus } = useMemo((): {
+    menuEntries: MenuEntry[];
+    notifications: ReturnType<typeof collectKioskNotifications>;
+    unavailableCount: number;
+    staleStatus: boolean;
+  } => {
+    if (!status) {
       return {
-        menuEntries: entries,
-        notifications: collectKioskNotifications({
-          status,
-          unavailableRecipes: unavailable,
-        }),
-        unavailableCount: unavailable.length,
-        staleStatus: Boolean(error),
+        menuEntries: [],
+        notifications: [],
+        unavailableCount: 0,
+        staleStatus: false,
       };
-    }, [filtered, status, error]);
+    }
+
+    const { available, unavailable } = partitionMenuRecipes(filtered, status);
+    const entries: MenuEntry[] = [
+      ...available.map((recipe): MenuEntry => ({ recipe })),
+      ...unavailable.map(({ recipe, availability }): MenuEntry => ({
+        recipe,
+        unavailableReason: firstBlockingMessage(availability.issues) ?? undefined,
+      })),
+    ];
+
+    return {
+      menuEntries: entries,
+      notifications: collectKioskNotifications({
+        status,
+        unavailableRecipes: unavailable,
+      }),
+      unavailableCount: unavailable.length,
+      staleStatus: Boolean(error),
+    };
+  }, [filtered, status, error]);
 
   return (
     <KioskShell>
       <section className="relative h-44 shrink-0 overflow-hidden md:h-52">
-        <img
-          src={MENU_HERO_IMAGE}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        <img src={MENU_HERO_IMAGE} alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="kiosk-hero-overlay absolute inset-0" />
         <div className="relative flex h-full flex-col justify-end px-6 pb-5 pt-4">
           <div className="flex items-end justify-between gap-4">
@@ -139,9 +129,7 @@ export function MenuPage() {
               />
             </div>
             <div className="flex items-center gap-2">
-              {availabilityKnown && (
-                <NotificationCenter notifications={notifications} />
-              )}
+              {availabilityKnown && <NotificationCenter notifications={notifications} />}
               <SetupEntryLink
                 href={SETUP_ROOT}
                 variant="outline"
@@ -180,10 +168,8 @@ export function MenuPage() {
                   key={cat.id}
                   value={cat.id}
                   className={cn(
-                    'min-h-14 shrink-0 rounded-full border border-transparent px-6 text-lg font-medium transition-all',
-                    selected
-                      ? style.pillActive
-                      : cn('bg-secondary/60', style.pillIdle),
+                    "min-h-14 shrink-0 rounded-full border border-transparent px-6 text-lg font-medium transition-all",
+                    selected ? style.pillActive : cn("bg-secondary/60", style.pillIdle),
                   )}
                 >
                   {cat.label}
@@ -198,9 +184,7 @@ export function MenuPage() {
         {catalogError && (
           <Alert variant="destructive" className="mb-5">
             <AlertTitle>Menu unavailable</AlertTitle>
-            <AlertDescription>
-              Recipe catalog failed to load: {catalogError}
-            </AlertDescription>
+            <AlertDescription>Recipe catalog failed to load: {catalogError}</AlertDescription>
           </Alert>
         )}
 
@@ -237,40 +221,34 @@ export function MenuPage() {
         )}
 
         <p className="mb-5 text-base text-muted-foreground">
-          {menuEntries.length} drink{menuEntries.length === 1 ? '' : 's'}
-          {unavailableCount > 0 ? ` · ${unavailableCount} unavailable` : ''}
-          {category !== 'all'
-            ? ` · ${CATEGORIES.find((c) => c.id === category)?.label}`
-            : ''}
+          {menuEntries.length} drink{menuEntries.length === 1 ? "" : "s"}
+          {unavailableCount > 0 ? ` · ${unavailableCount} unavailable` : ""}
+          {category !== "all" ? ` · ${CATEGORIES.find((c) => c.id === category)?.label}` : ""}
         </p>
 
         {menuEntries.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <p className="font-heading text-2xl font-semibold">
               {catalogError
-                ? 'Menu could not load'
+                ? "Menu could not load"
                 : staleStatus
-                  ? 'Menu paused — device offline'
-                  : 'No drinks ready'}
+                  ? "Menu paused — device offline"
+                  : "No drinks ready"}
             </p>
             <p className="max-w-sm text-muted-foreground">
               {catalogError
-                ? 'Fix recipes.json and reload the kiosk.'
+                ? "Fix recipes.json and reload the kiosk."
                 : staleStatus
-                  ? 'Retry connection when the machine is back online.'
+                  ? "Retry connection when the machine is back online."
                   : notifications.length > 0
-                    ? 'Check notifications to see what needs attention.'
-                    : 'Nothing matches this filter right now.'}
+                    ? "Check notifications to see what needs attention."
+                    : "Nothing matches this filter right now."}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-5 lg:grid-cols-3">
             {menuEntries.map(({ recipe, unavailableReason }) => (
-              <DrinkCard
-                key={recipe.id}
-                recipe={recipe}
-                unavailableReason={unavailableReason}
-              />
+              <DrinkCard key={recipe.id} recipe={recipe} unavailableReason={unavailableReason} />
             ))}
           </div>
         )}

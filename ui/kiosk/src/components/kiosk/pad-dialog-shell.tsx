@@ -1,7 +1,7 @@
-import { type ReactNode } from 'react';
-import { Check, X } from 'lucide-react';
+import { type ReactNode } from "react";
+import { Check, X } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,9 +9,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
-import { KIOSK_DIALOG_CONTENT_CLASSNAME } from '@/lib/kiosk-input-styles';
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { KIOSK_DIALOG_CONTENT_CLASSNAME } from "@/lib/kiosk-input-styles";
 
 export type PadDialogFooterProps = {
   onCancel: () => void;
@@ -27,8 +27,8 @@ export function PadDialogFooter({
   onSave,
   saving = false,
   saveDisabled = false,
-  cancelLabel = 'Cancel',
-  saveLabel = 'Save',
+  cancelLabel = "Cancel",
+  saveLabel = "Save",
 }: PadDialogFooterProps) {
   return (
     <DialogFooter className="flex-row gap-2 sm:justify-center">
@@ -83,13 +83,9 @@ export function PadDialogShell({
         className={cn(KIOSK_DIALOG_CONTENT_CLASSNAME, className)}
       >
         <DialogHeader>
-          <DialogTitle className="text-center font-heading text-2xl">
-            {title}
-          </DialogTitle>
+          <DialogTitle className="text-center font-heading text-2xl">{title}</DialogTitle>
           {description ? (
-            <DialogDescription className="text-center">
-              {description}
-            </DialogDescription>
+            <DialogDescription className="text-center">{description}</DialogDescription>
           ) : null}
         </DialogHeader>
 

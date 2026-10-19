@@ -1,24 +1,16 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 
-import type { CategoryId } from '@/data/categories';
+import type { CategoryId } from "@/data/categories";
 
 type MenuCategoryContextValue = {
   category: CategoryId;
   setCategory: (category: CategoryId) => void;
 };
 
-const MenuCategoryContext = createContext<MenuCategoryContextValue | null>(
-  null,
-);
+const MenuCategoryContext = createContext<MenuCategoryContextValue | null>(null);
 
 export function MenuCategoryProvider({ children }: { children: ReactNode }) {
-  const [category, setCategoryState] = useState<CategoryId>('all');
+  const [category, setCategoryState] = useState<CategoryId>("all");
 
   const setCategory = useCallback((next: CategoryId) => {
     setCategoryState(next);
@@ -34,7 +26,7 @@ export function MenuCategoryProvider({ children }: { children: ReactNode }) {
 export function useMenuCategory(): MenuCategoryContextValue {
   const value = useContext(MenuCategoryContext);
   if (!value) {
-    throw new Error('MenuCategoryProvider is missing');
+    throw new Error("MenuCategoryProvider is missing");
   }
   return value;
 }
