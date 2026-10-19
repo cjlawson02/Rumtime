@@ -196,6 +196,8 @@ describe('resolveRecipePourOutcome', () => {
       null,
     );
 
-    expect(resolveRecipePourOutcome(tracker, 'gin-tonic', null, null)).toBeNull();
+    expect(
+      resolveRecipePourOutcome(tracker, 'gin-tonic', null, null),
+    ).toBeNull();
   });
 });

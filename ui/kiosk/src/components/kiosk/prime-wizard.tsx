@@ -11,9 +11,7 @@ import {
 } from '@/components/kiosk/setup-wizard-shell';
 import { WizardErrorBanner } from '@/components/kiosk/wizard-error-banner';
 import { useDeviceStatus } from '@/hooks/use-device-status';
-import {
-  useUpdatePrimed,
-} from '@/hooks/use-device-mutations';
+import { useUpdatePrimed } from '@/hooks/use-device-mutations';
 import { usePumpDispenseSession } from '@/hooks/use-pump-dispense-session';
 import { MAX_PRIME_SECONDS } from '@/lib/calibration';
 import { deviceErrorMessage } from '@/lib/device-errors';
@@ -168,7 +166,9 @@ function PrimeWizardSession({
 
       return (
         <WizardFooterActions
-          onBack={() => { setStepIndex(0); }}
+          onBack={() => {
+            setStepIndex(0);
+          }}
           onNext={() => void startPrimeRun()}
           nextLabel={starting ? 'Starting…' : 'Start priming'}
           nextDisabled={starting}

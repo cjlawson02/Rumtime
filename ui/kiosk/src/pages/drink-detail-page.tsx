@@ -1,11 +1,5 @@
 import { useState } from 'react';
-import {
-  ArrowLeft,
-  Droplets,
-  Hand,
-  RefreshCw,
-  Sparkles,
-} from 'lucide-react';
+import { ArrowLeft, Droplets, Hand, RefreshCw, Sparkles } from 'lucide-react';
 import { useLocation, useRoute } from 'wouter';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -301,7 +295,9 @@ export function DrinkDetailPage() {
           <Button
             size="lg"
             className="kiosk-cta w-full gap-2 bg-destructive text-destructive-foreground shadow-destructive/20 hover:bg-destructive/90"
-            onClick={() => { setRefillPinOpen(true); }}
+            onClick={() => {
+              setRefillPinOpen(true);
+            }}
           >
             <RefreshCw className="size-5" />
             {refillLabel}

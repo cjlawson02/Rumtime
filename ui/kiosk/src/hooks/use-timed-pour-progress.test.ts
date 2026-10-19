@@ -36,13 +36,10 @@ describe('useTimedPourProgress', () => {
     now.mockReturnValue(1_000);
 
     let frame: FrameRequestCallback | null = null;
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (callback: FrameRequestCallback) => {
-        frame = callback;
-        return 1;
-      },
-    );
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    });
 
     const { result, rerender } = renderHook(
       ({ job }) => useTimedPourProgress(job, 10_000),

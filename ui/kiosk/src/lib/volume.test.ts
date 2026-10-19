@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  formatRoughOz,
-  formatVolumeMl,
-  mlToRoughOz,
-} from '@/lib/volume';
+import { formatRoughOz, formatVolumeMl, mlToRoughOz } from '@/lib/volume';
 
 describe('volume', () => {
   it('converts common pour amounts to rough US fl oz', () => {

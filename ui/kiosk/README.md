@@ -14,7 +14,7 @@ Production kiosk app for the Rumtime home cocktail machine. Static **React** PWA
 | Validation   | Zod (recipes + device types)                                                                                |
 | Tests        | Vitest — availability, notifications, setup unlock, device errors, HTTP client, pump lifecycle, mock device |
 | Mock device  | In-memory client + MSW (dev only)                                                                           |
-| PWA          | `vite-plugin-pwa` — caches app shell + bundled recipes; **excludes** ESP32 URLs; updates prompt-only      |
+| PWA          | `vite-plugin-pwa` — caches app shell + bundled recipes; **excludes** ESP32 URLs; updates prompt-only        |
 
 ## Project layout
 

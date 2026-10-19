@@ -50,7 +50,8 @@ const sessionWizardProps: CleaningWizardTestProps = {
   mode: 'session' as const,
   onOpenChange: vi.fn(),
   onComplete: vi.fn(),
-  ingredientName: (id: string) => (id === 'simple' ? 'Simple syrup' : 'Bourbon'),
+  ingredientName: (id: string) =>
+    id === 'simple' ? 'Simple syrup' : 'Bourbon',
 };
 
 function renderCleaningWizard(
@@ -320,17 +321,13 @@ describe('CleaningWizard', () => {
     await user.click(view.getByRole('button', { name: 'Start cleaning' }));
     await user.click(view.getByRole('button', { name: 'Continue' }));
 
-    await completeContinuousRun(
-      view,
-      user,
-      {
-        purpose: 'flush',
-        startLabel: 'Start flush',
-        completeLabel: 'Line runs clear',
-        pumpId: 1,
-        wizardProps: sessionWizardProps,
-      },
-    );
+    await completeContinuousRun(view, user, {
+      purpose: 'flush',
+      startLabel: 'Start flush',
+      completeLabel: 'Line runs clear',
+      pumpId: 1,
+      wizardProps: sessionWizardProps,
+    });
 
     expect(view.getByText('Flush line 2 of 2')).toBeInTheDocument();
     expect(view.getByText('Simple syrup')).toBeInTheDocument();
@@ -413,7 +410,9 @@ describe('CleaningWizard', () => {
       />,
     );
 
-    expect(view.getByText('No lines selected for cleaning.')).toBeInTheDocument();
+    expect(
+      view.getByText('No lines selected for cleaning.'),
+    ).toBeInTheDocument();
 
     await user.click(view.getByRole('button', { name: 'Close' }));
 
@@ -506,7 +505,9 @@ describe('CleaningWizard', () => {
 
     await user.click(view.getByRole('button', { name: 'Back' }));
 
-    expect(view.getByText('Flush until the line runs clear')).toBeInTheDocument();
+    expect(
+      view.getByText('Flush until the line runs clear'),
+    ).toBeInTheDocument();
   });
 
   it('counts down sanitizer contact time automatically', async () => {
@@ -528,11 +529,15 @@ describe('CleaningWizard', () => {
         completeLabel: 'Sanitizer at nozzle',
       });
 
-      expect(view.getByText(`${SANITIZER_CONTACT_SECONDS}s`)).toBeInTheDocument();
+      expect(
+        view.getByText(`${SANITIZER_CONTACT_SECONDS}s`),
+      ).toBeInTheDocument();
 
       await vi.advanceTimersByTimeAsync(2000);
 
-      expect(view.getByText(`${SANITIZER_CONTACT_SECONDS - 2}s`)).toBeInTheDocument();
+      expect(
+        view.getByText(`${SANITIZER_CONTACT_SECONDS - 2}s`),
+      ).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

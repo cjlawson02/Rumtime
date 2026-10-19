@@ -41,11 +41,7 @@ export function useSmoothTimedProgress(
     cancelAnimationFrame(rafRef.current);
     anchorRef.current = null;
 
-    if (
-      !pumpJob ||
-      pumpJob.state === 'complete' ||
-      !isTimedRunning
-    ) {
+    if (!pumpJob || pumpJob.state === 'complete' || !isTimedRunning) {
       return;
     }
 
@@ -72,7 +68,9 @@ export function useSmoothTimedProgress(
     };
 
     rafRef.current = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(rafRef.current); };
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+    };
   }, [
     pumpJob,
     pumpJob?.state,

@@ -19,10 +19,7 @@ import { useDeviceEndpoint } from '@/hooks/use-device-endpoint';
 import { useDeviceStatus } from '@/hooks/use-device-status';
 import type { Recipe } from '@/api/types';
 import { getRecipes, getRecipeCatalogError } from '@/data/load-recipes';
-import {
-  firstBlockingMessage,
-  partitionMenuRecipes,
-} from '@/lib/availability';
+import { firstBlockingMessage, partitionMenuRecipes } from '@/lib/availability';
 import { collectKioskNotifications } from '@/lib/notifications';
 import { SETUP_ROOT } from '@/hooks/use-setup-return';
 import { cn } from '@/lib/utils';
@@ -241,9 +238,7 @@ export function MenuPage() {
 
         <p className="mb-5 text-base text-muted-foreground">
           {menuEntries.length} drink{menuEntries.length === 1 ? '' : 's'}
-          {unavailableCount > 0
-            ? ` · ${unavailableCount} unavailable`
-            : ''}
+          {unavailableCount > 0 ? ` · ${unavailableCount} unavailable` : ''}
           {category !== 'all'
             ? ` · ${CATEGORIES.find((c) => c.id === category)?.label}`
             : ''}

@@ -268,9 +268,8 @@ describe('PourPage', () => {
         store.clear();
       },
     });
-    const { grantPourInventoryBypass, peekPourInventoryBypass } = await import(
-      '@/lib/pour-inventory-bypass'
-    );
+    const { grantPourInventoryBypass, peekPourInventoryBypass } =
+      await import('@/lib/pour-inventory-bypass');
     grantPourInventoryBypass('old-fashioned');
 
     fetchDeviceStatus.mockResolvedValue({
@@ -366,9 +365,10 @@ describe('PourPage', () => {
     view.rerender(<PourPage />);
 
     expect(view.getByText('Pour cancelled.')).toBeInTheDocument();
-    expect(
-      view.getByRole('link', { name: 'Back to drink' }),
-    ).toHaveAttribute('href', '/drink/gin-tonic');
+    expect(view.getByRole('link', { name: 'Back to drink' })).toHaveAttribute(
+      'href',
+      '/drink/gin-tonic',
+    );
   });
 
   it('does not sticky-cancel when remounting while a previous cancelled job is still in status', async () => {
@@ -438,7 +438,9 @@ describe('PourPage', () => {
     view.rerender(<PourPage />);
 
     expect(view.getByText('Tonic water')).toBeInTheDocument();
-    expect(view.queryByText('Waiting for pour to start…')).not.toBeInTheDocument();
+    expect(
+      view.queryByText('Waiting for pour to start…'),
+    ).not.toBeInTheDocument();
   });
 
   it('shows pouring after start while a prior cancelled job is still in cache', async () => {

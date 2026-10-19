@@ -16,13 +16,13 @@ import type {
   PumpDispenseCommand,
   RefillCommand,
 } from '@/api/types';
-import {
-  deviceStatusQueryKeyPrefix,
-} from '@/hooks/use-device-status';
+import { deviceStatusQueryKeyPrefix } from '@/hooks/use-device-status';
 import { isActivePourJob, isTerminalPourJob } from '@/lib/pour-job';
 
 function invalidateDeviceStatus(queryClient: QueryClient) {
-  return queryClient.invalidateQueries({ queryKey: deviceStatusQueryKeyPrefix });
+  return queryClient.invalidateQueries({
+    queryKey: deviceStatusQueryKeyPrefix,
+  });
 }
 
 function getCachedDeviceStatus(

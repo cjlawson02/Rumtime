@@ -1,14 +1,15 @@
 import { useState, type ReactNode } from 'react';
 
-import { MAX_ANTI_DRIP_MS, MAX_ML_PER_SECOND, MIN_ML_PER_SECOND } from '@/api/types';
+import {
+  MAX_ANTI_DRIP_MS,
+  MAX_ML_PER_SECOND,
+  MIN_ML_PER_SECOND,
+} from '@/api/types';
 import { NumberPadField } from '@/components/kiosk/number-pad-field';
 import { maxDigitsForValue } from '@/components/kiosk/number-pad';
 import { Label } from '@/components/ui/label';
 import { useUpdatePumpCalibration } from '@/hooks/use-device-mutations';
-import {
-  SHOT_ML,
-  estimatePourSeconds,
-} from '@/lib/calibration';
+import { SHOT_ML, estimatePourSeconds } from '@/lib/calibration';
 import { deviceErrorMessage } from '@/lib/device-errors';
 import { cn } from '@/lib/utils';
 
@@ -81,7 +82,10 @@ function PumpCalibrationFieldsInner({
       }
     }
 
-    if (activeField === 'antiDripMs' && (parsed < 0 || parsed > MAX_ANTI_DRIP_MS)) {
+    if (
+      activeField === 'antiDripMs' &&
+      (parsed < 0 || parsed > MAX_ANTI_DRIP_MS)
+    ) {
       onError?.(`Anti-drip must be between 0 and ${MAX_ANTI_DRIP_MS} ms`);
       return;
     }
@@ -137,7 +141,9 @@ function PumpCalibrationFieldsInner({
       }}
       draft={draft}
       onDraftChange={setDraft}
-      onOpen={() => { openEditor(field); }}
+      onOpen={() => {
+        openEditor(field);
+      }}
       onSave={() => void saveField()}
       onCancel={closeEditor}
       dialogTitle={dialogTitle}
@@ -160,9 +166,7 @@ function PumpCalibrationFieldsInner({
 
   if (fields === 'both') {
     return (
-      <div
-        className={cn('grid grid-cols-2 gap-x-3 gap-y-2', className)}
-      >
+      <div className={cn('grid grid-cols-2 gap-x-3 gap-y-2', className)}>
         <Label htmlFor={flowRateInputId}>Flow rate</Label>
         <Label htmlFor={antiDripInputId}>Anti-drip</Label>
         {renderField(

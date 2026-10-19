@@ -7,14 +7,17 @@ import { useDeviceEndpoint } from '@/hooks/use-device-endpoint';
 import { kioskConfig } from '@/lib/config';
 import { deviceStatusQueryKey } from '@/lib/device-query-keys';
 
-export { deviceStatusQueryKey, deviceStatusQueryKeyPrefix } from '@/lib/device-query-keys';
+export {
+  deviceStatusQueryKey,
+  deviceStatusQueryKeyPrefix,
+} from '@/lib/device-query-keys';
 
 export function deviceStatusQueryFn({ signal }: { signal?: AbortSignal }) {
   return deviceClient.getStatus({ signal });
 }
 
 export function fetchDeviceStatus(queryClient: QueryClient) {
-  return queryClient.fetchQuery({
+  return queryClient.query({
     queryKey: deviceStatusQueryKey(),
     queryFn: deviceStatusQueryFn,
   });

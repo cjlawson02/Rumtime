@@ -30,9 +30,7 @@ describe('HttpDeviceClient', () => {
   it('parses a valid /status payload', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(jsonResponse(validStatus)),
+      vi.fn().mockResolvedValue(jsonResponse(validStatus)),
     );
 
     const client = new HttpDeviceClient('http://rumtime.local');
@@ -69,9 +67,7 @@ describe('HttpDeviceClient', () => {
   it('throws on invalid /status payload', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(jsonResponse({ connected: 'nope' })),
+      vi.fn().mockResolvedValue(jsonResponse({ connected: 'nope' })),
     );
 
     const client = new HttpDeviceClient('http://rumtime.local');
@@ -91,9 +87,11 @@ describe('HttpDeviceClient', () => {
   it('throws on non-ok /status responses', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        jsonResponse({ message: 'Service unavailable' }, 503),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse({ message: 'Service unavailable' }, 503),
+        ),
     );
 
     const client = new HttpDeviceClient('http://rumtime.local');
@@ -112,7 +110,9 @@ describe('HttpDeviceClient', () => {
       vi.fn((_url, init?: RequestInit) => {
         return new Promise((_resolve, reject) => {
           init?.signal?.addEventListener('abort', () => {
-            reject(new DOMException('The operation was aborted.', 'AbortError'));
+            reject(
+              new DOMException('The operation was aborted.', 'AbortError'),
+            );
           });
         });
       }),
@@ -137,7 +137,9 @@ describe('HttpDeviceClient', () => {
       vi.fn((_url, init?: RequestInit) => {
         return new Promise((_resolve, reject) => {
           init?.signal?.addEventListener('abort', () => {
-            reject(new DOMException('The operation was aborted.', 'AbortError'));
+            reject(
+              new DOMException('The operation was aborted.', 'AbortError'),
+            );
           });
         });
       }),
@@ -154,9 +156,7 @@ describe('HttpDeviceClient', () => {
   it('parses 422 error bodies for pour', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        jsonResponse({ error: 'not_primed' }, 422),
-      ),
+      vi.fn().mockResolvedValue(jsonResponse({ error: 'not_primed' }, 422)),
     );
 
     const client = new HttpDeviceClient('http://rumtime.local');
@@ -171,9 +171,7 @@ describe('HttpDeviceClient', () => {
   it('uses message-only error bodies when code is absent', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        jsonResponse({ message: 'Pump busy' }, 409),
-      ),
+      vi.fn().mockResolvedValue(jsonResponse({ message: 'Pump busy' }, 409)),
     );
 
     const client = new HttpDeviceClient('http://rumtime.local');
@@ -222,7 +220,10 @@ describe('HttpDeviceClient', () => {
 
     await client.refillIngredient({ ingredientId: 'bourbon' });
     await client.updatePumpBinding({ pumpId: 1, ingredientId: 'bourbon' });
-    await client.updateBottleSize({ ingredientId: 'bourbon', bottleSizeMl: 1000 });
+    await client.updateBottleSize({
+      ingredientId: 'bourbon',
+      bottleSizeMl: 1000,
+    });
     await client.updateInventoryLevel({
       ingredientId: 'bourbon',
       remainingMl: 250,
@@ -287,10 +288,12 @@ describe('HttpDeviceClient', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(emptyResponse()));
 
     const client = new HttpDeviceClient('http://rumtime.local');
-    await expect(client.startPour({
-      recipeId: 'test',
-      steps: [{ ingredientId: 'rum', ml: 45 }],
-    })).resolves.toBeUndefined();
+    await expect(
+      client.startPour({
+        recipeId: 'test',
+        steps: [{ ingredientId: 'rum', ml: 45 }],
+      }),
+    ).resolves.toBeUndefined();
     await expect(client.cancelPour()).resolves.toBeUndefined();
     await expect(client.acknowledgePrompt()).resolves.toBeUndefined();
   });
@@ -298,9 +301,7 @@ describe('HttpDeviceClient', () => {
   it('throws device errors for failed write endpoints', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        jsonResponse({ error: 'device_busy' }, 409),
-      ),
+      vi.fn().mockResolvedValue(jsonResponse({ error: 'device_busy' }, 409)),
     );
 
     const client = new HttpDeviceClient('http://rumtime.local');
@@ -349,17 +350,23 @@ describe('HttpDeviceClient', () => {
       vi.fn((_url, init?: RequestInit) => {
         return new Promise((_resolve, reject) => {
           init?.signal?.addEventListener('abort', () => {
-            reject(new DOMException('The operation was aborted.', 'AbortError'));
+            reject(
+              new DOMException('The operation was aborted.', 'AbortError'),
+            );
           });
           if (init?.signal?.aborted) {
-            reject(new DOMException('The operation was aborted.', 'AbortError'));
+            reject(
+              new DOMException('The operation was aborted.', 'AbortError'),
+            );
           }
         });
       }),
     );
 
     const client = new HttpDeviceClient('http://rumtime.local');
-    await expect(client.getStatus({ signal: external.signal })).rejects.toBeDefined();
+    await expect(
+      client.getStatus({ signal: external.signal }),
+    ).rejects.toBeDefined();
     AbortSignal.any = originalAny;
   });
 });

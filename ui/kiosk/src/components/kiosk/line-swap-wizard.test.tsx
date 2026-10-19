@@ -41,7 +41,8 @@ const swapWizardProps: LineSwapWizardTestProps = {
   toIngredientId: 'simple',
   onOpenChange,
   onApplySwap,
-  ingredientName: (id: string) => (id === 'bourbon' ? 'Bourbon' : 'Simple syrup'),
+  ingredientName: (id: string) =>
+    id === 'bourbon' ? 'Bourbon' : 'Simple syrup',
 };
 
 function renderLineSwapWizard(

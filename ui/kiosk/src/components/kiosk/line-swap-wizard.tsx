@@ -281,7 +281,9 @@ function LineSwapWizardSession({
 
       return (
         <WizardFooterActions
-          onBack={() => { setPhase({ kind: 'product-drain-run' }); }}
+          onBack={() => {
+            setPhase({ kind: 'product-drain-run' });
+          }}
           onNext={() => void startRunForPhase('flush')}
           nextLabel={starting ? 'Starting…' : 'Start flush'}
           nextDisabled={starting}
@@ -321,7 +323,9 @@ function LineSwapWizardSession({
 
       return (
         <WizardFooterActions
-          onBack={() => { setPhase({ kind: 'flush-run' }); }}
+          onBack={() => {
+            setPhase({ kind: 'flush-run' });
+          }}
           onNext={() => void startRunForPhase('drain')}
           nextLabel={starting ? 'Starting…' : 'Start purge'}
           nextDisabled={starting}
@@ -361,7 +365,9 @@ function LineSwapWizardSession({
 
       return (
         <WizardFooterActions
-          onBack={() => { setPhase({ kind: 'water-drain-run' }); }}
+          onBack={() => {
+            setPhase({ kind: 'water-drain-run' });
+          }}
           onNext={() => {
             void (async () => {
               try {

@@ -39,17 +39,25 @@ const sampleStatus = {
 describe('statusPlaceholderData', () => {
   it('keeps previous data during background refetch for the same endpoint', () => {
     expect(
-      statusPlaceholderData(sampleStatus, {
-        queryKey: ['device', 'status', 'http://rumtime.local'],
-      }, 'http://rumtime.local'),
+      statusPlaceholderData(
+        sampleStatus,
+        {
+          queryKey: ['device', 'status', 'http://rumtime.local'],
+        },
+        'http://rumtime.local',
+      ),
     ).toBe(sampleStatus);
   });
 
   it('drops previous data when the endpoint changes', () => {
     expect(
-      statusPlaceholderData(sampleStatus, {
-        queryKey: ['device', 'status', 'http://rumtime.local'],
-      }, 'http://192.168.1.42'),
+      statusPlaceholderData(
+        sampleStatus,
+        {
+          queryKey: ['device', 'status', 'http://rumtime.local'],
+        },
+        'http://192.168.1.42',
+      ),
     ).toBeUndefined();
   });
 });

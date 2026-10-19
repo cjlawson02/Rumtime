@@ -48,11 +48,7 @@ export function NumberPadDialog({
       description={description}
       className={className}
       footer={
-        <PadDialogFooter
-          onCancel={onCancel}
-          onSave={onSave}
-          saving={saving}
-        />
+        <PadDialogFooter onCancel={onCancel} onSave={onSave} saving={saving} />
       }
     >
       <div className="space-y-6 rounded-xl border border-border/60 px-4 py-6">

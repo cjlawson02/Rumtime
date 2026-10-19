@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-  type RefObject,
-} from 'react';
+import { useCallback, useRef, useState, type RefObject } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import type { PumpJobPurpose } from '@/api/types';
@@ -43,8 +38,7 @@ export function usePumpDispenseSession() {
   const createTracker = useCallback(() => createPumpPourTracker(), []);
 
   const resolveTracker = useCallback(
-    (tracker?: RefObject<PumpPourTracker>) =>
-      tracker ?? defaultTrackerRef,
+    (tracker?: RefObject<PumpPourTracker>) => tracker ?? defaultTrackerRef,
     [defaultTrackerRef],
   );
 
@@ -62,10 +56,7 @@ export function usePumpDispenseSession() {
           return;
         }
 
-        if (
-          latest.job?.state === 'pouring' ||
-          latest.job?.state === 'prompt'
-        ) {
+        if (latest.job?.state === 'pouring' || latest.job?.state === 'prompt') {
           setError(
             'Machine is pouring a drink — wait for the pour to finish before running setup.',
           );

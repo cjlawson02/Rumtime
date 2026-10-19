@@ -5,11 +5,13 @@ import type { DeviceStatus } from '@/api/types';
 import { SetupPumpsPage } from '@/pages/setup-pumps-page';
 import { renderWithProviders } from '@/test/render';
 
-const { applyIngredientSwap, refillIngredient, updateBottleSize } = vi.hoisted(() => ({
-  applyIngredientSwap: vi.fn(),
-  refillIngredient: vi.fn(),
-  updateBottleSize: vi.fn(),
-}));
+const { applyIngredientSwap, refillIngredient, updateBottleSize } = vi.hoisted(
+  () => ({
+    applyIngredientSwap: vi.fn(),
+    refillIngredient: vi.fn(),
+    updateBottleSize: vi.fn(),
+  }),
+);
 
 let deviceStatus: DeviceStatus | undefined;
 
@@ -142,12 +144,14 @@ describe('SetupPumpsPage', () => {
 
   it('opens the prime wizard after assigning an ingredient to an empty line', async () => {
     const user = userEvent.setup();
-    const { getByRole, getByTestId } = renderWithProviders(
-      <SetupPumpsPage />,
-      { withSetupReturn: true },
-    );
+    const { getByRole, getByTestId } = renderWithProviders(<SetupPumpsPage />, {
+      withSetupReturn: true,
+    });
 
-    await user.selectOptions(getByRole('combobox', { name: 'Line 2 ingredient' }), 'simple');
+    await user.selectOptions(
+      getByRole('combobox', { name: 'Line 2 ingredient' }),
+      'simple',
+    );
 
     expect(applyIngredientSwap).toHaveBeenCalledWith({
       pumpId: 2,
@@ -164,10 +168,9 @@ describe('SetupPumpsPage', () => {
 
   it('opens the line swap wizard when changing an assigned ingredient', async () => {
     const user = userEvent.setup();
-    const { getByRole, getByTestId } = renderWithProviders(
-      <SetupPumpsPage />,
-      { withSetupReturn: true },
-    );
+    const { getByRole, getByTestId } = renderWithProviders(<SetupPumpsPage />, {
+      withSetupReturn: true,
+    });
 
     await user.selectOptions(
       getByRole('combobox', { name: 'Line 1 ingredient' }),
@@ -236,8 +239,10 @@ describe('SetupPumpsPage', () => {
 
   it('clears the refilled indicator when fill level is saved', async () => {
     const user = userEvent.setup();
-    const { getByRole, getByLabelText, queryByLabelText } =
-      renderWithProviders(<SetupPumpsPage />, { withSetupReturn: true });
+    const { getByRole, getByLabelText, queryByLabelText } = renderWithProviders(
+      <SetupPumpsPage />,
+      { withSetupReturn: true },
+    );
 
     await user.click(getByRole('button', { name: 'Mark refilled' }));
     expect(getByLabelText('Refilled')).toBeInTheDocument();
@@ -250,10 +255,9 @@ describe('SetupPumpsPage', () => {
 
   it('unassigns a line after confirming in the swap dialog', async () => {
     const user = userEvent.setup();
-    const { getByRole } = renderWithProviders(
-      <SetupPumpsPage />,
-      { withSetupReturn: true },
-    );
+    const { getByRole } = renderWithProviders(<SetupPumpsPage />, {
+      withSetupReturn: true,
+    });
 
     await user.selectOptions(
       getByRole('combobox', { name: 'Line 1 ingredient' }),
@@ -273,19 +277,16 @@ describe('SetupPumpsPage', () => {
 
   it('assigns a new ingredient without cleaning when chosen in the swap dialog', async () => {
     const user = userEvent.setup();
-    const { getByRole } = renderWithProviders(
-      <SetupPumpsPage />,
-      { withSetupReturn: true },
-    );
+    const { getByRole } = renderWithProviders(<SetupPumpsPage />, {
+      withSetupReturn: true,
+    });
 
     await user.selectOptions(
       getByRole('combobox', { name: 'Line 1 ingredient' }),
       'simple',
     );
 
-    await user.click(
-      getByRole('button', { name: 'Assign without cleaning' }),
-    );
+    await user.click(getByRole('button', { name: 'Assign without cleaning' }));
 
     expect(applyIngredientSwap).toHaveBeenCalledWith({
       pumpId: 1,
@@ -325,10 +326,9 @@ describe('SetupPumpsPage', () => {
     applyIngredientSwap.mockRejectedValue(new Error('Assign failed'));
 
     const user = userEvent.setup();
-    const { getByRole, findByText } = renderWithProviders(
-      <SetupPumpsPage />,
-      { withSetupReturn: true },
-    );
+    const { getByRole, findByText } = renderWithProviders(<SetupPumpsPage />, {
+      withSetupReturn: true,
+    });
 
     await user.selectOptions(
       getByRole('combobox', { name: 'Line 2 ingredient' }),
@@ -342,29 +342,25 @@ describe('SetupPumpsPage', () => {
     applyIngredientSwap.mockRejectedValue(new Error('Swap failed'));
 
     const user = userEvent.setup();
-    const { getByRole, findByText } = renderWithProviders(
-      <SetupPumpsPage />,
-      { withSetupReturn: true },
-    );
+    const { getByRole, findByText } = renderWithProviders(<SetupPumpsPage />, {
+      withSetupReturn: true,
+    });
 
     await user.selectOptions(
       getByRole('combobox', { name: 'Line 1 ingredient' }),
       'simple',
     );
 
-    await user.click(
-      getByRole('button', { name: 'Assign without cleaning' }),
-    );
+    await user.click(getByRole('button', { name: 'Assign without cleaning' }));
 
     expect(await findByText('Swap failed')).toBeInTheDocument();
   });
 
   it('applies the swap from the line swap wizard', async () => {
     const user = userEvent.setup();
-    const { getByRole, getByTestId } = renderWithProviders(
-      <SetupPumpsPage />,
-      { withSetupReturn: true },
-    );
+    const { getByRole, getByTestId } = renderWithProviders(<SetupPumpsPage />, {
+      withSetupReturn: true,
+    });
 
     await user.selectOptions(
       getByRole('combobox', { name: 'Line 1 ingredient' }),
@@ -383,10 +379,9 @@ describe('SetupPumpsPage', () => {
 
   it('closes the swap dialog when cancelled', async () => {
     const user = userEvent.setup();
-    const { getByRole, queryByRole } = renderWithProviders(
-      <SetupPumpsPage />,
-      { withSetupReturn: true },
-    );
+    const { getByRole, queryByRole } = renderWithProviders(<SetupPumpsPage />, {
+      withSetupReturn: true,
+    });
 
     await user.selectOptions(
       getByRole('combobox', { name: 'Line 1 ingredient' }),
@@ -402,8 +397,10 @@ describe('SetupPumpsPage', () => {
 
   it('closes the prime wizard from the mocked panel', async () => {
     const user = userEvent.setup();
-    const { getByRole, getByTestId, queryByTestId } =
-      renderWithProviders(<SetupPumpsPage />, { withSetupReturn: true });
+    const { getByRole, getByTestId, queryByTestId } = renderWithProviders(
+      <SetupPumpsPage />,
+      { withSetupReturn: true },
+    );
 
     await user.selectOptions(
       getByRole('combobox', { name: 'Line 2 ingredient' }),

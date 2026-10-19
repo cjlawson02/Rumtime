@@ -19,7 +19,12 @@ describe('shouldCancelPourOnLeave', () => {
   it('cancels only this recipe while pouring', () => {
     expect(
       shouldCancelPourOnLeave(
-        { recipeId: 'old-fashioned', state: 'pouring', progress: 10, stepLabel: 'Pouring' },
+        {
+          recipeId: 'old-fashioned',
+          state: 'pouring',
+          progress: 10,
+          stepLabel: 'Pouring',
+        },
         'old-fashioned',
       ),
     ).toBe(true);
@@ -43,7 +48,12 @@ describe('shouldCancelPourOnLeave', () => {
   it('does not cancel another recipe pour', () => {
     expect(
       shouldCancelPourOnLeave(
-        { recipeId: 'margarita', state: 'pouring', progress: 10, stepLabel: 'Pouring' },
+        {
+          recipeId: 'margarita',
+          state: 'pouring',
+          progress: 10,
+          stepLabel: 'Pouring',
+        },
         'old-fashioned',
       ),
     ).toBe(false);
@@ -52,13 +62,23 @@ describe('shouldCancelPourOnLeave', () => {
   it('does not cancel terminal jobs for this recipe', () => {
     expect(
       shouldCancelPourOnLeave(
-        { recipeId: 'old-fashioned', state: 'complete', progress: 100, stepLabel: 'Done' },
+        {
+          recipeId: 'old-fashioned',
+          state: 'complete',
+          progress: 100,
+          stepLabel: 'Done',
+        },
         'old-fashioned',
       ),
     ).toBe(false);
     expect(
       shouldCancelPourOnLeave(
-        { recipeId: 'old-fashioned', state: 'cancelled', progress: 0, stepLabel: 'Cancelled' },
+        {
+          recipeId: 'old-fashioned',
+          state: 'cancelled',
+          progress: 0,
+          stepLabel: 'Cancelled',
+        },
         'old-fashioned',
       ),
     ).toBe(false);

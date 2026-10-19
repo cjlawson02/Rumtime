@@ -1,4 +1,9 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { useLocation } from 'wouter';
 
 import { LinkButton } from '@/components/kiosk/link-button';

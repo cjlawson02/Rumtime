@@ -55,7 +55,9 @@ export function NumberPadField({
   className,
 }: NumberPadFieldProps) {
   return (
-    <div className={cn(hideLabel && !hint ? 'space-y-0' : 'space-y-2', className)}>
+    <div
+      className={cn(hideLabel && !hint ? 'space-y-0' : 'space-y-2', className)}
+    >
       {hideLabel ? null : (
         <Label htmlFor={id} className={labelClassName}>
           {label}

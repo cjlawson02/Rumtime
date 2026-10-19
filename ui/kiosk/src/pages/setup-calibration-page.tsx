@@ -1,17 +1,17 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react';
 
-import type { PumpSlot } from "@/api/types";
-import { CalibrationWizard } from "@/components/kiosk/calibration-wizard";
-import { PrimeWizard } from "@/components/kiosk/prime-wizard";
-import { PumpCalibrationMetrics } from "@/components/kiosk/pump-calibration-metrics";
-import { SetupSectionLayout } from "@/components/kiosk/setup-section-layout";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CALIBRATION_SETUP_SECTION } from "@/data/setup-sections";
-import { useDeviceStatus } from "@/hooks/use-device-status";
-import { useIngredientNameLookup } from "@/hooks/use-ingredient-name-lookup";
-import { resolvePumpCalibration } from "@/lib/calibration";
-import { sortPumpSlots } from "@/lib/pumps";
+import type { PumpSlot } from '@/api/types';
+import { CalibrationWizard } from '@/components/kiosk/calibration-wizard';
+import { PrimeWizard } from '@/components/kiosk/prime-wizard';
+import { PumpCalibrationMetrics } from '@/components/kiosk/pump-calibration-metrics';
+import { SetupSectionLayout } from '@/components/kiosk/setup-section-layout';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CALIBRATION_SETUP_SECTION } from '@/data/setup-sections';
+import { useDeviceStatus } from '@/hooks/use-device-status';
+import { useIngredientNameLookup } from '@/hooks/use-ingredient-name-lookup';
+import { resolvePumpCalibration } from '@/lib/calibration';
+import { sortPumpSlots } from '@/lib/pumps';
 
 const pourTuning = CALIBRATION_SETUP_SECTION;
 
@@ -58,15 +58,15 @@ function PourTuningPanel() {
                       Line {pump.pumpId}
                     </p>
                     {pump.ingredientId && binding ? (
-                      <Badge variant={primed ? "default" : "destructive"}>
-                        {primed ? "Primed" : "Needs prime"}
+                      <Badge variant={primed ? 'default' : 'destructive'}>
+                        {primed ? 'Primed' : 'Needs prime'}
                       </Badge>
                     ) : null}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {pump.ingredientId
                       ? nameForIngredient(pump.ingredientId)
-                      : "Unassigned"}
+                      : 'Unassigned'}
                   </p>
                 </div>
 

@@ -91,7 +91,9 @@ function LineCleaningPanel() {
           type="button"
           className="kiosk-touch shrink-0"
           disabled={assignedPumpIds.length === 0}
-          onClick={() => { setSessionWizardOpen(true); }}
+          onClick={() => {
+            setSessionWizardOpen(true);
+          }}
         >
           Start session clean
         </Button>
@@ -133,7 +135,9 @@ function LineCleaningPanel() {
                   variant="outline"
                   size="sm"
                   className="kiosk-touch shrink-0"
-                  onClick={() => { setLineWizardPumpId(pump.pumpId); }}
+                  onClick={() => {
+                    setLineWizardPumpId(pump.pumpId);
+                  }}
                 >
                   Clean line
                 </Button>

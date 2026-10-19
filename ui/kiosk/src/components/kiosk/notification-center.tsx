@@ -71,7 +71,9 @@ export function NotificationCenter({
             : 'border-sky-500/40 bg-sky-950/40 text-sky-300 hover:bg-sky-950/60 hover:text-sky-200',
           className,
         )}
-        onClick={() => { setOpen(true); }}
+        onClick={() => {
+          setOpen(true);
+        }}
       >
         <AlertTriangle className="size-5" />
         <span
@@ -105,7 +107,9 @@ export function NotificationCenter({
                       variant="outline"
                       size="sm"
                       className="kiosk-touch shrink-0"
-                      onClick={() => { setOpen(false); }}
+                      onClick={() => {
+                        setOpen(false);
+                      }}
                     >
                       {notification.actionLabel}
                     </SetupEntryLink>
@@ -115,7 +119,9 @@ export function NotificationCenter({
                       variant="outline"
                       size="sm"
                       className="kiosk-touch shrink-0"
-                      onClick={() => { setOpen(false); }}
+                      onClick={() => {
+                        setOpen(false);
+                      }}
                     >
                       {notification.actionLabel}
                     </LinkButton>

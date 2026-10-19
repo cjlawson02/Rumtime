@@ -53,7 +53,9 @@ export class ErrorBoundary extends Component<
               <Button
                 variant="outline"
                 className="kiosk-cta"
-                onClick={() => { window.location.reload(); }}
+                onClick={() => {
+                  window.location.reload();
+                }}
               >
                 Reload app
               </Button>

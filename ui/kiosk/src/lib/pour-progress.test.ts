@@ -32,11 +32,7 @@ describe('estimateRecipePourDurationMs', () => {
       },
     ]);
 
-    const expected =
-      (45 / 1.75) * 1000 +
-      100 +
-      (10 / 1.75) * 1000 +
-      100;
+    const expected = (45 / 1.75) * 1000 + 100 + (10 / 1.75) * 1000 + 100;
     expect(ms).toBeCloseTo(expected);
   });
 

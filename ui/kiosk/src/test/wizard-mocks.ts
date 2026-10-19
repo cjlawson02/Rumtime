@@ -21,10 +21,7 @@ export function createMockPumpDispenseSession() {
   });
 
   const closeWizard = vi.fn(
-    (
-      onOpenChange: (open: boolean) => void,
-      resetLocalState?: () => void,
-    ) => {
+    (onOpenChange: (open: boolean) => void, resetLocalState?: () => void) => {
       onOpenChange(false);
       resetLocalState?.();
     },

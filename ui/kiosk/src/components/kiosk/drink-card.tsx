@@ -47,7 +47,9 @@ export function DrinkCard({ recipe, unavailableReason }: DrinkCardProps) {
                   key={categoryId}
                   className={cn(
                     'rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wider backdrop-blur-sm',
-                    unavailable ? 'bg-black/40 text-white/70' : style.pillActive,
+                    unavailable
+                      ? 'bg-black/40 text-white/70'
+                      : style.pillActive,
                   )}
                 >
                   {style.label}

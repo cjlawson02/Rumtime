@@ -248,7 +248,9 @@ describe('MockDeviceClient', () => {
 
     const pumps = getMockDeviceStatus().pumps ?? [];
     expect(pumps.find((slot) => slot.pumpId === 1)?.ingredientId).toBeNull();
-    expect(pumps.find((slot) => slot.pumpId === 2)?.ingredientId).toBe('bourbon');
+    expect(pumps.find((slot) => slot.pumpId === 2)?.ingredientId).toBe(
+      'bourbon',
+    );
   });
 
   it('creates a binding when assigning a new ingredient', async () => {
@@ -294,9 +296,9 @@ describe('MockDeviceClient', () => {
     ).rejects.toThrow(/422.*bound/i);
 
     await client.updatePumpBinding({ pumpId: 1, ingredientId: null });
-    await expect(client.startPour(pourCommand('old-fashioned'))).rejects.toThrow(
-      /422.*unassigned/i,
-    );
+    await expect(
+      client.startPour(pourCommand('old-fashioned')),
+    ).rejects.toThrow(/422.*unassigned/i);
   });
 
   it('rejects pump dispense on an unassigned line for verify runs', async () => {
@@ -320,9 +322,9 @@ describe('MockDeviceClient', () => {
       purpose: 'prime',
     });
 
-    await expect(client.startPour(pourCommand('old-fashioned'))).rejects.toThrow(
-      /409/,
-    );
+    await expect(
+      client.startPour(pourCommand('old-fashioned')),
+    ).rejects.toThrow(/409/);
 
     await client.cancelPumpDispense();
   });
@@ -378,7 +380,9 @@ describe('MockDeviceClient', () => {
 
     resetMockDevice();
     expect(getMockDeviceStatus().bindings.bourbon.primed).toBe(true);
-    await expect(client.getStatus()).resolves.toMatchObject({ connected: true });
+    await expect(client.getStatus()).resolves.toMatchObject({
+      connected: true,
+    });
   });
 
   it('rejects inventory and calibration updates for unknown ingredients', async () => {
@@ -454,9 +458,9 @@ describe('MockDeviceClient', () => {
       remainingMl: 50,
     });
 
-    await expect(client.startPour(pourCommand('old-fashioned'))).rejects.toThrow(
-      /422.*inventory/i,
-    );
+    await expect(
+      client.startPour(pourCommand('old-fashioned')),
+    ).rejects.toThrow(/422.*inventory/i);
   });
 
   it('clears complete job after terminal latch', async () => {

@@ -51,9 +51,7 @@ export function ManualPourStepPanel({
       <p className="max-w-lg text-xl leading-relaxed text-muted-foreground">
         {instruction}
       </p>
-      {actionError && (
-        <p className="text-sm text-destructive">{actionError}</p>
-      )}
+      {actionError && <p className="text-sm text-destructive">{actionError}</p>}
       <div
         className={cn(
           'grid w-full max-w-lg gap-3',

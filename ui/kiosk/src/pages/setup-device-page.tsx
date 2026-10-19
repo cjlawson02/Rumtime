@@ -26,13 +26,7 @@ import { ipv4DraftFromHostname } from '@/lib/ip-address';
 
 const machineStatus = DEVICE_SETUP_SECTION;
 
-function StatusRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function StatusRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-border/60 py-3 last:border-0">
       <dt className="text-sm text-muted-foreground">{label}</dt>
@@ -89,7 +83,8 @@ function HostnameRow({
       </div>
       {isOverridden ? (
         <p className="border-b border-border/60 py-2 text-right text-sm text-muted-foreground">
-          Overriding build default ({formatHostnameInput(defaultDeviceApiBase)}).{' '}
+          Overriding build default ({formatHostnameInput(defaultDeviceApiBase)}
+          ).{' '}
           <button
             type="button"
             className="underline underline-offset-2 hover:text-foreground"

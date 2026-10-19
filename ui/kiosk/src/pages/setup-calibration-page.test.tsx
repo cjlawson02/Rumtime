@@ -142,10 +142,7 @@ describe('SetupCalibrationPage', () => {
 
     deviceStatus = {
       ...calibrationStatus,
-      pumps: [
-        { pumpId: 1, ingredientId: null },
-        ...pumps,
-      ],
+      pumps: [{ pumpId: 1, ingredientId: null }, ...pumps],
     };
 
     const { getByText, queryAllByRole } = renderWithProviders(

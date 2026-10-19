@@ -176,9 +176,10 @@ describe('DrinkDetailPage', () => {
       { withSetupReturn: true },
     );
 
-    expect(
-      getByRole('link', { name: 'Open bottle bay' }),
-    ).toHaveAttribute('href', '/setup/pumps');
+    expect(getByRole('link', { name: 'Open bottle bay' })).toHaveAttribute(
+      'href',
+      '/setup/pumps',
+    );
     expect(getByText('Not connected')).toBeInTheDocument();
     expect(queryByRole('button', { name: 'Make it' })).not.toBeInTheDocument();
   });
@@ -201,7 +202,9 @@ describe('DrinkDetailPage', () => {
     await user.click(getByRole('button', { name: '4' }));
 
     expect(
-      getByText('Refill the bottle in setup, or pour with what is left anyway.'),
+      getByText(
+        'Refill the bottle in setup, or pour with what is left anyway.',
+      ),
     ).toBeInTheDocument();
 
     await user.click(getByRole('button', { name: 'Refill in bottle bay' }));

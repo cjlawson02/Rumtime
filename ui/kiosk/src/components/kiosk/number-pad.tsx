@@ -101,7 +101,9 @@ export function NumberPad({
     <Button
       type="button"
       variant="outline"
-      disabled={disabled || atMax || (canAppendDot ? !canAppendDot(value) : false)}
+      disabled={
+        disabled || atMax || (canAppendDot ? !canAppendDot(value) : false)
+      }
       className="kiosk-touch min-h-16 text-2xl font-medium"
       aria-label="Dot"
       onClick={appendDot}
@@ -149,7 +151,9 @@ export function NumberPad({
               (canAppendDigit ? !canAppendDigit(value, digit) : false)
             }
             className="kiosk-touch min-h-16 text-2xl font-medium"
-            onClick={() => { append(digit); }}
+            onClick={() => {
+              append(digit);
+            }}
           >
             {digit}
           </Button>
@@ -175,7 +179,9 @@ export function NumberPad({
             (canAppendDigit ? !canAppendDigit(value, '0') : false)
           }
           className="kiosk-touch min-h-16 text-2xl font-medium"
-          onClick={() => { append('0'); }}
+          onClick={() => {
+            append('0');
+          }}
         >
           0
         </Button>

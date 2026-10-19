@@ -353,9 +353,7 @@ describe('CalibrationWizard', () => {
     await user.click(view.getByRole('button', { name: '0' }));
     await user.click(view.getByRole('button', { name: '0' }));
 
-    expect(
-      view.getByText(/Measured volume is too high/i),
-    ).toBeInTheDocument();
+    expect(view.getByText(/Measured volume is too high/i)).toBeInTheDocument();
     expect(
       view.getByRole('button', { name: 'Review flow rate' }),
     ).toBeDisabled();
@@ -451,9 +449,7 @@ describe('CalibrationWizard', () => {
       view.getByRole('button', { name: 'Test pour 30 ml' }),
     ).toBeInTheDocument();
 
-    await user.click(
-      view.getByRole('button', { name: 'Finish calibration' }),
-    );
+    await user.click(view.getByRole('button', { name: 'Finish calibration' }));
 
     expect(view.getByText('Line 1 calibrated')).toBeInTheDocument();
 

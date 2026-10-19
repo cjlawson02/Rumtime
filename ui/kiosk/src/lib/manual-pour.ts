@@ -10,8 +10,7 @@ export const POST_POUR_MANUAL_IDS = new Set([
 ]);
 
 export type PrePourStep =
-  | { kind: 'ice' }
-  | { kind: 'manual'; ingredient: RecipeIngredient };
+  { kind: 'ice' } | { kind: 'manual'; ingredient: RecipeIngredient };
 
 export function manualIngredientTiming(
   ingredient: RecipeIngredient,

@@ -72,9 +72,7 @@ function BottleSizeInputInner({
       await onSaved?.();
     } catch (err) {
       setSelectValue(selectValueForSize(bottleSizeMl));
-      onError?.(
-        mutationErrorMessage(err, 'Could not update bottle size'),
-      );
+      onError?.(mutationErrorMessage(err, 'Could not update bottle size'));
     } finally {
       setSaving(false);
     }

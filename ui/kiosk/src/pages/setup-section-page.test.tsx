@@ -42,8 +42,7 @@ vi.mock('wouter', async (importOriginal) => {
 });
 
 vi.mock('@/data/setup-sections', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@/data/setup-sections')>();
+  const actual = await importOriginal<typeof import('@/data/setup-sections')>();
   return {
     ...actual,
     getSetupSection: (id: string) => {
@@ -69,10 +68,7 @@ describe('SetupSectionPage', () => {
       withSetupReturn: true,
     });
 
-    expect(getByTestId('redirect')).toHaveAttribute(
-      'data-to',
-      '/setup/pumps',
-    );
+    expect(getByTestId('redirect')).toHaveAttribute('data-to', '/setup/pumps');
   });
 
   it('renders the section wrapper for generic setup sections', () => {
@@ -84,18 +80,15 @@ describe('SetupSectionPage', () => {
 
     expect(getByText('Inventory')).toBeInTheDocument();
     expect(getByText('Stock levels')).toBeInTheDocument();
-    expect(
-      getByText('Track what is left in each bottle.'),
-    ).toBeInTheDocument();
+    expect(getByText('Track what is left in each bottle.')).toBeInTheDocument();
   });
 
   it('shows not found for unknown sections', () => {
     routeSection.current = 'unknown-section';
 
-    const { getByText, getByRole } = renderWithProviders(
-      <SetupSectionPage />,
-      { withSetupReturn: true },
-    );
+    const { getByText, getByRole } = renderWithProviders(<SetupSectionPage />, {
+      withSetupReturn: true,
+    });
 
     expect(getByText('Setup section not found.')).toBeInTheDocument();
     expect(getByRole('link', { name: 'Back to setup' })).toHaveAttribute(

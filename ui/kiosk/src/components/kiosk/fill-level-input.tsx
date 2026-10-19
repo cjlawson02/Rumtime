@@ -71,9 +71,7 @@ function FillLevelInputInner({
       cancel();
       await onSaved?.();
     } catch (err) {
-      onError?.(
-        mutationErrorMessage(err, 'Could not update fill level'),
-      );
+      onError?.(mutationErrorMessage(err, 'Could not update fill level'));
     } finally {
       setSaving(false);
     }

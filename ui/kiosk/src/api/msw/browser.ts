@@ -6,7 +6,7 @@ const worker = setupWorker(...deviceHandlers);
 
 export async function startMockServiceWorker() {
   return worker.start({
-    onUnhandledRequest: 'bypass',
+    onUnhandledFrame: 'bypass',
     serviceWorker: {
       url: '/mockServiceWorker.js',
     },

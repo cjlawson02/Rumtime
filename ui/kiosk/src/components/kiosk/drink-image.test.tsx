@@ -37,7 +37,11 @@ describe('DrinkImage', () => {
 
   it('renders a category gradient placeholder after fallback also fails', () => {
     const { container } = render(
-      <DrinkImage recipeId="unknown-drink" category="whiskey" className="h-40" />,
+      <DrinkImage
+        recipeId="unknown-drink"
+        category="whiskey"
+        className="h-40"
+      />,
     );
 
     const image = container.querySelector('img');

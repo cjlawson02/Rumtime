@@ -20,7 +20,10 @@ describe('manual-pour', () => {
     const recipe = getRecipeOrThrow('moscow-mule');
     const steps = buildPrePourSteps(recipe);
     expect(steps[0]).toEqual({ kind: 'ice' });
-    expect(steps[1]).toMatchObject({ kind: 'manual', ingredient: { id: 'lime' } });
+    expect(steps[1]).toMatchObject({
+      kind: 'manual',
+      ingredient: { id: 'lime' },
+    });
   });
 
   it('splits manual ingredients before and after the pour', () => {

@@ -40,7 +40,9 @@ function mergeFetchSignal(
   }
 
   const controller = new AbortController();
-  const abort = () => { controller.abort(); };
+  const abort = () => {
+    controller.abort();
+  };
   external.addEventListener('abort', abort, { once: true });
   timeout.addEventListener('abort', abort, { once: true });
   if (external.aborted || timeout.aborted) abort();
@@ -99,8 +101,7 @@ async function parseStatusJson(response: Response): Promise<DeviceStatus> {
     throw new DeviceApiError(0, 'Device status format invalid');
   }
   const status = parsed.data;
-  const job =
-    status.job?.state === 'idle' ? null : (status.job ?? null);
+  const job = status.job?.state === 'idle' ? null : (status.job ?? null);
   return { ...status, job };
 }
 
@@ -159,11 +160,14 @@ export class HttpDeviceClient implements DeviceClient {
 
   async refillIngredient(command: RefillCommand): Promise<void> {
     refillCommandSchema.parse(command);
-    const response = await deviceFetch(`${this.resolveBaseUrl()}/inventory/refill`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(command),
-    });
+    const response = await deviceFetch(
+      `${this.resolveBaseUrl()}/inventory/refill`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(command),
+      },
+    );
     if (!response.ok) {
       await throwDeviceError(response);
     }
@@ -171,11 +175,14 @@ export class HttpDeviceClient implements DeviceClient {
 
   async updatePumpBinding(command: PumpBindingCommand): Promise<void> {
     pumpBindingCommandSchema.parse(command);
-    const response = await deviceFetch(`${this.resolveBaseUrl()}/pumps/binding`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(command),
-    });
+    const response = await deviceFetch(
+      `${this.resolveBaseUrl()}/pumps/binding`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(command),
+      },
+    );
     if (!response.ok) {
       await throwDeviceError(response);
     }
@@ -198,11 +205,14 @@ export class HttpDeviceClient implements DeviceClient {
 
   async updateInventoryLevel(command: InventoryLevelCommand): Promise<void> {
     inventoryLevelCommandSchema.parse(command);
-    const response = await deviceFetch(`${this.resolveBaseUrl()}/inventory/level`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(command),
-    });
+    const response = await deviceFetch(
+      `${this.resolveBaseUrl()}/inventory/level`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(command),
+      },
+    );
     if (!response.ok) {
       await throwDeviceError(response);
     }
@@ -210,11 +220,14 @@ export class HttpDeviceClient implements DeviceClient {
 
   async updatePumpCalibration(command: PumpCalibrationCommand): Promise<void> {
     pumpCalibrationCommandSchema.parse(command);
-    const response = await deviceFetch(`${this.resolveBaseUrl()}/pumps/calibration`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(command),
-    });
+    const response = await deviceFetch(
+      `${this.resolveBaseUrl()}/pumps/calibration`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(command),
+      },
+    );
     if (!response.ok) {
       await throwDeviceError(response);
     }
@@ -222,11 +235,14 @@ export class HttpDeviceClient implements DeviceClient {
 
   async updatePrimed(command: PrimedCommand): Promise<void> {
     primedCommandSchema.parse(command);
-    const response = await deviceFetch(`${this.resolveBaseUrl()}/inventory/primed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(command),
-    });
+    const response = await deviceFetch(
+      `${this.resolveBaseUrl()}/inventory/primed`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(command),
+      },
+    );
     if (!response.ok) {
       await throwDeviceError(response);
     }
@@ -234,11 +250,14 @@ export class HttpDeviceClient implements DeviceClient {
 
   async startPumpDispense(command: PumpDispenseCommand): Promise<void> {
     pumpDispenseCommandSchema.parse(command);
-    const response = await deviceFetch(`${this.resolveBaseUrl()}/pumps/dispense`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(command),
-    });
+    const response = await deviceFetch(
+      `${this.resolveBaseUrl()}/pumps/dispense`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(command),
+      },
+    );
     if (!response.ok) {
       await throwDeviceError(response);
     }

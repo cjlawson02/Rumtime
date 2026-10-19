@@ -61,7 +61,11 @@ export function clearDeviceApiBaseOverride(): void {
 }
 
 export function subscribeDeviceEndpoint(onStoreChange: () => void): () => void {
-  const handler = () => { onStoreChange(); };
+  const handler = () => {
+    onStoreChange();
+  };
   window.addEventListener(ENDPOINT_CHANGE_EVENT, handler);
-  return () => { window.removeEventListener(ENDPOINT_CHANGE_EVENT, handler); };
+  return () => {
+    window.removeEventListener(ENDPOINT_CHANGE_EVENT, handler);
+  };
 }

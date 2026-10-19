@@ -18,9 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useDeviceStatus } from '@/hooks/use-device-status';
-import {
-  useUpdatePumpCalibration,
-} from '@/hooks/use-device-mutations';
+import { useUpdatePumpCalibration } from '@/hooks/use-device-mutations';
 import { usePumpDispenseSession } from '@/hooks/use-pump-dispense-session';
 import {
   CALIBRATION_SAMPLE_ML,
@@ -237,7 +235,9 @@ function CalibrationWizardSession({
     }
   };
 
-  const goToStep = (id: StepId) => { setStepIndex(stepIndexFor(id)); };
+  const goToStep = (id: StepId) => {
+    setStepIndex(stepIndexFor(id));
+  };
 
   const step = STEPS[stepIndex];
 
@@ -256,7 +256,9 @@ function CalibrationWizardSession({
       return (
         <WizardFooterActions
           showBack={false}
-          onNext={() => { startCalibrationRun(); }}
+          onNext={() => {
+            startCalibrationRun();
+          }}
           nextLabel={
             starting
               ? 'Starting…'
@@ -293,8 +295,12 @@ function CalibrationWizardSession({
     if (step.id === 'measure') {
       return (
         <WizardFooterActions
-          onBack={() => { goToStep('run-cal'); }}
-          onNext={() => { goToStep('save-rate'); }}
+          onBack={() => {
+            goToStep('run-cal');
+          }}
+          onNext={() => {
+            goToStep('save-rate');
+          }}
           nextDisabled={calculatedMlPerSecond === null}
           nextLabel="Review flow rate"
         />
@@ -304,7 +310,9 @@ function CalibrationWizardSession({
     if (step.id === 'save-rate') {
       return (
         <WizardFooterActions
-          onBack={() => { goToStep('measure'); }}
+          onBack={() => {
+            goToStep('measure');
+          }}
           onNext={() => void saveFlowRate()}
           nextDisabled={calculatedMlPerSecond === null || savingRate}
           nextLabel={savingRate ? 'Saving…' : 'Save flow rate'}
@@ -315,8 +323,12 @@ function CalibrationWizardSession({
     if (step.id === 'verify') {
       return (
         <WizardFooterActions
-          onBack={() => { goToStep('save-rate'); }}
-          onNext={() => { goToStep('anti-drip'); }}
+          onBack={() => {
+            goToStep('save-rate');
+          }}
+          onNext={() => {
+            goToStep('anti-drip');
+          }}
           nextLabel="Continue to anti-drip"
         />
       );
@@ -324,8 +336,12 @@ function CalibrationWizardSession({
 
     return (
       <WizardFooterActions
-        onBack={() => { goToStep('verify'); }}
-        onNext={() => { goToStep('done'); }}
+        onBack={() => {
+          goToStep('verify');
+        }}
+        onNext={() => {
+          goToStep('done');
+        }}
         nextLabel="Finish calibration"
       />
     );
@@ -364,7 +380,9 @@ function CalibrationWizardSession({
                     type="button"
                     variant="outline"
                     className="kiosk-touch"
-                    onClick={() => { setPrimeWizardOpen(true); }}
+                    onClick={() => {
+                      setPrimeWizardOpen(true);
+                    }}
                   >
                     {primed ? 'Re-prime line' : 'Prime this line'}
                   </Button>
@@ -467,7 +485,9 @@ function CalibrationWizardSession({
                   variant={activeVerifyMl === ml ? 'default' : 'outline'}
                   className="kiosk-touch h-20 text-2xl font-semibold tabular-nums"
                   disabled={verifyPourDisabled}
-                  onClick={() => { startVerifyPour(ml); }}
+                  onClick={() => {
+                    startVerifyPour(ml);
+                  }}
                 >
                   {ml} ml
                 </Button>
@@ -501,7 +521,9 @@ function CalibrationWizardSession({
               variant={verifyDispenseActive ? 'default' : 'outline'}
               className="kiosk-touch"
               disabled={verifyPourDisabled}
-              onClick={() => { startVerifyPour(CALIBRATION_SAMPLE_ML); }}
+              onClick={() => {
+                startVerifyPour(CALIBRATION_SAMPLE_ML);
+              }}
             >
               Test pour {CALIBRATION_SAMPLE_ML} ml
             </Button>

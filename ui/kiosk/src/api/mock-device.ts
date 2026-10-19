@@ -563,32 +563,32 @@ export class MockDeviceClient implements DeviceClient {
 
   updatePumpBinding(command: PumpBindingCommand): Promise<void> {
     return runDeviceMutation(() => {
-    const pump = state.status.pumps?.find(
-      (slot) => slot.pumpId === command.pumpId,
-    );
-    if (!pump) {
-      throw new Error('422: pump not found');
-    }
+      const pump = state.status.pumps?.find(
+        (slot) => slot.pumpId === command.pumpId,
+      );
+      if (!pump) {
+        throw new Error('422: pump not found');
+      }
 
-    if (command.ingredientId) {
-      for (const slot of state.status.pumps ?? []) {
-        if (
-          slot.pumpId !== command.pumpId &&
-          slot.ingredientId === command.ingredientId
-        ) {
-          slot.ingredientId = null;
+      if (command.ingredientId) {
+        for (const slot of state.status.pumps ?? []) {
+          if (
+            slot.pumpId !== command.pumpId &&
+            slot.ingredientId === command.ingredientId
+          ) {
+            slot.ingredientId = null;
+          }
+        }
+
+        if (!(command.ingredientId in state.status.bindings)) {
+          state.status.bindings[command.ingredientId] = {
+            ingredientId: command.ingredientId,
+            remainingMl: 0,
+            bottleSizeMl: DEFAULT_BOTTLE_ML,
+            primed: false,
+          };
         }
       }
-
-      if (!(command.ingredientId in state.status.bindings)) {
-        state.status.bindings[command.ingredientId] = {
-          ingredientId: command.ingredientId,
-          remainingMl: 0,
-          bottleSizeMl: DEFAULT_BOTTLE_ML,
-          primed: false,
-        };
-      }
-    }
 
       pump.ingredientId = command.ingredientId;
     });
@@ -596,12 +596,12 @@ export class MockDeviceClient implements DeviceClient {
 
   updateBottleSize(command: BottleSizeCommand): Promise<void> {
     return runDeviceMutation(() => {
-    if (!(command.ingredientId in state.status.bindings)) {
-      throw new Error('422: ingredient not bound');
-    }
-    const binding = state.status.bindings[command.ingredientId];
+      if (!(command.ingredientId in state.status.bindings)) {
+        throw new Error('422: ingredient not bound');
+      }
+      const binding = state.status.bindings[command.ingredientId];
 
-    binding.bottleSizeMl = command.bottleSizeMl;
+      binding.bottleSizeMl = command.bottleSizeMl;
       if (binding.remainingMl > command.bottleSizeMl) {
         binding.remainingMl = command.bottleSizeMl;
       }
@@ -610,24 +610,24 @@ export class MockDeviceClient implements DeviceClient {
 
   updateInventoryLevel(command: InventoryLevelCommand): Promise<void> {
     return runDeviceMutation(() => {
-    if (!(command.ingredientId in state.status.bindings)) {
-      throw new Error('422: ingredient not bound');
-    }
-    const binding = state.status.bindings[command.ingredientId];
+      if (!(command.ingredientId in state.status.bindings)) {
+        throw new Error('422: ingredient not bound');
+      }
+      const binding = state.status.bindings[command.ingredientId];
 
-    const max = binding.bottleSizeMl ?? DEFAULT_BOTTLE_ML;
+      const max = binding.bottleSizeMl ?? DEFAULT_BOTTLE_ML;
       binding.remainingMl = Math.min(max, Math.max(0, command.remainingMl));
     });
   }
 
   updatePumpCalibration(command: PumpCalibrationCommand): Promise<void> {
     return runDeviceMutation(() => {
-    const pump = state.status.pumps?.find(
-      (slot) => slot.pumpId === command.pumpId,
-    );
-    if (!pump) {
-      throw new Error('422: pump not found');
-    }
+      const pump = state.status.pumps?.find(
+        (slot) => slot.pumpId === command.pumpId,
+      );
+      if (!pump) {
+        throw new Error('422: pump not found');
+      }
 
       pump.mlPerSecond = command.mlPerSecond;
       pump.antiDripMs = command.antiDripMs;
@@ -636,10 +636,10 @@ export class MockDeviceClient implements DeviceClient {
 
   updatePrimed(command: PrimedCommand): Promise<void> {
     return runDeviceMutation(() => {
-    if (!(command.ingredientId in state.status.bindings)) {
-      throw new Error('422: ingredient not bound');
-    }
-    const binding = state.status.bindings[command.ingredientId];
+      if (!(command.ingredientId in state.status.bindings)) {
+        throw new Error('422: ingredient not bound');
+      }
+      const binding = state.status.bindings[command.ingredientId];
 
       binding.primed = command.primed;
     });
@@ -649,31 +649,31 @@ export class MockDeviceClient implements DeviceClient {
     return runDeviceMutation(() => {
       assertDeviceIdle();
 
-    const pump = state.status.pumps?.find(
-      (slot) => slot.pumpId === command.pumpId,
-    );
-    if (!pump) {
-      throw new Error('422: pump not found');
-    }
-    if (!pump.ingredientId && !isCleaningPurpose(command.purpose)) {
-      throw new Error('422: pump unassigned');
-    }
+      const pump = state.status.pumps?.find(
+        (slot) => slot.pumpId === command.pumpId,
+      );
+      if (!pump) {
+        throw new Error('422: pump not found');
+      }
+      if (!pump.ingredientId && !isCleaningPurpose(command.purpose)) {
+        throw new Error('422: pump unassigned');
+      }
 
-    const binding = pump.ingredientId
-      ? state.status.bindings[pump.ingredientId]
-      : undefined;
-    if (
-      command.purpose !== 'prime' &&
-      binding &&
-      !binding.primed &&
-      !isCleaningPurpose(command.purpose)
-    ) {
-      throw new Error('422: line not primed');
-    }
+      const binding = pump.ingredientId
+        ? state.status.bindings[pump.ingredientId]
+        : undefined;
+      if (
+        command.purpose !== 'prime' &&
+        binding &&
+        !binding.primed &&
+        !isCleaningPurpose(command.purpose)
+      ) {
+        throw new Error('422: line not primed');
+      }
 
-    if (state.status.pumpJob) {
-      setPumpJob(null);
-    }
+      if (state.status.pumpJob) {
+        setPumpJob(null);
+      }
 
       startPumpDispenseSimulation(command);
     });

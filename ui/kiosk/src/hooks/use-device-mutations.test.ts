@@ -123,27 +123,27 @@ describe('useDeviceMutations', () => {
       hook: useCancelPumpDispense,
       mutate: cancelPumpDispense,
     },
-  ])('calls deviceClient and invalidates status for $hook.name', async ({
-    hook,
-    mutate,
-  }) => {
-    const queryClient = createQueryClient();
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    const { result } = renderHook(() => hook(), {
-      wrapper: createWrapper({ queryClient }),
-    });
-
-    await act(async () => {
-      await result.current.mutateAsync();
-    });
-
-    expect(mutate).toHaveBeenCalledOnce();
-    await waitFor(() => {
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: deviceStatusQueryKeyPrefix,
+  ])(
+    'calls deviceClient and invalidates status for $hook.name',
+    async ({ hook, mutate }) => {
+      const queryClient = createQueryClient();
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+      const { result } = renderHook(() => hook(), {
+        wrapper: createWrapper({ queryClient }),
       });
-    });
-  });
+
+      await act(async () => {
+        await result.current.mutateAsync();
+      });
+
+      expect(mutate).toHaveBeenCalledOnce();
+      await waitFor(() => {
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: deviceStatusQueryKeyPrefix,
+        });
+      });
+    },
+  );
 
   it.each([
     {
@@ -183,9 +183,13 @@ describe('useDeviceMutations', () => {
     {
       name: 'useRefillIngredient',
       run: () =>
-        expectCommandMutationInvalidates(useRefillIngredient, refillIngredient, {
-          ingredientId: 'bourbon',
-        }),
+        expectCommandMutationInvalidates(
+          useRefillIngredient,
+          refillIngredient,
+          {
+            ingredientId: 'bourbon',
+          },
+        ),
     },
     {
       name: 'useUpdateBottleSize',

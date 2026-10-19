@@ -36,7 +36,10 @@ import { isActivePourJob, isTerminalPourJob } from '@/lib/pour-job';
 import { shouldCancelPourOnLeave } from '@/lib/pour-leave';
 import { estimateRecipePourDurationMs } from '@/lib/pour-progress';
 import { pourStepsFromRecipe } from '@/lib/pour-steps';
-import { consumePourInventoryBypass, peekPourInventoryBypass } from '@/lib/pour-inventory-bypass';
+import {
+  consumePourInventoryBypass,
+  peekPourInventoryBypass,
+} from '@/lib/pour-inventory-bypass';
 import {
   createPumpPourTracker,
   markPumpPourDispenseStarted,
@@ -103,12 +106,7 @@ export function PourPage() {
 
   const liveOutcome =
     pourStarted && recipeId
-      ? resolveRecipePourOutcome(
-          pourTracker,
-          recipeId,
-          job,
-          priorTerminalKey,
-        )
+      ? resolveRecipePourOutcome(pourTracker, recipeId, job, priorTerminalKey)
       : null;
   const derivedTerminal =
     liveOutcome === 'complete' ||
@@ -169,44 +167,44 @@ export function PourPage() {
   // Previous pour's terminal job still in /status while this attempt starts.
   const staleTerminalJob = Boolean(
     pourStarted &&
-      !sawActiveJob &&
-      job &&
-      isThisRecipe &&
-      isTerminalPourJob(job) &&
-      priorTerminalKey !== null &&
-      pourJobIdentityKey(job) === priorTerminalKey,
+    !sawActiveJob &&
+    job &&
+    isThisRecipe &&
+    isTerminalPourJob(job) &&
+    priorTerminalKey !== null &&
+    pourJobIdentityKey(job) === priorTerminalKey,
   );
   const pourLostAfterStart = Boolean(
     recipe &&
-      status &&
-      pourStarted &&
-      sawActiveJob &&
-      !effectiveTerminal &&
-      !prePourPhase &&
-      !postPourPhase &&
-      !pourFlowComplete &&
-      !pumpBusy &&
-      !foreignActivePour &&
-      (!job ||
-        job.recipeId !== recipe.id ||
-        (!isActivePourJob(job) && !isTerminalPourJob(job))),
+    status &&
+    pourStarted &&
+    sawActiveJob &&
+    !effectiveTerminal &&
+    !prePourPhase &&
+    !postPourPhase &&
+    !pourFlowComplete &&
+    !pumpBusy &&
+    !foreignActivePour &&
+    (!job ||
+      job.recipeId !== recipe.id ||
+      (!isActivePourJob(job) && !isTerminalPourJob(job))),
   );
   const waitingForJob = Boolean(
     recipe &&
-      status &&
-      pourStarted &&
-      !sawActiveJob &&
-      !prePourPhase &&
-      !postPourPhase &&
-      !pourFlowComplete &&
-      !pumpBusy &&
-      !foreignActivePour &&
-      (!job ||
-        staleTerminalJob ||
-        (job.recipeId !== recipe.id && isTerminalPourJob(job)) ||
-        (job.recipeId === recipe.id &&
-          !isActivePourJob(job) &&
-          !isTerminalPourJob(job))),
+    status &&
+    pourStarted &&
+    !sawActiveJob &&
+    !prePourPhase &&
+    !postPourPhase &&
+    !pourFlowComplete &&
+    !pumpBusy &&
+    !foreignActivePour &&
+    (!job ||
+      staleTerminalJob ||
+      (job.recipeId !== recipe.id && isTerminalPourJob(job)) ||
+      (job.recipeId === recipe.id &&
+        !isActivePourJob(job) &&
+        !isTerminalPourJob(job))),
   );
   const waitTimedOut = useDelayedTrue(waitingForJob, WAIT_FOR_JOB_MS);
 
@@ -238,9 +236,7 @@ export function PourPage() {
     if (
       effectiveBlockingIssues(availability.issues, bypassInventory).length > 0
     ) {
-      setStartError(
-        firstBlockingMessage(availability.issues, bypassInventory),
-      );
+      setStartError(firstBlockingMessage(availability.issues, bypassInventory));
       return;
     }
 
@@ -351,8 +347,12 @@ export function PourPage() {
   useEffect(() => {
     if (!recipe || !pourFlowComplete) return;
 
-    const timer = window.setTimeout(() => { navigate('/'); }, RETURN_TO_MENU_MS);
-    return () => { window.clearTimeout(timer); };
+    const timer = window.setTimeout(() => {
+      navigate('/');
+    }, RETURN_TO_MENU_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [recipe, pourFlowComplete, navigate]);
 
   if (!recipe) {
@@ -407,7 +407,9 @@ export function PourPage() {
         instruction={prePourStepInstruction(step)}
         icon={step.kind === 'ice' ? 'ice' : 'hand'}
         onConfirm={handlePreStepDone}
-        onCancel={() => { navigate(`/drink/${recipe.id}`); }}
+        onCancel={() => {
+          navigate(`/drink/${recipe.id}`);
+        }}
       />
     );
   }
@@ -624,9 +626,7 @@ export function PourPage() {
 
       <PourProgressBar value={pourProgress} />
 
-      {actionError && (
-        <p className="text-sm text-destructive">{actionError}</p>
-      )}
+      {actionError && <p className="text-sm text-destructive">{actionError}</p>}
 
       <Button
         variant="destructive"

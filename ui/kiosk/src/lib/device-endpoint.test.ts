@@ -16,15 +16,23 @@ function installBrowserStorageMock() {
 
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => { store.set(key, value); },
-    removeItem: (key: string) => { store.delete(key); },
-    clear: () => { store.clear(); },
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    clear: () => {
+      store.clear();
+    },
   });
 
   vi.stubGlobal('window', {
     dispatchEvent: (event: Event) => {
       const handlers = listeners.get(event.type);
-      handlers?.forEach((handler) => { handler(); });
+      handlers?.forEach((handler) => {
+        handler();
+      });
       return true;
     },
     addEventListener: (type: string, handler: () => void) => {

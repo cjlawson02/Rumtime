@@ -1,8 +1,5 @@
 import type { PumpSlot, Recipe } from '@/api/types';
-import {
-  estimatePourSeconds,
-  resolvePumpCalibration,
-} from '@/lib/calibration';
+import { estimatePourSeconds, resolvePumpCalibration } from '@/lib/calibration';
 import { pourStepsFromRecipe } from '@/lib/pour-steps';
 
 /** Estimated wall time for all pumped recipe steps (pour + anti-drip). */

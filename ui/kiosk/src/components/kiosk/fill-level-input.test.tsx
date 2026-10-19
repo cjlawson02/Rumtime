@@ -104,7 +104,9 @@ describe('FillLevelInput', () => {
     await user.click(getByRole('button', { name: 'Save' }));
 
     expect(updateInventoryLevel).not.toHaveBeenCalled();
-    expect(queryByRole('dialog', { name: 'Fill level' })).not.toBeInTheDocument();
+    expect(
+      queryByRole('dialog', { name: 'Fill level' }),
+    ).not.toBeInTheDocument();
   });
 
   it('does not open the editor while disabled', async () => {
@@ -121,6 +123,8 @@ describe('FillLevelInput', () => {
 
     await user.click(getFillTrigger(container));
 
-    expect(queryByRole('dialog', { name: 'Fill level' })).not.toBeInTheDocument();
+    expect(
+      queryByRole('dialog', { name: 'Fill level' }),
+    ).not.toBeInTheDocument();
   });
 });

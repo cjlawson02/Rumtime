@@ -21,10 +21,7 @@ export function IpAddressPad({
 }: IpAddressPadProps) {
   return (
     <div className={cn('space-y-3', className)}>
-      <NumberValueDisplay
-        value={value || '—'}
-        className="text-2xl"
-      />
+      <NumberValueDisplay value={value || '—'} className="text-2xl" />
       <NumberPad
         value={value}
         onChange={onChange}

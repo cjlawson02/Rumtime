@@ -439,7 +439,9 @@ function CleaningWizardSession({
       return (
         <WizardFooterActions
           showBack={false}
-          onNext={() => { setPhase(advancePhase(phase, lineCount)); }}
+          onNext={() => {
+            setPhase(advancePhase(phase, lineCount));
+          }}
           nextLabel="Start cleaning"
         />
       );
@@ -452,7 +454,9 @@ function CleaningWizardSession({
             const prev = retreatPhase(phase, lineCount);
             if (prev) setPhase(prev);
           }}
-          onNext={() => { setPhase(advancePhase(phase, lineCount)); }}
+          onNext={() => {
+            setPhase(advancePhase(phase, lineCount));
+          }}
           nextLabel="Continue"
         />
       );
@@ -469,7 +473,9 @@ function CleaningWizardSession({
           <WizardFooterActions
             backLabel="Emergency stop"
             backVariant="destructive"
-            onBack={() => { handleEmergencyStop(); }}
+            onBack={() => {
+              handleEmergencyStop();
+            }}
             onNext={() => {
               void (async () => {
                 await stopRun();
@@ -516,14 +522,16 @@ function CleaningWizardSession({
                 : null}
             </p>
             <WizardFooterActions
-              onBack={() =>
-                { setPhase({
+              onBack={() => {
+                setPhase({
                   kind: 'flush-run',
                   lineIndex: phase.lineIndex,
-                }); }
-              }
+                });
+              }}
               backLabel="Flush again"
-              onNext={() => { startTimedExtraFlush(); }}
+              onNext={() => {
+                startTimedExtraFlush();
+              }}
               nextLabel={
                 starting
                   ? 'Starting…'
@@ -535,7 +543,9 @@ function CleaningWizardSession({
               type="button"
               variant="ghost"
               className="kiosk-touch self-end"
-              onClick={() => { setPhase(advancePhase(phase, lineCount)); }}
+              onClick={() => {
+                setPhase(advancePhase(phase, lineCount));
+              }}
             >
               Skip extra flush
             </Button>
@@ -549,7 +559,9 @@ function CleaningWizardSession({
             const prev = retreatPhase(phase, lineCount);
             if (prev) setPhase(prev);
           }}
-          onNext={() => { startContinuousRun('flush'); }}
+          onNext={() => {
+            startContinuousRun('flush');
+          }}
           nextLabel={starting ? 'Starting…' : 'Start flush'}
           nextDisabled={starting}
         />
@@ -562,7 +574,9 @@ function CleaningWizardSession({
           <WizardFooterActions
             backLabel="Emergency stop"
             backVariant="destructive"
-            onBack={() => { handleEmergencyStop(); }}
+            onBack={() => {
+              handleEmergencyStop();
+            }}
             onNext={() => {
               void (async () => {
                 await stopRun();
@@ -581,7 +595,9 @@ function CleaningWizardSession({
             const prev = retreatPhase(phase, lineCount);
             if (prev) setPhase(prev);
           }}
-          onNext={() => { startContinuousRun('sanitize'); }}
+          onNext={() => {
+            startContinuousRun('sanitize');
+          }}
           nextLabel={starting ? 'Starting…' : 'Start sanitizer run'}
           nextDisabled={starting}
         />
@@ -595,7 +611,9 @@ function CleaningWizardSession({
             const prev = retreatPhase(phase, lineCount);
             if (prev) setPhase(prev);
           }}
-          onNext={() => { setPhase(advancePhase(phase, lineCount)); }}
+          onNext={() => {
+            setPhase(advancePhase(phase, lineCount));
+          }}
           nextLabel={
             phase.remainingSeconds > 0
               ? `${phase.remainingSeconds}s remaining`
@@ -612,7 +630,9 @@ function CleaningWizardSession({
           <WizardFooterActions
             backLabel="Emergency stop"
             backVariant="destructive"
-            onBack={() => { handleEmergencyStop(); }}
+            onBack={() => {
+              handleEmergencyStop();
+            }}
             onNext={() => {
               void (async () => {
                 await stopRun();
@@ -631,7 +651,9 @@ function CleaningWizardSession({
             const prev = retreatPhase(phase, lineCount);
             if (prev) setPhase(prev);
           }}
-          onNext={() => { startContinuousRun('drain'); }}
+          onNext={() => {
+            startContinuousRun('drain');
+          }}
           nextLabel={starting ? 'Starting…' : 'Start drain'}
           nextDisabled={starting}
         />
@@ -775,7 +797,9 @@ function CleaningWizardSession({
               type="button"
               variant="outline"
               className="kiosk-touch"
-              onClick={() => { setPhase({ kind: 'contact', remainingSeconds: 0 }); }}
+              onClick={() => {
+                setPhase({ kind: 'contact', remainingSeconds: 0 });
+              }}
             >
               Skip wait
             </Button>

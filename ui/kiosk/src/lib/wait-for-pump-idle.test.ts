@@ -42,12 +42,16 @@ describe('waitForPumpJobIdle', () => {
   });
 
   it('returns immediately when the pump is already idle', async () => {
-    const idle = { connected: true, bindings: {}, pumpJob: null } as DeviceStatus;
+    const idle = {
+      connected: true,
+      bindings: {},
+      pumpJob: null,
+    } as DeviceStatus;
     fetchDeviceStatusMock.mockResolvedValue(idle);
 
-    await expect(
-      waitForPumpJobIdle(queryClient, { pumpId: 1 }),
-    ).resolves.toBe(idle);
+    await expect(waitForPumpJobIdle(queryClient, { pumpId: 1 })).resolves.toBe(
+      idle,
+    );
     expect(fetchDeviceStatusMock).toHaveBeenCalledOnce();
   });
 
@@ -56,7 +60,6 @@ describe('waitForPumpJobIdle', () => {
       .mockResolvedValueOnce(statusWithPumpJob(1))
       .mockResolvedValueOnce(statusWithPumpJob(1))
       .mockResolvedValueOnce({ connected: true, bindings: {}, pumpJob: null });
-
 
     const promise = waitForPumpJobIdle(queryClient, {
       pumpId: 1,

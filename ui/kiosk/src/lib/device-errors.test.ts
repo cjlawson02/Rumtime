@@ -24,7 +24,9 @@ describe('deviceErrorMessage', () => {
   });
 
   it('maps busy and timeout errors', () => {
-    expect(deviceErrorMessage(new DeviceApiError(409, 'busy'))).toMatch(/busy/i);
+    expect(deviceErrorMessage(new DeviceApiError(409, 'busy'))).toMatch(
+      /busy/i,
+    );
     const timeout = new Error('timeout');
     timeout.name = 'TimeoutError';
     expect(deviceErrorMessage(timeout)).toMatch(/did not respond/i);
@@ -39,6 +41,8 @@ describe('mutationErrorMessage', () => {
   });
 
   it('returns fallback for non-Error values', () => {
-    expect(mutationErrorMessage('oops', 'Could not save')).toBe('Could not save');
+    expect(mutationErrorMessage('oops', 'Could not save')).toBe(
+      'Could not save',
+    );
   });
 });

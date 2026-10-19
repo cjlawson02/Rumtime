@@ -50,13 +50,10 @@ describe('useSmoothTimedProgress', () => {
     now.mockReturnValue(10_000);
 
     let frame: FrameRequestCallback | null = null;
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      (callback: FrameRequestCallback) => {
-        frame = callback;
-        return 1;
-      },
-    );
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    });
 
     const { result } = renderHook(() =>
       useSmoothTimedProgress({
