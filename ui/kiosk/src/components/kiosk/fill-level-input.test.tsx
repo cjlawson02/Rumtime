@@ -1,10 +1,13 @@
 import userEvent from "@testing-library/user-event";
+import { waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FillLevelInput } from "@/components/kiosk/fill-level-input";
 import { renderWithProviders } from "@/test/render";
 
-const updateInventoryLevel = vi.fn();
+const { updateInventoryLevel } = vi.hoisted(() => ({
+  updateInventoryLevel: vi.fn(),
+}));
 
 vi.mock("@/hooks/use-device-mutations", () => ({
   useUpdateInventoryLevel: () => ({ mutateAsync: updateInventoryLevel }),
@@ -96,7 +99,9 @@ describe("FillLevelInput", () => {
     await user.click(getByRole("button", { name: "Save" }));
 
     expect(updateInventoryLevel).not.toHaveBeenCalled();
-    expect(queryByRole("dialog", { name: "Fill level" })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(queryByRole("dialog", { name: "Fill level" })).not.toBeInTheDocument();
+    });
   });
 
   it("does not open the editor while disabled", async () => {

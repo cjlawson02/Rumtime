@@ -23,22 +23,25 @@ function SetupGateWithReturn({
   return <SetupGate>{children}</SetupGate>;
 }
 
-const { hasSetupUnlock, grantSetupUnlock, navigate } = vi.hoisted(() => ({
+const { hasSetupUnlock, grantSetupUnlock, navigate, deviceStatusState } = vi.hoisted(() => ({
   hasSetupUnlock: vi.fn(() => false),
   grantSetupUnlock: vi.fn(),
   navigate: vi.fn(),
+  deviceStatusState: {
+    current: { pumpJob: null } as { pumpJob: { state: string } | null } | undefined,
+  },
 }));
 
-let deviceStatus: { pumpJob: { state: string } | null } | undefined = {
-  pumpJob: null,
-};
-
-vi.mock("wouter", () => ({
-  useLocation: () => ["/setup/pumps", navigate],
-}));
+vi.mock("wouter", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("wouter")>();
+  return {
+    ...actual,
+    useLocation: () => ["/setup/pumps", navigate],
+  };
+});
 
 vi.mock("@/hooks/use-device-status", () => ({
-  useDeviceStatus: () => ({ status: deviceStatus }),
+  useDeviceStatus: () => ({ status: deviceStatusState.current }),
 }));
 
 vi.mock("@/lib/config", () => ({
@@ -58,7 +61,7 @@ describe("SetupGate", () => {
     grantSetupUnlock.mockImplementation(() => {
       hasSetupUnlock.mockReturnValue(true);
     });
-    deviceStatus = { pumpJob: null };
+    deviceStatusState.current = { pumpJob: null };
     navigate.mockReset();
     resetSetupPinLockSuspensionForTests();
     sessionStorage.clear();
@@ -153,7 +156,7 @@ describe("SetupGate", () => {
     expect(getByText("Setup content")).toBeInTheDocument();
 
     hasSetupUnlock.mockReturnValue(false);
-    deviceStatus = { pumpJob: { state: "running" } };
+    deviceStatusState.current = { pumpJob: { state: "running" } };
 
     rerender(
       <SetupGate>

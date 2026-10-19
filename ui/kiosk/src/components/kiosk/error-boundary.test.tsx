@@ -1,8 +1,18 @@
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ErrorBoundary } from "@/components/kiosk/error-boundary";
 import { renderWithProviders } from "@/test/render";
+
+const { assignLocation, reloadLocation } = vi.hoisted(() => ({
+  assignLocation: vi.fn(),
+  reloadLocation: vi.fn(),
+}));
+
+vi.mock("@/lib/kiosk-navigation", () => ({
+  assignLocation,
+  reloadLocation,
+}));
 
 function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {
   if (shouldThrow) {
@@ -13,21 +23,10 @@ function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {
 
 describe("ErrorBoundary", () => {
   const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-  const assign = vi.fn();
-  const reload = vi.fn();
 
   beforeEach(() => {
-    assign.mockReset();
-    reload.mockReset();
-    vi.stubGlobal("location", {
-      assign,
-      reload,
-      href: "/pour",
-    });
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
+    assignLocation.mockReset();
+    reloadLocation.mockReset();
   });
 
   it("renders children when there is no error", () => {
@@ -65,7 +64,7 @@ describe("ErrorBoundary", () => {
 
     await user.click(getByRole("button", { name: "Return to menu" }));
 
-    expect(assign).toHaveBeenCalledWith("/");
+    expect(assignLocation).toHaveBeenCalledWith("/");
   });
 
   it("reloads the app when the operator taps Reload app", async () => {
@@ -79,6 +78,6 @@ describe("ErrorBoundary", () => {
 
     await user.click(getByRole("button", { name: "Reload app" }));
 
-    expect(reload).toHaveBeenCalledOnce();
+    expect(reloadLocation).toHaveBeenCalledOnce();
   });
 });

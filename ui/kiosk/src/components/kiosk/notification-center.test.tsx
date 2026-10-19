@@ -7,8 +7,24 @@ import { renderWithProviders } from "@/test/render";
 
 vi.mock("wouter", () => ({
   useLocation: () => ["/", vi.fn()],
-  Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
-    <a href={href} {...props}>
+  Link: ({
+    href,
+    children,
+    onClick,
+    ...props
+  }: {
+    href: string;
+    children: React.ReactNode;
+    onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
+  }) => (
+    <a
+      href={href}
+      {...props}
+      onClick={(event) => {
+        event.preventDefault();
+        onClick?.(event);
+      }}
+    >
       {children}
     </a>
   ),

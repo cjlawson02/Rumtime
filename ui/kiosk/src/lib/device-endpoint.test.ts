@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   clearDeviceApiBaseOverride,
@@ -9,42 +9,6 @@ import {
   readDeviceApiBaseOverride,
   setDeviceApiBaseOverride,
 } from "@/lib/device-endpoint";
-
-function installBrowserStorageMock() {
-  const store = new Map<string, string>();
-  const listeners = new Map<string, Set<() => void>>();
-
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      store.set(key, value);
-    },
-    removeItem: (key: string) => {
-      store.delete(key);
-    },
-    clear: () => {
-      store.clear();
-    },
-  });
-
-  vi.stubGlobal("window", {
-    dispatchEvent: (event: Event) => {
-      const handlers = listeners.get(event.type);
-      handlers?.forEach((handler) => {
-        handler();
-      });
-      return true;
-    },
-    addEventListener: (type: string, handler: () => void) => {
-      const handlers = listeners.get(type) ?? new Set();
-      handlers.add(handler);
-      listeners.set(type, handlers);
-    },
-    removeEventListener: (type: string, handler: () => void) => {
-      listeners.get(type)?.delete(handler);
-    },
-  });
-}
 
 describe("deviceApiBaseFromIpv4", () => {
   it("builds an http base URL from a valid IPv4 address", () => {
@@ -65,11 +29,11 @@ describe("formatHostnameInput", () => {
 
 describe("device endpoint override storage", () => {
   beforeEach(() => {
-    installBrowserStorageMock();
+    localStorage.clear();
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    localStorage.clear();
   });
 
   it("persists a valid IPv4 override in localStorage", () => {
@@ -80,16 +44,16 @@ describe("device endpoint override storage", () => {
 
   it("rejects mDNS hostnames as overrides", () => {
     expect(() => setDeviceApiBaseOverride("rumtime.local")).toThrow("Enter a valid IP address");
+    expect(readDeviceApiBaseOverride()).toBeNull();
   });
 
   it("clears invalid persisted overrides", () => {
-    localStorage.setItem("rumtime.deviceApiBase", "http://rumtime.local");
+    localStorage.setItem("rumtime.deviceApiBase", "http://not-an-ip");
     expect(readDeviceApiBaseOverride()).toBeNull();
     expect(localStorage.getItem("rumtime.deviceApiBase")).toBeNull();
   });
 
   it("falls back to the build default when not overridden", () => {
-    expect(getDeviceApiBase()).toBe(DEFAULT_DEVICE_API_BASE);
     clearDeviceApiBaseOverride();
     expect(getDeviceApiBase()).toBe(DEFAULT_DEVICE_API_BASE);
   });

@@ -5,49 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useDeviceEndpoint } from "@/hooks/use-device-endpoint";
 import { createWrapper } from "@/test/render";
 
-function installBrowserStorageMock() {
-  const store = new Map<string, string>();
-  const listeners = new Map<string, Set<() => void>>();
-
-  vi.stubGlobal("localStorage", {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      store.set(key, value);
-    },
-    removeItem: (key: string) => {
-      store.delete(key);
-    },
-    clear: () => {
-      store.clear();
-    },
-  });
-
-  vi.stubGlobal("window", {
-    dispatchEvent: (event: Event) => {
-      const handlers = listeners.get(event.type);
-      handlers?.forEach((handler) => {
-        handler();
-      });
-      return true;
-    },
-    addEventListener: (type: string, handler: () => void) => {
-      const handlers = listeners.get(type) ?? new Set();
-      handlers.add(handler);
-      listeners.set(type, handlers);
-    },
-    removeEventListener: (type: string, handler: () => void) => {
-      listeners.get(type)?.delete(handler);
-    },
-  });
-}
-
 describe("useDeviceEndpoint", () => {
   beforeEach(() => {
-    installBrowserStorageMock();
+    localStorage.clear();
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    localStorage.clear();
   });
 
   it("returns the default hostname when no override is stored", () => {

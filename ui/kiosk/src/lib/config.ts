@@ -8,15 +8,19 @@ export function isSetupPinConfigured(): boolean {
   return kioskConfig.setupPin.length > 0;
 }
 
-export function verifySetupPin(input: string): boolean {
-  // Operator UX gate only — not a security boundary (trusted LAN, no device auth in v1).
-  const expected = kioskConfig.setupPin;
+/** Pure pin check — kept separate so browser tests can cover branches without stubbing Vite env literals. */
+export function verifySetupPinValue(input: string, expected: string, isDev: boolean): boolean {
   if (!expected) {
-    if (import.meta.env.DEV) {
+    if (isDev) {
       console.warn("VITE_SETUP_PIN is unset — setup gate disabled in dev only");
       return true;
     }
     return false;
   }
   return input === expected;
+}
+
+export function verifySetupPin(input: string): boolean {
+  // Operator UX gate only — not a security boundary (trusted LAN, no device auth in v1).
+  return verifySetupPinValue(input, kioskConfig.setupPin, import.meta.env.DEV);
 }

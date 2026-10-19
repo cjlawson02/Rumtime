@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { KioskMessageScreen } from "@/components/kiosk/kiosk-message-screen";
+import { assignLocation, reloadLocation } from "@/lib/kiosk-navigation";
 
 type ErrorBoundaryProps = {
   children: ReactNode;
@@ -40,7 +41,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 className="kiosk-cta"
                 onClick={() => {
                   this.setState({ error: null });
-                  window.location.assign("/");
+                  assignLocation("/");
                 }}
               >
                 Return to menu
@@ -49,7 +50,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 variant="outline"
                 className="kiosk-cta"
                 onClick={() => {
-                  window.location.reload();
+                  reloadLocation();
                 }}
               >
                 Reload app

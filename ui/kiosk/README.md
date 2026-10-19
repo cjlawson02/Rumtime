@@ -38,7 +38,7 @@ npm run build     # typecheck + production bundle
 npm run lint          # oxlint
 npm run format        # oxfmt write
 npm run format:check  # oxfmt check
-npm run test          # vitest
+npm run test          # vitest browser mode (Playwright Chromium)
 npm run preview       # serve dist/
 ```
 

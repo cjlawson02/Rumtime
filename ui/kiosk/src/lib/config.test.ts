@@ -1,43 +1,26 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+import { isSetupPinConfigured, kioskConfig, verifySetupPinValue } from "@/lib/config";
 
 describe("setup pin config", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.resetModules();
+  it("exposes the build-time setup pin through kioskConfig", () => {
+    expect(typeof kioskConfig.setupPin).toBe("string");
+    expect(isSetupPinConfigured()).toBe(kioskConfig.setupPin.length > 0);
   });
 
-  async function loadConfig() {
-    return import("@/lib/config");
-  }
-
-  it("reports configured when VITE_SETUP_PIN is set", async () => {
-    vi.stubEnv("VITE_SETUP_PIN", "1234");
-    const { isSetupPinConfigured } = await loadConfig();
-    expect(isSetupPinConfigured()).toBe(true);
+  it("accepts the configured pin", () => {
+    expect(verifySetupPinValue("1234", "1234", false)).toBe(true);
+    expect(verifySetupPinValue("0000", "1234", false)).toBe(false);
   });
 
-  it("accepts the configured pin in production", async () => {
-    vi.stubEnv("VITE_SETUP_PIN", "1234");
-    vi.stubEnv("DEV", false);
-    vi.stubEnv("PROD", true);
-    const { verifySetupPin } = await loadConfig();
-    expect(verifySetupPin("1234")).toBe(true);
-    expect(verifySetupPin("0000")).toBe(false);
+  it("rejects any pin when unset in production", () => {
+    expect(verifySetupPinValue("1234", "", false)).toBe(false);
   });
 
-  it("rejects any pin when unset in production", async () => {
-    vi.stubEnv("VITE_SETUP_PIN", "");
-    vi.stubEnv("DEV", false);
-    vi.stubEnv("PROD", true);
-    const { verifySetupPin } = await loadConfig();
-    expect(verifySetupPin("1234")).toBe(false);
-  });
-
-  it("allows any pin in dev when unset", async () => {
-    vi.stubEnv("VITE_SETUP_PIN", "");
-    vi.stubEnv("DEV", true);
-    vi.stubEnv("PROD", false);
-    const { verifySetupPin } = await loadConfig();
-    expect(verifySetupPin("anything")).toBe(true);
+  it("allows any pin in dev when unset", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(verifySetupPinValue("anything", "", true)).toBe(true);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

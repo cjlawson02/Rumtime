@@ -1,17 +1,19 @@
 import userEvent from "@testing-library/user-event";
+import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DeviceStatus } from "@/api/types";
 import { SetupPumpsPage } from "@/pages/setup-pumps-page";
 import { renderWithProviders } from "@/test/render";
 
-const { applyIngredientSwap, refillIngredient, updateBottleSize } = vi.hoisted(() => ({
-  applyIngredientSwap: vi.fn(),
-  refillIngredient: vi.fn(),
-  updateBottleSize: vi.fn(),
-}));
-
-let deviceStatus: DeviceStatus | undefined;
+const { applyIngredientSwap, refillIngredient, updateBottleSize, deviceStatusState } = vi.hoisted(
+  () => ({
+    applyIngredientSwap: vi.fn(),
+    refillIngredient: vi.fn(),
+    updateBottleSize: vi.fn(),
+    deviceStatusState: { current: undefined as DeviceStatus | undefined },
+  }),
+);
 
 vi.mock("@/lib/setup-unlock", () => ({
   hasSetupUnlock: () => true,
@@ -26,15 +28,14 @@ vi.mock("@/components/kiosk/fill-level-input", () => ({
   }: {
     ingredientId: string;
     onSaved?: () => void;
-    trailing?: React.ReactNode;
-  }) => (
-    <div data-testid={`fill-level-${ingredientId}`}>
-      <button type="button" onClick={() => onSaved?.()}>
-        Save fill level
-      </button>
-      {trailing}
-    </div>
-  ),
+    trailing?: ReactNode;
+  }) =>
+    createElement(
+      "div",
+      { "data-testid": `fill-level-${ingredientId}` },
+      createElement("button", { type: "button", onClick: () => onSaved?.() }, "Save fill level"),
+      trailing,
+    ),
 }));
 
 vi.mock("@/components/kiosk/prime-wizard", () => ({
@@ -47,14 +48,18 @@ vi.mock("@/components/kiosk/prime-wizard", () => ({
     pumpId: number;
     onOpenChange?: (open: boolean) => void;
   }) =>
-    open ? (
-      <div data-testid="prime-wizard">
-        Prime wizard for pump {pumpId}
-        <button type="button" onClick={() => onOpenChange?.(false)}>
-          Close prime
-        </button>
-      </div>
-    ) : null,
+    open
+      ? createElement(
+          "div",
+          { "data-testid": "prime-wizard" },
+          `Prime wizard for pump ${pumpId}`,
+          createElement(
+            "button",
+            { type: "button", onClick: () => onOpenChange?.(false) },
+            "Close prime",
+          ),
+        )
+      : null,
 }));
 
 vi.mock("@/components/kiosk/line-swap-wizard", () => ({
@@ -69,32 +74,34 @@ vi.mock("@/components/kiosk/line-swap-wizard", () => ({
     onApplySwap?: () => Promise<void>;
     onOpenChange?: (open: boolean) => void;
   }) =>
-    open ? (
-      <div data-testid="line-swap-wizard">
-        Line swap for pump {pumpId}
-        <button type="button" onClick={() => void onApplySwap?.()}>
-          Apply swap
-        </button>
-        <button type="button" onClick={() => onOpenChange?.(false)}>
-          Close swap
-        </button>
-      </div>
-    ) : null,
+    open
+      ? createElement(
+          "div",
+          { "data-testid": "line-swap-wizard" },
+          `Line swap for pump ${pumpId}`,
+          createElement(
+            "button",
+            { type: "button", onClick: () => void onApplySwap?.() },
+            "Apply swap",
+          ),
+          createElement(
+            "button",
+            { type: "button", onClick: () => onOpenChange?.(false) },
+            "Close swap",
+          ),
+        )
+      : null,
 }));
 
 vi.mock("@/hooks/use-device-status", () => ({
-  useDeviceStatus: () => ({ status: deviceStatus }),
+  useDeviceStatus: () => ({ status: deviceStatusState.current }),
 }));
 
-vi.mock("@/hooks/use-device-mutations", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/hooks/use-device-mutations")>();
-  return {
-    ...actual,
-    useApplyIngredientSwap: () => ({ mutateAsync: applyIngredientSwap }),
-    useRefillIngredient: () => ({ mutateAsync: refillIngredient }),
-    useUpdateBottleSize: () => ({ mutateAsync: updateBottleSize }),
-  };
-});
+vi.mock("@/hooks/use-device-mutations", () => ({
+  useApplyIngredientSwap: () => ({ mutateAsync: applyIngredientSwap }),
+  useRefillIngredient: () => ({ mutateAsync: refillIngredient }),
+  useUpdateBottleSize: () => ({ mutateAsync: updateBottleSize }),
+}));
 
 const pumpsStatus: DeviceStatus = {
   connected: true,
@@ -120,7 +127,7 @@ const pumpsStatus: DeviceStatus = {
 
 describe("SetupPumpsPage", () => {
   beforeEach(() => {
-    deviceStatus = pumpsStatus;
+    deviceStatusState.current = pumpsStatus;
     applyIngredientSwap.mockReset();
     refillIngredient.mockReset();
     updateBottleSize.mockReset();
@@ -172,7 +179,7 @@ describe("SetupPumpsPage", () => {
   });
 
   it("shows loading when device status is not ready", () => {
-    deviceStatus = undefined;
+    deviceStatusState.current = undefined;
 
     const { getByText } = renderWithProviders(<SetupPumpsPage />, {
       withSetupReturn: true,

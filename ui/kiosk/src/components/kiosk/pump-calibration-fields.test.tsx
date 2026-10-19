@@ -1,10 +1,13 @@
 import userEvent from "@testing-library/user-event";
+import { waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PumpCalibrationFields } from "@/components/kiosk/pump-calibration-fields";
 import { renderWithProviders } from "@/test/render";
 
-const updatePumpCalibration = vi.fn();
+const { updatePumpCalibration } = vi.hoisted(() => ({
+  updatePumpCalibration: vi.fn(),
+}));
 
 vi.mock("@/hooks/use-device-mutations", () => ({
   useUpdatePumpCalibration: () => ({ mutateAsync: updatePumpCalibration }),
@@ -140,7 +143,9 @@ describe("PumpCalibrationFields", () => {
     await user.click(getByRole("button", { name: "Save" }));
 
     expect(updatePumpCalibration).not.toHaveBeenCalled();
-    expect(queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    });
   });
 
   it("reports device errors while saving", async () => {

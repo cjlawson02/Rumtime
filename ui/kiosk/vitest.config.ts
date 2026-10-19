@@ -1,7 +1,11 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   // Tests use fixed env — do not load .env.local (hardware dev overrides).
@@ -9,8 +13,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@/api/device-instance": path.resolve(__dirname, "./src/api/device-instance.ts"),
-      "@": path.resolve(__dirname, "./src"),
+      "@/api/device-instance": path.resolve(rootDir, "./src/api/device-instance.ts"),
+      "@": path.resolve(rootDir, "./src"),
     },
   },
   test: {
@@ -19,9 +23,14 @@ export default defineConfig({
       VITE_SETUP_PIN: "",
       VITE_DEVICE_POLL_MS: "500",
     },
-    environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["./src/test/setup.ts"],
+    browser: {
+      enabled: true,
+      provider: playwright(),
+      headless: true,
+      instances: [{ browser: "chromium" }],
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
