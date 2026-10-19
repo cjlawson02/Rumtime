@@ -114,3 +114,23 @@ Locked workflow (2026-06-27). Full detail: [`hardware/cad/README.md`](hardware/c
 - **Do not** symmetrize the KPHM100 mount hole pattern; copy coordinates from `refs/kphm100-mount-plate.md`.
 - **Do not** use Onshape API/MCP or cloud generative CAD as the iteration loop; do not commit `hardware/cad/out/` artifacts to main.
 - **Export:** STL for FDM; STEP when mating into Onshape cartridge work.
+
+## PCB (`hardware/kicad/`)
+
+Locked workflow (2026-08-16). Detail: [`hardware/kicad/README.md`](hardware/kicad/README.md). Specs: [`hardware/kicad/4-pump-module-spec.md`](hardware/kicad/4-pump-module-spec.md), [`hardware/kicad/main-controller-spec.md`](hardware/kicad/main-controller-spec.md).
+
+- **Toolchain:** **KiCad 10** (`kicad-cli` on PATH).
+- **Projects:** `hardware/kicad/4-pump-module/`, `hardware/kicad/main-controller/`.
+- **Agent hook:** ERC/DRC/export via `hardware/kicad/scripts/check.sh` and `export.sh`. `kicad-cli` does not place symbols — schematic capture is in KiCad.
+- **Do not** commit `hardware/kicad/out/` or `*-backups/`.
+
+## Local CI hooks
+
+Pre-commit mirrors GitHub Actions for staged paths (clang-format, firmware PlatformIO build/tests, ui/kiosk lint/format/test/build). Config: [`.pre-commit-config.yaml`](.pre-commit-config.yaml).
+
+```bash
+pipx install pre-commit   # once
+pre-commit install        # once per clone
+pre-commit run --all-files
+```
+

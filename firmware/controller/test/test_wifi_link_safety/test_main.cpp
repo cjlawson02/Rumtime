@@ -4,8 +4,10 @@
 #include "status_snapshot.h"
 #include "wifi_link_safety.h"
 
-void setUp() {}
-void tearDown() {}
+void setUp() {
+}
+void tearDown() {
+}
 
 void test_idle_wifi_loss_does_not_cancel() {
   CommandQueue queue;

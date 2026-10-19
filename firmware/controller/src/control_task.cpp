@@ -343,14 +343,12 @@ void ControlTask::tick() {
   // Enqueue before drainCancel so the abort applies this tick. Keep the watchdog
   // armed while a command is still queued (not busy yet).
   {
-    const bool armed =
-        ctx().kiosk_job_watchdog_armed.load(std::memory_order_acquire);
+    const bool armed = ctx().kiosk_job_watchdog_armed.load(std::memory_order_acquire);
     const bool pending = ctx().queue.hasPending();
     if (armed && (motion_busy || pending)) {
-      cancelOnHeartbeatTimeout(
-          ctx().queue, true, true, now,
-          ctx().last_http_activity_ms.load(std::memory_order_relaxed),
-          kKioskHeartbeatTimeoutMs);
+      cancelOnHeartbeatTimeout(ctx().queue, true, true, now,
+                               ctx().last_http_activity_ms.load(std::memory_order_relaxed),
+                               kKioskHeartbeatTimeoutMs);
     }
   }
 
@@ -428,11 +426,9 @@ void ControlTask::tick() {
   snapshot.sequence_busy = sequence_.busy();
   snapshot.sequence_step_index = sequence_.busy() ? sequence_.stepIndex() : 0;
   snapshot.sequence_step_count = sequence_.busy() ? sequence_.stepCount() : 0;
-  const uint8_t in_step =
-      sequence_.busy() ? coordinator_.dispenseProgressPercent(now) : 0;
+  const uint8_t in_step = sequence_.busy() ? coordinator_.dispenseProgressPercent(now) : 0;
   snapshot.sequence_step_progress = in_step;
-  snapshot.sequence_progress =
-      sequence_.busy() ? sequence_.progressPercent(in_step) : 0;
+  snapshot.sequence_progress = sequence_.busy() ? sequence_.progressPercent(in_step) : 0;
   if (sequence_.busy()) {
     std::strncpy(snapshot.sequence_ingredient, sequence_.currentIngredient(), kIngredientIdMax - 1);
     snapshot.sequence_ingredient[kIngredientIdMax - 1] = '\0';

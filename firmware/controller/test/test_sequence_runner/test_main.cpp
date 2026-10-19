@@ -502,8 +502,8 @@ void test_progress_weighted_by_step_duration() {
   unsigned long now = 0;
   runUntilStepIndex(h, 1, now, 60000);
   TEST_ASSERT_EQUAL(1, h.sequence.stepIndex());
-  TEST_ASSERT_EQUAL(81, h.sequence.progressPercent(0));  // 45/55
-  TEST_ASSERT_EQUAL(90, h.sequence.progressPercent(50)); // 45/55 + half of 10/55
+  TEST_ASSERT_EQUAL(81, h.sequence.progressPercent(0));   // 45/55
+  TEST_ASSERT_EQUAL(90, h.sequence.progressPercent(50));  // 45/55 + half of 10/55
 }
 
 }  // namespace

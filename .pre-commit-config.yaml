@@ -1,3 +1,5 @@
+# Local install: pipx install pre-commit && pre-commit install
+# Runs the same gates as GitHub Actions (path-filtered by staged files).
 repos:
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v19.1.7
@@ -5,3 +7,26 @@ repos:
       - id: clang-format
         types_or: [c++, c]
         files: ^firmware/
+
+  - repo: local
+    hooks:
+      - id: firmware-bench-rig
+        name: firmware bench-rig build
+        entry: bash scripts/check-firmware.sh bench-rig
+        language: system
+        files: ^firmware/bench-rig/
+        pass_filenames: false
+
+      - id: firmware-controller
+        name: firmware controller build + native tests
+        entry: bash scripts/check-firmware.sh controller
+        language: system
+        files: ^firmware/controller/
+        pass_filenames: false
+
+      - id: ui-kiosk
+        name: ui kiosk lint/format/test/build
+        entry: bash scripts/check-ui-kiosk.sh
+        language: system
+        files: ^ui/kiosk/
+        pass_filenames: false

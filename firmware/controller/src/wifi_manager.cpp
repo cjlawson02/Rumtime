@@ -201,8 +201,7 @@ void WiFiManager::tick() {
 
   if (disconnect_pending_.exchange(false, std::memory_order_acq_rel)) {
     mdns_started_ = false;
-    const uint8_t reason =
-        last_disconnect_reason_.exchange(0, std::memory_order_relaxed);
+    const uint8_t reason = last_disconnect_reason_.exchange(0, std::memory_order_relaxed);
     if (intentional_disconnect_) {
       intentional_disconnect_ = false;
     } else {
