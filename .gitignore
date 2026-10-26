@@ -87,28 +87,13 @@ hardware/cad/**/*.egg-info/
 __pycache__/
 *.pyc
 
-# Altium Designer
-History/
-__Previews/
-Project Logs/
-Project Outputs/
-*.Zip
-*.SchDocPreview
-*.PcbDocPreview
-*.$$$
-*.rep
-*.dat
-*.drr
-*.LIX
-*.lis
-*.log
-*.ncd
-*.apr
-*.ExtRep
-*.OutJob
-*.Harness
-*.PCBDwf
-*.PCB3D
-*.PCB3DLib
-*.PcbLibPreview
-*.SchLibPreview
+# KiCad
+hardware/kicad/out/
+hardware/kicad/**/.history/
+hardware/kicad/**/*-backups/
+hardware/kicad/**/_autosave-*
+*.kicad_sch-bak
+*.kicad_pcb-bak
+*.kicad_prl
+*.lck
+fp-info-cache
