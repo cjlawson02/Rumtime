@@ -73,9 +73,10 @@ Search terms:
 ```text
 ESP32-S3 dev board
 TB6612FNG motor driver IC
+TB6612FNG dual driver module SparkFun pinout
 TB6612FNG breakout
-PCA9685 PWM driver IC
-PCA9685 breakout
+MCP23017 GPIO expander IC
+MCP23017 breakout
 HX711 load cell amplifier
 5kg load cell bar
 12V 10A power supply
@@ -95,10 +96,10 @@ Search terms:
 
 ```text
 XT30 connector panel mount
-JST-GH connector kit
-JST-XH connector kit
-JST-VH 2 pin connector
-Molex Micro-Fit 3.0 kit
+JST-XH 2 pin pigtail B2B-XH-A
+JST B2B-XH-A(LF)(SN)
+Molex Micro-Fit 3.0 2x3 vertical 43045-0612
+Molex Micro-Fit 3.0 receptacle 43025-0600
 pluggable terminal block 2 pin 5.08mm
 ```
 
@@ -106,10 +107,11 @@ Recommended use:
 
 | Use               | Connector candidates                |
 | ----------------- | ----------------------------------- |
-| Module 12 V power | XT30, pluggable terminal, Micro-Fit |
-| Module logic      | JST-GH, JST-XH, Micro-Fit           |
-| Pump motors       | JST-VH, Micro-Fit, screw terminal   |
+| Module 12 V + I2C | Molex Micro-Fit 3.0 **2×3** vertical TH (`43045-0612` / mate `43025-0600`), home-run |
+| Pump motors       | **JST-XH 2-pin** (`B2B-XH-A` + female pigtail). Alternate: 5.08 mm pluggable screw. |
 | Sensors/buttons   | JST-GH/JST-XH                       |
+
+Do **not** buy SparkFun PRT-09914 or Adafruit LiPo “JST 2-pin” for motors — those are **PH** (2.0 mm). Listings that say “XH 2.54 mm” are XH (true pitch **2.50 mm**); caliper-check, do not mate PH.
 
 ## Power and safety
 

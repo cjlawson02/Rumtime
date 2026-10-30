@@ -2,7 +2,7 @@
 
 Pre-layout specification for the **main controller** PCB. Implement as hierarchical sheets in KiCad (`main-controller/main-controller.kicad_sch`).
 
-**Status (2026-09-12):** Schematic **v2** — four Micro-Fit 2×3 pump-bus OUTs (no daisy), Mini560 5 V ×2, fused screw-terminal inlet, HX711 1×6+1×4, DevKit **25.4 mm**. Run `scripts/check.sh main-controller`. PCB layout **not started**. Same toolchain as the 4-pump module ([`README.md`](README.md)). Load cell / HX711 lives **here**, not on the pump modules.
+**Status (2026-10-29):** Schematic **v2** — four Micro-Fit 2×3 pump-bus OUTs (no daisy), Mini560 5 V ×2, fused screw-terminal inlet, HX711 1×6+1×4, DevKit **25.4 mm**. PCB **ordered** for fab. Same toolchain as the 4-pump module ([`README.md`](README.md)). Load cell / HX711 lives **here**, not on the pump modules.
 
 Architecture: [`docs/05-electronics-and-pcb.md`](../../docs/05-electronics-and-pcb.md), [`docs/02-system-architecture.md`](../../docs/02-system-architecture.md). Pump-bus pinout must stay pin-for-pin with [`4-pump-module-spec.md`](4-pump-module-spec.md) J1.
 
@@ -39,10 +39,10 @@ Enclosure mounting holes and whether SW1 is board-edge vs a panel pigtail wait o
               CC1/CC2 Rp 10 kΩ to 5V_USB  (advertise 3 A @ 5 V)
 
 ESP32-S3-DevKitC-1
-  GPIO 8/9   → HX711 DT/SCK
-  GPIO 11/12 → I2C SDA/SCL → J_BUS1–4 pins 5/6
-  GPIO 17    → PUMP_BUS_ENABLE (10 kΩ PD) → J_BUS1–4 pin 3
-  GPIO 10    → LED_STATUS
+  GPIO 6/7   → HX711 DT/SCK
+  GPIO 5/4   → I2C SDA/SCL → J_BUS1–4 pins 5/6
+  GPIO 18    → PUMP_BUS_ENABLE (10 kΩ PD) → J_BUS1–4 pin 3
+  GPIO 38    → LED_STATUS
   USB-C      → host PC (flash + serial provision)  — not the Kindle jack
 
 J9  1×6 analog  ↔ kit HX711 (E+ E− A− A+ B− B+)
@@ -176,20 +176,20 @@ Not a single 2×22 connector — Espressif **two 1×22** headers, 2.54 mm pitch.
 
 ### GPIO map (product)
 
-Bench pump GPIOs (4–7, 15–16) are **unused** on this board — motors moved to I2C modules. Keep HX711 and STBY pins that are already proven.
+Bench pump GPIOs are **unused** on this board — motors moved to I2C modules. GPIO **4–7** are I2C + HX711 (were bench pump nets).
 
 | Function | GPIO | Header | Notes |
 | -------- | ---- | ------ | ----- |
-| HX711 DT | **8** | left | Keep from bench |
-| HX711 SCK | **9** | left | Keep from bench |
-| I2C SDA | **11** | left | `Wire.begin(11, 12)` — **not** 8/9 |
-| I2C SCL | **12** | left | |
-| PUMP_BUS_ENABLE | **17** | left | Same as bench STBY |
-| LED_STATUS | **10** | left | Active high |
+| HX711 DT | **6** | left | Was GPIO 8 on the bench |
+| HX711 SCK | **7** | left | Was GPIO 9 on the bench |
+| I2C SDA | **5** | left | `Wire.begin(5, 4)` |
+| I2C SCL | **4** | left | |
+| PUMP_BUS_ENABLE | **18** | left | Was GPIO 17 on the bench |
+| LED_STATUS | **38** | right | Active high |
 | UART0 TX/RX | 43/44 | right | Test pads only |
 | USB D−/D+ | 19/20 | left | DevKit native USB — **do not reuse** |
 
-Avoid GPIO 0, 45, 46. Do not put I2C on 8/9 — that is the calibrated HX711 pair.
+Avoid GPIO 0, 45, 46.
 
 ## Pump bus (four Micro-Fit 2×3)
 
@@ -210,10 +210,10 @@ Motherboard J_BUS4 ──► Module D J1     (pumps 13–16)
 | --- | --- | --- |
 | 1 | +12V_SW | One pin per jack; all four share the pour |
 | 2 | GND | Next to +12V |
-| 3 | PUMP_BUS_ENABLE | GPIO 17, 10 kΩ PD to GND |
+| 3 | PUMP_BUS_ENABLE | GPIO 18, 10 kΩ PD to GND |
 | 4 | 3V3 | From DevKit |
-| 5 | SDA | GPIO 11 |
-| 6 | SCL | GPIO 12 |
+| 5 | SDA | GPIO 5 |
+| 6 | SCL | GPIO 4 |
 
 | | |
 | --- | --- |
@@ -249,8 +249,8 @@ Silkscreen typical of the red/green kit; confirm pin 1 on the physical module be
 | Pin | Net |
 | --: | --- |
 | 1 | GND |
-| 2 | DT (GPIO 8) |
-| 3 | SCK (GPIO 9) |
+| 2 | DT (GPIO 6) |
+| 3 | SCK (GPIO 7) |
 | 4 | VCC = 3.3 V |
 
 Leave B+/B− unconnected on the cell. RATE jumper stays on the module.
@@ -299,10 +299,10 @@ No PD controller. No connection to DevKit USB.
 | Ref | Function | Wiring |
 | --- | -------- | ------ |
 | LED_PWR | Power (machine is on) | `+12V_SW` → resistor → LED → GND. **Not** a GPIO. |
-| LED_STATUS | Ready / pouring / error (firmware) | GPIO 10 → resistor → LED → GND. Different color from LED_PWR. |
+| LED_STATUS | Ready / pouring / error (firmware) | GPIO 38 → resistor → LED → GND. Different color from LED_PWR. |
 | SW1 | **Main power cutoff** | 2-pin landing for a panel rocker/toggle, ≥10 A DC. Opens `+12V_SW`. Required even with the inline fuse. |
 
-No start/cancel tactiles. The kiosk is Make it / Cancel. Firmware already aborts on HTTP `/pour/cancel`, serial `cancel`, STA drop, and kiosk heartbeat timeout. SW1 is the physical panic. GPIO 13/14 stay unused.
+No start/cancel tactiles. The kiosk is Make it / Cancel. Firmware already aborts on HTTP `/pour/cancel`, serial `cancel`, STA drop, and kiosk heartbeat timeout. SW1 is the physical panic. GPIO 13 stays unused; GPIO 14 is HX711 SCK.
 
 A display is still deferred (Kindle is the UI).
 
@@ -357,7 +357,7 @@ A display is still deferred (Kindle is the UI).
 - [ ] HX711 VCC = 3.3 V, not 5 V.
 - [ ] Kindle D+/D− NC; CC Rp 10 kΩ to `5V_USB`.
 - [ ] DevKit powered from `5V_ESP` through D1; 3V3 taken **from** the DevKit.
-- [ ] GPIO 8/9 = HX711; GPIO 11/12 = I2C; GPIO 0/45/46 unused.
+- [ ] GPIO 6/7 = HX711 DT/SCK; GPIO 5/4 = I2C SDA/SCL; GPIO 0/45/46 unused.
 - [ ] Micro-Fit pin map identical to module J1.
 - [ ] Firmware: expander outputs off, then ENABLE high (same as module spec).
 
@@ -375,6 +375,6 @@ A display is still deferred (Kindle is the UI).
 Product firmware still talks to two local TB6612 GPIOs. When this board is the target:
 
 - Move pump I/O to MCP23017 (`PumpModule` HAL — already on the docs/16 punch list).
-- `Wire.begin(11, 12)`.
+- `Wire.begin(pins::kI2cSda, pins::kI2cScl)` → **5 / 4**.
 - Drive LED_STATUS. Cancel is HTTP/serial/Wi-Fi, not a GPIO.
-- Keep `kScaleDout = 8`, `kScaleSck = 9`.
+- Keep `kScaleDout = 6`, `kScaleSck = 7`.

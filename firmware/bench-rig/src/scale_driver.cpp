@@ -105,6 +105,34 @@ void ScaleDriver::tare() {
   }
 }
 
+bool ScaleDriver::readRaw(long* outRaw) {
+  if (outRaw == nullptr) {
+    return false;
+  }
+  if (!ready_) {
+    ready_ = scale.wait_ready_timeout(2000);
+  }
+  if (!ready_) {
+    return false;
+  }
+  if (!scale.is_ready()) {
+    if (!scale.wait_ready_timeout(kScaleReadTimeoutMs)) {
+      ready_ = false;
+      return false;
+    }
+  }
+  *outRaw = scale.read();
+  return true;
+}
+
+float ScaleDriver::gramsFromRaw(long raw) {
+  const float factor = calibrationFactor_;
+  if (factor == 0.0f) {
+    return 0.0f;
+  }
+  return static_cast<float>(raw - scale.get_offset()) / factor;
+}
+
 float ScaleDriver::readGrams() {
   float sample = 0.0f;
   if (!readOnceWithTimeout(&sample)) {

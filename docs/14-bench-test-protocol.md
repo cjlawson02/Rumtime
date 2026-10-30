@@ -1,10 +1,10 @@
 # Bench Test Protocol
 
-Run this on the Phase 0–1 rig before ordering 4-pump PCBs or the full 8-pump BOM.
+Run this on the Phase 0–1 rig. Tests 7–9 (load cell / flow-gate) are **v1 pour** work — they do **not** gate 4-pump module schematic or fab (HX711 is on the ESP32, not the module). **Test 10** is first-article I2C bring-up **on the module PCB** (no MCP23017 breakout). **DRC** still gates **fab**. Full 8-pump BOM still waits on Phase 1 pour completeness.
 
 Reference: [`09-build-plan-and-verification.md`](09-build-plan-and-verification.md), [`12-phase-0-decisions.md`](12-phase-0-decisions.md).
 
-**Progress (2026-07-12):** [Session 03](bench-results/2026-07-12-session-03.md) — product FW/kiosk sequential pour (open-loop happy path), cancel, STA-disconnect auto-stop; **scale not wired** (Tests 7–9 still open). Liquid cal still from 2026-06-27: P1+P2 @ **1.75 ml/s**; dual **~0.4 A**; anti-drip **100 ms**; Test 4b P2 **50→~45 ml**. **Outlet:** sessions 01–02 on **open ~3 mm tube**. Logs: [01](bench-results/2026-06-27-session-01.md) · [02](bench-results/2026-06-27-session-02.md) · [03](bench-results/2026-07-12-session-03.md).
+**Progress (2026-08-20):** [Session 08](bench-results/2026-08-20-session-08.md) — bar **soldered and calibrated** (`scalecal 374.76`; Test **7.1** pass). Operator: load-cell bring-up **closed**; Tests **7.2–7.6** and **9** **deferred** (flow-gate later, not cancelled). 4-pump **schematic v1 ERC-clean**; PCB **silkscreen/layout in progress**. [Session 07](bench-results/2026-08-16-session-07.md) — cantilever printed/assembled. [Session 06](bench-results/2026-08-16-session-06.md) — bar **measured 75 × 12.75 mm**, holes **5 / 15 / 59 / 69**, **M4 tapped**. [Session 05](bench-results/2026-07-19-session-05.md) — four-pump CAD coupons: mount holes **pass**; walls → **2 mm**; **Ø32 / Ø3.3**; **clamp silicone snap pending**. Session 03: product FW/kiosk pour / cancel / disconnect. Liquid cal still from 2026-06-27: P1+P2 @ **1.75 ml/s**; dual **~0.4 A**; anti-drip **100 ms**; Test 4b P2 **50→~45 ml**. **Outlet:** sessions 01–02 on **open ~3 mm tube**. Logs: [01](bench-results/2026-06-27-session-01.md) · [02](bench-results/2026-06-27-session-02.md) · [03](bench-results/2026-07-12-session-03.md) · [04](bench-results/2026-07-12-session-04.md) · [05](bench-results/2026-07-19-session-05.md) · [06](bench-results/2026-08-16-session-06.md) · [07](bench-results/2026-08-16-session-07.md) · [08](bench-results/2026-08-20-session-08.md).
 
 ## Setup checklist
 
@@ -16,7 +16,7 @@ Before first liquid test:
 - [ ] No leaks at barbs under dry prime pressure (clamp tightness checked).
 - [ ] Multimeter/clamp meter ready for current tests.
 - [x] Graduated cylinder on hand (received 2026-06-27; used session 02).
-- [ ] **Load cell bar + HX711** wired (required for Tests 7–9). _(Ordered 2026-06-23; **not wired** as of session 03 / 2026-07-12.)_
+- [x] **Load cell bar + HX711** wired (required for Tests 7–9). _(Session 08: soldered, `scale_ready`, **`scalecal 374.76`**, Test 7.1 pass. Remaining 7.2–7.6 / 9 **deferred**.)_
 - [ ] Restricted **nozzle tip** on outlet before locking anti-drip ms. Target: orifice **smaller than 3 mm line** (e.g. short barb + restricted fitting, or mis-shipped **1.8 mm ID** silicone coupler while still on hand: 3×5 mm tube into one end, pour from other; clamp 5 mm OD side). Re-run Tests 3–5 after adding restriction — ml/s and anti-drip ms from sessions 01–02 were measured on **open outlet**.
 - [x] Firmware flashed (`firmware/bench-rig/`); serial monitor connects at 115200 baud.
 
@@ -135,7 +135,7 @@ Session test with **simple syrup** and **grenadine** (separate lines or flush be
 
 | Step | Action                                                                             | Pass                                   |
 | ---- | ---------------------------------------------------------------------------------- | -------------------------------------- |
-| 7.1  | Empty platform → tare                                                              | Stable reading                         |
+| 7.1  | Empty platform → tare                                                              | **Pass** — 2026-08-20 session 08     |
 | 7.2  | Place empty glass                                                                  | Detected over threshold                |
 | 7.3  | Add ice, tare again                                                                | Stable                                 |
 | 7.4  | Dispense 30 ml while logging weight                                                | Mass increase ≈ 30 g                   |
@@ -150,7 +150,9 @@ Session test with **simple syrup** and **grenadine** (separate lines or flush be
 | 8.2  | Power on with cutoff open   | No pump motion until enabled |
 | 8.3  | `stop` serial command       | **Pass** (2026-06-27)        |
 
-## Test 9 — Flow-gated dispense (required)
+## Test 9 — Flow-gated dispense (required for v1 pour lock; **deferred 2026-08-20**)
+
+Operator closed load-cell bring-up after known-mass cal (session 08). Do **not** run this next. Firmware still has `dispense-gated`; Test 9 remains the check before treating flow-gate as proven under vibration.
 
 Compare **timed-from-motor-on** vs **flow-gated** (`docs/06-flow-calibration-and-inventory.md`). Glass on platform, tared. Use water unless noted.
 
@@ -174,31 +176,38 @@ flow_detect_timeout_ms: _____
 
 **Pass:** Flow-gated meets Test 4 tolerance on 9.2–9.3; false-trigger rate < 5% on 20 consecutive water pours (9.1). If fail after mechanical isolation iteration: document fallback to timed + sanity check in `docs/bench-results/`.
 
-## Test 10 — I2C path (before Altium fab)
+## Test 10 — I2C path (first assembled module)
 
-Bench Phase 0 uses direct GPIO → TB6612. Production uses **PCA9685 → TB6612** on the module PCB. Before ordering PCBs:
+Phase 0 uses direct GPIO → TB6612. Production uses **MCP23017 → TB6612** on the module PCB (PWM strapped high). **No MCP23017 breakout** — operator 2026-08-20: first I2C bring-up is the fabricated board (accept a spin if ENABLE/RESET/addressing is wrong). **10.4** (schematic safe-off) still happens before Gerbers.
 
 | Step | Action                                                                      | Pass                            |
 | ---- | --------------------------------------------------------------------------- | ------------------------------- |
-| 10.1 | Add **PCA9685 breakout** + drive ≥2 pumps via I2C                           | Forward/reverse/stop works      |
+| 10.1 | First module assembled; ESP32 I2C drives ≥2 pumps via onboard MCP23017      | Forward/reverse/stop works  |
 | 10.2 | Run pour test while logging I2C errors under motor load                     | No NACK storms / wrong channels |
-| 10.3 | Reset ESP32 during I2C-driven dispense                                      | Pumps stop or remain off        |
-| 10.4 | Review module schematic: IN1/IN2 pulldowns, STBY, PCA9685 power-on defaults | Documented safe-off state       |
+| 10.3 | Reset ESP32 during I2C-driven dispense                                      | Pumps stop or remain off (`PUMP_BUS_ENABLE` + expander /RESET + IN1/IN2 PDs) |
+| 10.4 | Review module schematic: IN1/IN2 pulldowns, STBY PD, PWM strap, MCP23017 /RESET | Documented safe-off state (pre-fab) |
 
 ## Phase 0–1 exit decision
 
-Proceed to **4-pump Altium module** only if:
+The **4-pump module** is MCP23017 + TB6612 (PWM strapped high). The load cell is on the controller. Tests 7.2–9 still gate **flow-gate as a proven v1 default**, not module schematic or fab — **deferred 2026-08-20** (session 08) after bar cal.
+
+**Schematic / layout:** unblocked. Stall current is already safe for TB6612 (Test 1).
+
+**Module fab ordered 2026-10-25** (OSH Park, 3 boards). Still open from the pre-fab list:
+
+- [ ] **DRC** clean (`hardware/kicad/scripts/check.sh --drc`).
+- [ ] Test **10.4** schematic safe-off review.
+- [ ] No driver/architecture change required. _(TB6612 OK — dry I_run ~0.21 A, I_stall_dry 0.9 A, I_stall_wet ~0.33 A.)_
+
+**Phase 1 pour completeness** (parallel; not a PCB gate):
 
 - [ ] Two pumps pass repeatability (Test 4). _(P1 ~48 ml / P2 ~50 ml @ 50 ml target — pass.)_
 - [ ] Anti-drip setting found (Test 5); Test 4b trend documented. _(100 ms both pumps; P2 50 ml split → ~45 ml with anti-drip — bench note.)_
 - [ ] Syrup/grenadine flush acceptable (Test 6).
-- [ ] Stall current safe for TB6612 — dry **and** wet (Test 1); DRV8871 path documented if needed. _(Dry I_run ~0.21 A, I_stall_dry 0.9 A, I_stall_wet ~0.33 A — TB6612 OK.)_
 - [ ] **P3** within ~10% ml/s of P1/P2 (Test 3).
 - [ ] Load cell Tests 7–9 pass **or** flow-gate fallback documented in `docs/bench-results/`.
-- [ ] **Test 10** I2C/PCA9685 path validated.
-- [ ] No architecture change required.
 
-If fail: document cause, try tubing/clamps/voltage/pump swap before changing architecture.
+If a pour test fails: document cause, try tubing/clamps/voltage/pump swap before changing architecture.
 
 ## Session log template
 

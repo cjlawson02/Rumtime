@@ -24,7 +24,7 @@ Rationale: Rumtime is short, memorable, software-themed, and still clearly conne
 | **Design limit**          | **16 pumps** (4× 4-pump modules). |
 | Expansion unit            | 4-pump module.                    |
 
-Rationale: 8 pumps supports useful cocktails without making the first build too large. Designing around 4-pump modules allows expansion without changing controller architecture. **16 is the hard ceiling on one I2C bus** — each PCA9685 supports one of four addresses, so four modules max. Beyond 16 would require a bus redesign (mux, CAN, or second I2C bus).
+Rationale: 8 pumps supports useful cocktails without making the first build too large. Designing around 4-pump modules allows expansion without changing controller architecture. **16 pumps is the v1 mechanical/power ceiling** (four module slots). I2C addressing is not the limiter (MCP23017 has eight addresses). Beyond 16 would still need enclosure, PSU, and nozzle-cluster work — not a bus mux.
 
 ## Pump strategy
 
@@ -52,7 +52,7 @@ Rationale: One pump per ingredient avoids solenoid complexity, cross-contaminati
 | Accuracy target     | Good enough, not laboratory precise.                                                       |
 | Deferred            | Per-ingredient closed-loop mass stop during simultaneous 8-pump pours.                     |
 
-Rationale: Timed dispensing is simple and cheap. Variable line fill after anti-drip makes motor-on timers wrong; flow-gating uses the load cell already required for glass/ice detection. Bench validates vibration stability before locking flow-gate as default — see [`14-bench-test-protocol.md`](14-bench-test-protocol.md) Test 9.
+Rationale: Timed dispensing is simple and cheap. Variable line fill after anti-drip makes motor-on timers wrong; flow-gating uses the load cell already required for glass/ice detection. Vibration/flow-gate proof is Test 9 — **deferred 2026-08-20** after bar cal (session 08); not cancelled.
 
 ## Glass and dispense position
 
@@ -130,12 +130,14 @@ Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. M
 | Main controller     | ESP32, recommended ESP32-S3.                                 |
 | Network             | Wi-Fi only.                                                  |
 | Pump voltage        | 12 V recommended by default.                                 |
-| Pump control        | On/off acceptable; H-bridge allows reverse and optional PWM. |
+| Pump control        | On/off + reverse via I2C GPIO expander; TB6612 PWM strapped high. Speed PWM deferred. |
+| I/O expander        | **MCP23017-E/SO** per 4-pump module (backup: TCA9539PWR). PCA9685 rejected. |
 | Physical controls   | Bare minimum.                                                |
 | Safety cutoff       | Include **main power** cutoff/emergency stop (no separate pump-bus switch).                    |
 | Custom PCB          | Expected and acceptable.                                     |
-| PCB toolchain       | **Altium Designer** for 4-pump module and future boards.     |
-| Phase 0 electronics | TB6612FNG breakout + ESP32-S3-DevKitC-1 on breadboard.       |
+| PCB toolchain       | **KiCad 10** (`kicad-cli`) for 4-pump module and future boards. |
+| Phase 0 electronics | TB6612FNG breakout + ESP32-S3-DevKitC-1 on breadboard. Bench carrier is Pololu #713. |
+| Module driver       | AliExpress **SparkFun-pinout** TB6612 clone (item `3256807799494692`), two per 4-pump module. Rows **15.25 mm**, body **21 × 18 mm**. Pololu #713 stays on the bench. |
 
 ## Mechanical design
 

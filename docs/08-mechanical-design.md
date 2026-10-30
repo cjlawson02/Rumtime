@@ -95,7 +95,7 @@ Requirements:
 - Compatible with load cell if installed.
 - Protected from spills.
 
-Load cell geometry and bench layout starting point: [`hardware/cad/refs/estardyn-load-cell.md`](../hardware/cad/refs/estardyn-load-cell.md) (**Estardyn 5 kg** + HX711, 611N-class bar).
+Load cell geometry and bench layout: [`hardware/cad/refs/estardyn-load-cell.md`](../hardware/cad/refs/estardyn-load-cell.md) (**Estardyn 5 kg** + HX711). This unit is **75 mm**, **M4 tapped** (measured 2026-08-16). Bench Tests 7–9 use the printed cleat/pad cantilever, not the 110 mm product plates. Cantilever **printed and assembled** 2026-08-16; **not measured** yet.
 
 If using a load cell (required for v1):
 

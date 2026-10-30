@@ -2,7 +2,7 @@
 
 **Rumtime** is a modular cocktail execution engine: ingredients are registered as services, recipes are resolved at runtime, and beverages are dispensed through a scalable ESP32-powered pump architecture.
 
-This repo holds Rumtime documentation, Phase 0 bench-rig firmware, and Altium PCB specifications. CAD and full product firmware are still in progress. The v1 hardware design uses food-safe tubing, Kamoer KPHM100-class reversible peristaltic pumps, modular 4-pump cartridges, and an ESP32-S3 controller. Software stack direction (Cloudflare kiosk UI, ESP32 dispense engine) and **locked** firmware runtime model (`ControlTask` + command queue on FreeRTOS) are in [`docs/16-firmware-and-software-architecture.md`](docs/16-firmware-and-software-architecture.md). Kiosk UX and **React + shadcn** stack in [`docs/17-kiosk-ui-plan.md`](docs/17-kiosk-ui-plan.md); production app at [`ui/kiosk/`](ui/kiosk/). Provisional device HTTP contract in [`docs/18-kiosk-device-api.md`](docs/18-kiosk-device-api.md).
+This repo holds Rumtime documentation, Phase 0 bench-rig firmware, and KiCad PCB specifications. CAD and full product firmware are still in progress. The v1 hardware design uses food-safe tubing, Kamoer KPHM100-class reversible peristaltic pumps, modular 4-pump cartridges, and an ESP32-S3 controller. Software stack direction (Cloudflare kiosk UI, ESP32 dispense engine) and **locked** firmware runtime model (`ControlTask` + command queue on FreeRTOS) are in [`docs/16-firmware-and-software-architecture.md`](docs/16-firmware-and-software-architecture.md). Kiosk UX and **React + shadcn** stack in [`docs/17-kiosk-ui-plan.md`](docs/17-kiosk-ui-plan.md); production app at [`ui/kiosk/`](ui/kiosk/). Provisional device HTTP contract in [`docs/18-kiosk-device-api.md`](docs/18-kiosk-device-api.md).
 
 ## Current design snapshot
 
@@ -33,7 +33,7 @@ This repo holds Rumtime documentation, Phase 0 bench-rig firmware, and Altium PC
 | [`docs/09-build-plan-and-verification.md`](docs/09-build-plan-and-verification.md)       | Staged build plan with success criteria and test checks.                                       |
 | [`docs/10-open-questions-and-v2.md`](docs/10-open-questions-and-v2.md)                   | Deferred decisions, v2 ideas, and risks.                                                       |
 | [`docs/11-sourcing-notes.md`](docs/11-sourcing-notes.md)                                 | Sourcing notes and search terms for pumps, tubing, fittings, electronics, and enclosure parts. |
-| [`docs/12-phase-0-decisions.md`](docs/12-phase-0-decisions.md)                           | Research-backed Phase 0 part decisions (pump, PSU, Altium).                                    |
+| [`docs/12-phase-0-decisions.md`](docs/12-phase-0-decisions.md)                           | Research-backed Phase 0 part decisions (pump, PSU, KiCad).                                     |
 | [`docs/13-phase-0-mini-bom.md`](docs/13-phase-0-mini-bom.md)                             | Phase 0 shopping list (~2-pump bench rig).                                                     |
 | [`docs/14-bench-test-protocol.md`](docs/14-bench-test-protocol.md)                       | Bench tests, pass criteria, and session log template.                                          |
 | [`docs/15-project-timeline.md`](docs/15-project-timeline.md)                             | Gantt chart, milestones, and procurement log (order/receive dates).                            |
@@ -42,7 +42,7 @@ This repo holds Rumtime documentation, Phase 0 bench-rig firmware, and Altium PC
 | [`ui/kiosk/`](ui/kiosk/)                                                                 | Production kiosk PWA — see [`ui/kiosk/README.md`](ui/kiosk/README.md). |
 | [`firmware/bench-rig/`](firmware/bench-rig/)                                             | ESP32-S3 + TB6612 bring-up firmware (PlatformIO).                                              |
 | [`firmware/controller/`](firmware/controller/)                                          | ESP32-S3 product firmware scaffold (`ControlTask` runtime; pump subsystem implemented).        |
-| [`hardware/altium/`](hardware/altium/)                                                   | Altium project layout and 4-pump module schematic spec.                                        |
+| [`hardware/kicad/`](hardware/kicad/)                                                     | KiCad 4-pump module project, schematic spec, and `kicad-cli` scripts.                          |
 | [`hardware/cad/`](hardware/cad/)                                                         | build123d parametric CAD (`src/`), dimension refs (`refs/`), export scripts; Onshape for assembly review only. |
 
 ## Design philosophy
@@ -51,22 +51,22 @@ Build the simplest version of Rumtime that can make repeatable drinks, clean up 
 
 ## Current status
 
-**Next action:** Wire load cell + HX711 when scale kit arrives (ordered together 2026-06-23); then Tests 7–9. Meanwhile: P1 Test 4b; fuse + cutoff; V_sag under dual-pump load. See [`docs/bench-results/2026-06-27-session-02.md`](docs/bench-results/2026-06-27-session-02.md). Timeline: [`docs/15-project-timeline.md`](docs/15-project-timeline.md).
+**Next action:** Fit-check/measure the assembled load-cell cantilever, then solder the bar to HX711 (E+/E−/A+/A−) and run Tests 7–9. **Parallel:** finish 4-pump **PCB layout** (silkscreen/placement). Schematic v1 is ERC-clean. Bar **75 mm**, holes **5 / 15 / 59 / 69**, **M4 tapped** — [`hardware/cad/refs/estardyn-load-cell.md`](hardware/cad/refs/estardyn-load-cell.md). HX711↔MCU already wired (GPIO 8/9). Sessions: [06](docs/bench-results/2026-08-16-session-06.md) (measure + print) · [07](docs/bench-results/2026-08-16-session-07.md) (assembled, not measured).
 
-**Done so far:** **P1 + P2** @ **1.75 ml/s**; dual-pump **~0.4 A**; anti-drip **100 ms**; P2 sequential 50 ml target → **~45 ml** (anti-drip); host CLI **`benchctl.py`** + proto=2 serial parser.
+**Done so far:** **8× correct 12 V HB pumps are on hand** and the 2 wrong 24 V units were returned. **P1 + P2** are bench-validated @ **1.75 ml/s**; dual-pump **~0.4 A**; anti-drip **100 ms**; P2 sequential 50 ml target → **~45 ml** (anti-drip); host CLI **`benchctl.py`** + proto=2 serial parser. The other 6 pumps still need incoming inspection and variance testing.
 
-Decisions are locked in [`docs/12-phase-0-decisions.md`](docs/12-phase-0-decisions.md) (KPHM100-HBB10 pump, TB6612 breakout, ESP32-S3-DevKitC-1, Altium for Phase 2 PCB).
+Decisions are locked in [`docs/12-phase-0-decisions.md`](docs/12-phase-0-decisions.md) (KPHM100-HBB10 pump, TB6612 breakout, ESP32-S3-DevKitC-1, KiCad for Phase 2 PCB).
 
 ## First prototype goal
 
-Before committing to the full enclosure and Altium PCB fab, validate the core liquid path with 2–4 pumps:
+Validate the core liquid path with 2–4 pumps. **Module schematic v1 is done** (ERC clean). Layout/silkscreen in progress. **Fab** waits on **DRC** (I2C bring-up is Test 10 on the first board).
 
 1. Dispense 15 ml, 30 ml, and 60 ml targets by time after calibration.
-2. Validate **flow-gated dispense** vs timed-only on de-primed and post–anti-drip lines (Test 9).
+2. Validate **flow-gated dispense** vs timed-only on de-primed and post–anti-drip lines (Test 9) — v1 pour default, not a PCB gate.
 3. Reverse briefly after pours to reduce drips; document sequential pour drift (Test 4b).
 4. Flush simple syrup and grenadine adequately with warm water.
 5. Confirm tubing and nozzles do not retain obvious flavor or clog during a normal session.
-6. Confirm load cell detects glass, ice tare, flow onset, and no-flow conditions (Tests 7–9).
-7. Validate **PCA9685 I2C** pump control before Altium fab (Test 10).
+6. Confirm load cell detects glass, ice tare, flow onset, and no-flow conditions (Tests 7–9) — v1 pour, not a PCB gate.
+7. I2C pump control is proven on the **first assembled module** (Test 10), not a pre-fab MCP23017 breakout.
 
-If those checks pass, implement the 4-pump module in Altium (`hardware/altium/`) and proceed to the finished enclosure.
+After DRC, fabricate the 4-pump module (`hardware/kicad/`) and proceed to the finished enclosure.

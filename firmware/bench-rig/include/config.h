@@ -15,9 +15,9 @@ constexpr int kPump2Pwm = 16;
 
 constexpr int kStandby = 17;
 
-// HX711 — free header pins; avoid pump GPIO and strapping pins (0, 45, 46).
-constexpr int kScaleDout = 1;
-constexpr int kScaleSck = 2;
+// HX711 — pump-side header; avoid pump GPIO and strapping pins (0, 45, 46).
+constexpr int kScaleDout = 8;
+constexpr int kScaleSck = 9;
 
 }  // namespace pins
 
@@ -30,8 +30,8 @@ constexpr float kDefaultMlPerSecond = 1.75f;
 // PWM duty for full-speed bench runs (0–255).
 constexpr int kPumpPwmFull = 255;
 
-// HX711 calibration factor — tune on bench with known mass (scalecal command).
-constexpr float kScaleCalibrationFactor = -7050.0f;
+// HX711 calibration factor — LS fit 2026-08-20 on 180 g + 714 g (tare empty).
+constexpr float kScaleCalibrationFactor = 374.76f;
 
 // Flow-gate defaults — tune via flowcfg / Test 9 (docs/06-flow-calibration-and-inventory.md).
 constexpr float kFlowThresholdG = 0.03f;

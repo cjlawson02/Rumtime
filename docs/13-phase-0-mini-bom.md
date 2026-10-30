@@ -4,7 +4,7 @@ Shopping list for the **2-pump bench rig** only. See [`12-phase-0-decisions.md`]
 
 Verify prices and sellers before ordering. Links are examples, not endorsements.
 
-**Bench inventory (2026-06-27):** Operator has **4× Pololu TB6612FNG** (1 on 2-pump rig, 3 spare) and **2× 5 m rolls** of 3×5 mm line tubing (**10 m** total). Mini-BOM qty below is minimum for Phase 0.
+**Bench inventory (2026-07-18):** Operator has **8× correct KPHM100-HB-B10 12 V pumps** (P1+P2 bench-validated; 6 not yet validated), **4× Pololu TB6612FNG** (1 on 2-pump rig, 3 spare), and **2× 5 m rolls** of 3×5 mm line tubing (**10 m** total). The two wrong 24 V pumps were returned. Mini-BOM qty below is the minimum for Phase 0, not an outstanding order list.
 
 ## Order now (Phase 0)
 
@@ -50,22 +50,22 @@ Verify prices and sellers before ordering. Links are examples, not endorsements.
 | ---: | ---------------- | ----------------------------------------- | ---: | ------------------------------------------------------------------------------------------------------------ |
 |    3 | Peristaltic pump | **Kamoer NKP-12V-S10B** (3×5 mm silicone) |  $30 | [Amazon B07GWJ78FN](https://www.amazon.com/Kamoer-Peristaltic-Hydroponics-Nutrient-Analytical/dp/B07GWJ78FN) |
 
-## Buy before Altium fab (not Phase 0 order)
+## Buy before PCB fab (not Phase 0 order)
 
-| Item             | Part                        | When                                           |
-| ---------------- | --------------------------- | ---------------------------------------------- |
-| PCA9685 breakout | Adafruit #815 or equivalent | After liquid tests; before PCB order (Test 10) |
+None. MCP23017 breakout **skipped** (2026-08-20): Test 10 is I2C bring-up on the first assembled module. Fab still waits on **DRC**.
 
 ## Buy for full v1 later
 
 | Item         | Part                                     | When               |
 | ------------ | ---------------------------------------- | ------------------ |
 | PSU          | **Mean Well GST120A12-R7B** (12 V 8.5 A) | Phase 2+           |
-| Pumps        | KPHM100-HB-B10 ×5+                       | After Phase 1 pass |
-| PCA9685      | Per 4-pump Altium module                 | Phase 2            |
-| TB6612FNG ×2 | On Altium PCB per module                 | Phase 2            |
+| Pumps        | KPHM100-HB-B10 ×8                        | On hand 2026-07-18 |
+| MCP23017     | Per 4-pump KiCad module (SOIC-28)        | Phase 2            |
+| AliExpress TB6612 clone ×2 | SparkFun-pinout module carrier, item `3256807799494692`. Measured rows 15.25 mm, body 21 × 18 mm. Not the Pololu #713 boards on the bench. | Phase 2 |
 | Fuse         | **10 A** on pump bus                     | 8-pump assembly    |
-| Connectors   | XT30, JST-GH, JST-VH                     | Phase 2 harness    |
+| Connectors   | Micro-Fit **2×3** vertical (`43045-0612`) bus; **JST-XH 2-pin** ×10 (motors) | Phase 2 harness    |
+
+Only P1+P2 are bench-validated; inspect and variance-test the remaining 6 before assembly.
 
 ## Defer until Phase 1+
 

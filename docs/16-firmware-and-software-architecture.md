@@ -152,7 +152,7 @@ Bench rig today (`firmware/bench-rig/`) uses blocking `benchPollSerial()` during
 
 ```text
 Layer 0 — Hardware abstraction (HAL)
-    PumpChannel, PumpModule (I2C/PCA9685), ScalePlatform (HX711)
+    PumpChannel, PumpModule (I2C/MCP23017), ScalePlatform (HX711)
 
 Layer 1 — ControlTask periodic tick (~5 ms)
     scale.tick() → coordinator.tick() + sequence runner
@@ -216,7 +216,7 @@ Cleaning steps do not subtract ingredient inventory unless intentionally dispens
 ### Safety
 
 ```text
-Hardware (v1):  main power → 12 V PSU → (inline fuse) → pump VM → TB6612 (STBY + IN1/IN2/PWM)
+Hardware (v1):  main power → 12 V PSU → (inline fuse) → pump VM → TB6612 (STBY + IN1/IN2; PWM strapped high)
                 No separate pump-bus cutoff. No software-controlled bus MOSFET for v1.
 
 Boot:           STBY low, IN1/IN2 low before Wi-Fi or pours.
@@ -261,7 +261,7 @@ Hard requirements for product firmware; skipping them reopens concurrency and sa
 2. **HTTP handlers** — parse → queue → return; no NVS, I2C, or pump GPIO in handler context.
 3. **Command queue** — depth 1; reject duplicate dispense with busy; cancel drained before sequence advance.
 4. **Status snapshot** — seqlock or double-buffer; document ≤1 tick staleness for kiosk poll.
-5. **ControlTask priority** above async HTTP; pin ControlTask to Core 1; measure tick overrun under 4× PCA9685.
+5. **ControlTask priority** above async HTTP; pin ControlTask to Core 1; measure tick overrun under 4× MCP23017.
 6. **Watchdog** — feed from ControlTask (or register it with TWDT); empty `loop()` alone is insufficient.
 7. **Single motor output path** — all pump GPIO/I2C through `PumpChannel` / `PumpModuleBus`; local refusal when cutoff open.
 8. **Inventory / NVS** — subtract RAM on success only; never on cancel; flash write off hot path.
@@ -304,7 +304,7 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 | **PersistTask** (or idle hook) for NVS — not inline in ControlTask | Reviewer consensus; **controller uses idle hook** in `ControlTask::tick()` (1 s retry backoff on commit failure); dedicated `PersistTask` still deferred |
 | **PsychicHttp** or similar named as HTTP direction | Example only; library not chosen |
 | Glass on scale for recipe pours | **Required** (flow-gate); **manual bypass** for timed-from-motor-on — see [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md) |
-| **Flow-gated** pour remains v1 default; timed fallback on scale fault | From existing docs 06/12; bench Tests 7–9 still gating |
+| **Flow-gated** pour remains v1 default; timed fallback on scale fault | From existing docs 06/12; bench Tests 7–9 still gate that default, **not** the 4-pump PCB |
 | Cancel **aborts pour** immediately (may skip anti-drip) | **Locked** — acceptable UX; see doc 17 |
 | Inventory subtract on **job success only** in RAM; NVS after | You confirmed ESP32 authoritative; commit timing was reviewer-added |
 | Recipe JSON step schema (`parallel`, `prompt`, etc.) | Illustrative; not a locked contract |

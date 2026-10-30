@@ -29,14 +29,23 @@ Pump motor terminals connect to A+/A− and B+/B−. **Use a hardware switch on 
 | --------- | ------------- | ------------------------------ |
 | VCC       | 3.3 V         | Not 5 V on ESP32-S3            |
 | GND       | GND           | Common with TB6612 / ESP32     |
-| DT (DOUT) | 1             | Change in `config.h` if needed |
-| SCK       | 2             | Change in `config.h` if needed |
+| DT (DOUT) | 8             | Change in `config.h` if needed |
+| SCK       | 9             | Change in `config.h` if needed |
 
 ### Load cell (Estardyn 5 kg bar, bundled with HX711)
 
-Wire to HX711 screw terminals: **Red** E+, **Black** E−, **Green** A+, **White** A−. Mount the cell under the glass platform with mechanical isolation from pump vibration (see `docs/08-mechanical-design.md`).
+This kit’s HX711 has **solder pads**, not screw terminals. Strain-relieve the harness so pads cannot peel.
 
-GPIO **1** and **2** are free on the DevKitC-1 header and do not overlap pump pins (4–7, 15–17). Avoid strapping pins 0, 45, 46.
+| Cell wire | HX711 pad |
+| --------- | --------- |
+| **Red**   | **E+**    |
+| **Black** | **E−**    |
+| **Green** | **A+**    |
+| **White** | **A−**    |
+
+Leave **B+/B−** unconnected. Mount the cell as a cantilever (wire end fixed, arrow end loaded) with the strain-gauge epoxy free in air — see `hardware/cad/refs/estardyn-load-cell.md`.
+
+GPIO **8** and **9** are on the DevKitC-1 pump-side header and do not overlap pump pins (4–7, 15–17). Avoid strapping pins 0, 45, 46.
 
 ## USB and serial monitor
 
@@ -100,6 +109,7 @@ Library: [bogde/HX711](https://github.com/bogde/HX711) (Arduino / ESP32).
 | `antidrip`       | `antidrip 1 100`          | Reverse ms after pour (default **100**) |
 | `tare`           |                           | Zero scale                             |
 | `weight`         |                           | Current filtered weight (g)            |
+| `raw`            |                           | One HX711 count + grams (wiring check) |
 | `weight-stream`  | `weight-stream 100 30000` | Log weight + ΔW; optional duration     |
 | `flowcfg`        | `flowcfg 0.03 3 5000`     | Flow threshold, consecutive N, timeout |
 | `scalecal`       | `scalecal -7050`          | HX711 calibration factor               |
@@ -135,7 +145,7 @@ Timed `dispense` keeps motor-on as t=0 for comparison in Test 9.
 2. Place known mass (e.g. 200 g) → `weight`; adjust `scalecal <factor>` until reading matches.
 3. Re-`tare` with glass on platform before pours.
 
-Default calibration factor is in `config.h` (`kScaleCalibrationFactor`); expect to tune on bench.
+Default calibration factor is in `config.h` (`kScaleCalibrationFactor` = **374.76**, LS fit 2026-08-20 on 180 g + 714 g). Re-`scalecal` if the mount changes.
 
 ## Tests 7–9 workflow (serial monitor @ 115200)
 
@@ -172,4 +182,4 @@ Record tuning values in the bench test log table.
 
 ## Next steps after Phase 1
 
-Replace bench rig with I2C pump modules (PCA9685 + TB6612 on Altium PCB). This firmware stays as bring-up reference; main product firmware will live in a separate tree later.
+Replace bench rig with I2C pump modules (MCP23017 + TB6612 on KiCad PCB). This firmware stays as bring-up reference; main product firmware will live in a separate tree later.

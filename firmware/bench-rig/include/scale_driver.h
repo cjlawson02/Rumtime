@@ -12,6 +12,11 @@ class ScaleDriver {
   // Rolling average of recent readGrams() / flow samples.
   float readFilteredGrams();
 
+  // One HX711 conversion as a raw count (bring-up / wiring check).
+  bool readRaw(long* outRaw);
+  // Convert a raw count using the current offset and calibration factor.
+  float gramsFromRaw(long raw);
+
   // Call once before polling isFlowDetected() during a pour.
   void resetFlowDetect();
 

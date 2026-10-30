@@ -9,7 +9,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from build123d import Part, export_step, export_stl
+from build123d import Shape, export_step, export_stl
 
 # Resolve hardware/cad regardless of cwd (repo root or hardware/cad).
 CAD_ROOT = Path(__file__).resolve().parent.parent
@@ -20,7 +20,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 
-def _load_build(module_name: str, func_name: str = "build") -> Callable[[], Part]:
+def _load_build(module_name: str, func_name: str = "build") -> Callable[[], Shape]:
     module = importlib.import_module(module_name)
     builder = getattr(module, func_name)
     if not callable(builder):
@@ -29,14 +29,52 @@ def _load_build(module_name: str, func_name: str = "build") -> Callable[[], Part
 
 
 PART_SPECS: dict[str, tuple[str, str]] = {
-    "kphm100_hole_coupon": ("kphm100_hole_coupon", "build"),
-    "kphm100_mount_bracket": ("kphm100_mount_bracket", "build"),
+    "kphm100_pump": ("kphm100_pump", "build"),
+    "load_cell_bar": ("load_cell_bar", "build"),
     "load_cell_base": ("load_cell_platform", "build_base"),
     "load_cell_top": ("load_cell_platform", "build_top"),
+    "load_cell_fixed_cleat": ("load_cell_bench", "build_fixed_cleat"),
+    "load_cell_load_pad": ("load_cell_bench", "build_load_pad"),
+    "load_cell_bench_pin": ("load_cell_bench", "build_bench_pin"),
+    "load_cell_bench_pin_set": ("load_cell_bench", "build_bench_pin_set"),
+    "four_pump_block_body": ("four_pump_block", "build_body"),
+    "four_pump_block_front_plate": ("four_pump_block", "build_front_plate"),
+    "four_pump_block_front_plate_print": (
+        "four_pump_block",
+        "build_front_plate_print",
+    ),
+    "four_pump_block_top_tube_panel": (
+        "four_pump_block",
+        "build_top_tube_panel",
+    ),
+    "four_pump_block_top_tube_panel_print": (
+        "four_pump_block",
+        "build_top_tube_panel_print",
+    ),
+    "four_pump_block_pcb_rear": ("four_pump_block", "build_pcb_envelope_rear"),
+    "four_pump_block_clearance_rear": ("four_pump_block", "build_clearance_rear"),
+    "four_pump_block_clearance_rear_top_off": (
+        "four_pump_block",
+        "build_clearance_rear_top_off",
+    ),
+    "four_pump_block_mount_coupon": (
+        "four_pump_block_coupons",
+        "build_mount_coupon",
+    ),
+    "four_pump_block_tube_clamp_coupon": (
+        "four_pump_block_coupons",
+        "build_tube_clamp_coupon",
+    ),
+    "four_pump_block_front_channel_coupon": (
+        "four_pump_block_coupons",
+        "build_front_channel_coupon",
+    ),
+    "tube_bundle_clamp": ("tube_bundle_clamp", "build_clamp"),
+    "tube_bundle_clamp_print": ("tube_bundle_clamp", "build_clamp_print"),
 }
 
 
-def _resolve_builder(name: str) -> Callable[[], Part]:
+def _resolve_builder(name: str) -> Callable[[], Shape]:
     if name not in PART_SPECS:
         known = ", ".join(sorted(PART_SPECS))
         raise SystemExit(f"Unknown part {name!r}. Known parts: {known}")

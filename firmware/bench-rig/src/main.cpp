@@ -113,7 +113,7 @@ void printHelp() {
   Serial.println(F("  prime <1|2> <ms>"));
   Serial.println(F("  cal <1|2> <ml_per_s>  |  cal run <1|2> <seconds>"));
   Serial.println(F("  antidrip <1|2> <ms>"));
-  Serial.println(F("  tare | weight | status"));
+  Serial.println(F("  tare | weight | raw | status"));
   Serial.println(F("  weight-stream <interval_ms> [duration_ms]"));
   Serial.println(F("  flowcfg <g> <N> <timeout_ms> | scalecal <factor>"));
   Serial.println(F("Host CLI: scripts/benchctl.py (recommended)"));
@@ -131,6 +131,13 @@ void printStatus() {
   }
   Serial.print(F("scale_ready="));
   Serial.println(scale.ready() ? F("yes") : F("no"));
+  long raw = 0;
+  if (scale.readRaw(&raw)) {
+    Serial.print(F("raw="));
+    Serial.println(raw);
+  } else {
+    Serial.println(F("raw=none"));
+  }
   Serial.print(F("scale_cal="));
   Serial.println(scale.calibrationFactor(), 1);
   Serial.print(F("flow_threshold_g="));
@@ -249,6 +256,21 @@ void handleCommand(const char* rawLine) {
   if (strcasecmp(verb, "weight") == 0) {
     Serial.print(F("weight_g="));
     Serial.println(scale.readFilteredGrams(), 3);
+    inHandler = false;
+    return;
+  }
+
+  if (strcasecmp(verb, "raw") == 0) {
+    long raw = 0;
+    if (!scale.readRaw(&raw)) {
+      printUsage(F("scale_not_ready"));
+      inHandler = false;
+      return;
+    }
+    Serial.print(F("raw="));
+    Serial.print(raw);
+    Serial.print(F(" weight_g="));
+    Serial.println(scale.gramsFromRaw(raw), 3);
     inHandler = false;
     return;
   }

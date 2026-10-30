@@ -5,8 +5,8 @@
 ```text
 ESP32-S3 main controller
     -> I2C bus
-    -> PCA9685 on each 4-pump module
-    -> TB6612FNG-class H-bridges
+    -> MCP23017 GPIO expander on each 4-pump module
+    -> TB6612FNG-class H-bridges (PWM strapped high)
     -> 12 V peristaltic pumps
 ```
 
@@ -37,7 +37,7 @@ Hardware-level responsibilities:
 
 Each 4-pump module should include:
 
-- One I2C addressable control IC.
+- One **MCP23017** I2C GPIO expander.
 - Four reversible motor channels.
 - Motor power input.
 - Logic/I2C connector.
@@ -50,31 +50,32 @@ Each 4-pump module should include:
 
 ```text
 Logic connector
-    -> SDA/SCL/GND/Vlogic
-    -> PCA9685
-        -> pump 1 direction/PWM signals
-        -> pump 2 direction/PWM signals
-        -> pump 3 direction/PWM signals
-        -> pump 4 direction/PWM signals
+    -> SDA/SCL/GND/Vlogic (3.3 V)
+    -> PUMP_BUS_ENABLE -> both TB6612 STBY
+    -> MCP23017
+        -> pump 1–4 IN1/IN2
         -> optional LEDs/spares
 
 12 V module power connector
     -> fuse/polyfuse
-    -> bulk capacitor
     -> H-bridge #1 -> pump 1 and pump 2
     -> H-bridge #2 -> pump 3 and pump 4
+
+TB6612 PWMA/PWMB strapped to Vlogic through 10 kΩ (no speed PWM in v1)
+Carrier local caps cover VM/VCC; module C1 is 100 nF at the MCP23017.
 ```
 
 ## H-bridge choice
 
-Use a TB6612FNG-class dual H-bridge if measured pump current allows.
+Use a TB6612FNG-class dual H-bridge if measured pump current allows. The 4-pump module sockets an **AliExpress SparkFun-pinout clone** (item `3256807799494692`, two per board). Pin order is the SparkFun V11 order. Measured header rows are **15.25 mm**; the body is **21 × 18 mm**. Detail: [`hardware/kicad/4-pump-module-spec.md`](../hardware/kicad/4-pump-module-spec.md). Bench boards are Pololu #713.
 
 Benefits:
 
 - Two pumps per chip.
 - Forward and reverse control.
-- Optional PWM speed control.
 - Common and inexpensive.
+
+v1 does **not** use PWM speed control. Strap PWMA/PWMB to 3.3 V through **10 kΩ**; stop with IN1=IN2=low.
 
 Before final PCB fabrication:
 
@@ -83,30 +84,17 @@ Before final PCB fabrication:
 3. Confirm the driver has enough margin.
 4. If not, select a higher-current H-bridge.
 
-## PCA9685 signal allocation
+## MCP23017 signal allocation
 
-One possible allocation per 4-pump module:
+v1 is on/off + reverse only. PCA9685 (PWM expander) is **rejected**. Pin map lives in [`hardware/kicad/4-pump-module-spec.md`](../hardware/kicad/4-pump-module-spec.md).
 
-| PCA9685 channel | Signal              |
-| --------------: | ------------------- |
-|               0 | Pump 1 IN1          |
-|               1 | Pump 1 IN2          |
-|               2 | Pump 1 PWM/enable   |
-|               3 | Pump 2 IN1          |
-|               4 | Pump 2 IN2          |
-|               5 | Pump 2 PWM/enable   |
-|               6 | Pump 3 IN1          |
-|               7 | Pump 3 IN2          |
-|               8 | Pump 3 PWM/enable   |
-|               9 | Pump 4 IN1          |
-|              10 | Pump 4 IN2          |
-|              11 | Pump 4 PWM/enable   |
-|              12 | Status LED or spare |
-|              13 | Status LED or spare |
-|              14 | Spare               |
-|              15 | Spare               |
+| MCP23017 | Signal |
+| -------- | ------ |
+| GPA0–GPA7 | Pumps 1–4 IN1/IN2 |
+| GPB0–GPB1 | Optional LEDs |
+| GPB2–GPB7 | Spare |
 
-If the H-bridge design only needs two logic pins plus a shared PWM/enable per channel, adjust the allocation accordingly. Keep the mapping documented on the schematic.
+**STBY** is a shared ESP32 `PUMP_BUS_ENABLE` on the logic connector, not an expander pin. Addresses **0x20–0x23** (A2=GND, A1/A0 jumpers). Backup IC: TCA9539PWR (not footprint-compatible).
 
 ## Safe default behavior
 
@@ -164,7 +152,7 @@ Use cases:
 
 Do not rely on the load cell to identify which pump is wrong if multiple pumps are running simultaneously. Flow-gating uses one **global** onset signal.
 
-Bench must pass Tests 7–9 in [`14-bench-test-protocol.md`](14-bench-test-protocol.md) before locking flow-gate as default; timed fallback remains if vibration blocks reliable detection.
+The load cell is **not** on the 4-pump module PCB. Tests 7–9 gate **flow-gate as v1 default**, not module schematic or fab. Timed fallback remains if vibration blocks reliable detection.
 
 ## Physical controls
 
@@ -181,40 +169,19 @@ A display is optional and can be deferred if the UI is phone/browser based.
 
 ## Connector recommendations
 
-### Module power
+### Module bus (12 V + logic)
 
-Use one of:
+One Molex Micro-Fit 3.0 **2×3** vertical through-hole (`43045-0612` / `0430450612` on the module, mate `43025-0600`) **home-run per box**. Controller has **four** paralleled OUTs. 12 V, GND, 3.3 V, I2C, and `PUMP_BUS_ENABLE` share that connector. **No cartridge daisy (no J2).** Do not use JST-GH for 12 V.
 
-- XT30.
-- 2-pin pluggable terminal block.
-- Micro-Fit power connector.
-
-### Module logic
-
-Use one of:
-
-- JST-GH.
-- JST-XH if size is acceptable.
-- Micro-Fit signal connector.
-
-Signals:
-
-```text
-GND
-Vlogic
-SDA
-SCL
-optional PUMP_ENABLE / OE
-optional module interrupt / detect
-```
+Pin map: [`hardware/kicad/4-pump-module-spec.md`](../hardware/kicad/4-pump-module-spec.md) J1.
 
 ### Pump motors
 
-Use one of:
+**Default:** JST-XH 2-pin (`B2B-XH-A` header + female XH pigtail spliced to each KPHM100 lead). Polarized, 3 A vs ~0.9 A dry stall. Buy 10 pigtails for 8 pumps + 2 spare. No crimp tool.
 
-- JST-VH.
-- Micro-Fit.
-- Pluggable screw terminal.
+**Not:** JST-VH (old schematic family; scarce pigtails), JST-PH / Adafruit “JST 2-pin” LiPo cables (2.0 mm, will not mate), Dupont.
+
+**Documented alternate:** 5.08 mm pluggable screw terminal (Phoenix MSTB / 2EDG) if you want to skip the splice.
 
 Avoid Dupont jumpers in the final machine.
 
@@ -222,8 +189,8 @@ Avoid Dupont jumpers in the final machine.
 
 - Separate motor current paths from sensitive logic where practical.
 - Use wide traces or pours for pump power and ground.
-- Place bulk capacitance near H-bridge motor supply.
-- Place decoupling capacitors near IC power pins.
+- Do not add extra VM electrolytics on the 4-pump module; the TB6612 carrier already has local VM/VCC caps.
+- Place C1 (100 nF) at MCP23017 VDD/VSS.
 - Add mounting holes that match the cartridge design.
 - Add test pads for 12 V, logic voltage, ground, SDA, SCL, and pump outputs.
 - Label pump outputs clearly on silkscreen.
@@ -237,10 +204,9 @@ Before ordering PCB revisions:
 1. Confirm pump current and driver margin (dry **and** wet stall on bench).
 2. Confirm connector pinouts against wiring harness plan.
 3. Confirm tubing/pump physical dimensions against cartridge CAD.
-4. Run schematic ERC.
-5. Run PCB DRC.
+4. Run schematic ERC (`hardware/kicad/scripts/check.sh`).
+5. Run PCB DRC (`hardware/kicad/scripts/check.sh --drc`).
 6. Verify mounting hole locations with printed paper or test plate.
-7. Confirm safe default states with schematic review (IN1/IN2 pulldowns, STBY, PCA9685 power-on outputs).
+7. Confirm safe default states with schematic review (IN1/IN2 pulldowns, STBY PD, MCP23017 /RESET, PWM strap).
 8. Confirm main power cutoff removes pump power.
-9. **PCA9685 I2C bench validation** complete (Test 10 in [`14-bench-test-protocol.md`](14-bench-test-protocol.md)).
-10. Flow-gated dispense pass or documented fallback in `docs/bench-results/`.
+9. MCP23017 I2C bring-up is Test 10 **on the first assembled module** (not a pre-fab breakout). See [`14-bench-test-protocol.md`](14-bench-test-protocol.md).

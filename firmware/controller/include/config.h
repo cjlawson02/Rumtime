@@ -8,19 +8,27 @@
 
 namespace pins {
 
-constexpr int kPump1In1 = 4;
-constexpr int kPump1In2 = 5;
-constexpr int kPump1Pwm = 6;
+// Legacy direct-GPIO pump pins (bench). Unused on the motherboard (I2C modules).
+constexpr int kPump1In1 = 11;  // was 4; freed for I2C SDA
+constexpr int kPump1In2 = 12;  // was 5; freed for I2C SCL
+constexpr int kPump1Pwm = 14;  // was 6; freed for HX711 DT
 
-constexpr int kPump2In1 = 7;
-constexpr int kPump2In2 = 15;
-constexpr int kPump2Pwm = 16;
+constexpr int kPump2In1 = 16;  // was 7; freed for HX711 SCK
+constexpr int kPump2In2 = 8;   // was 15; freed earlier
+constexpr int kPump2Pwm = 15;  // was 16; shuffled off HX711/I2C cluster
 
-constexpr int kStandby = 17;
+constexpr int kStandby = 18;  // PUMP_BUS_ENABLE; bench was 17
 
-// HX711 — reserved for subsystem 2 (scale); avoid pump GPIO and strapping pins (0, 45, 46).
-constexpr int kScaleDout = 1;
-constexpr int kScaleSck = 2;
+constexpr int kLedStatus = 38;  // right header; active high
+
+// I2C → pump modules (Micro-Fit pins 5/6). Silk labels = GPIO numbers.
+constexpr int kI2cSda = 5;
+constexpr int kI2cScl = 4;
+
+// HX711 — avoid USB (19/20), strapping (0, 45, 46).
+// Bench was DT=8 / SCK=9; motherboard uses DT=6 / SCK=7.
+constexpr int kScaleDout = 6;
+constexpr int kScaleSck = 7;
 
 }  // namespace pins
 
@@ -88,8 +96,8 @@ constexpr unsigned int kControlTaskWdtTimeoutMs = 2000;
 constexpr unsigned long kConfigCommitRetryMs = 1000;
 
 // Scale (HX711) — copied from firmware/bench-rig/include/config.h.
-// HX711 calibration factor — tune on bench with known mass.
-constexpr float kScaleCalibrationFactor = -7050.0f;
+// HX711 calibration factor — LS fit 2026-08-20 on 180 g + 714 g (tare empty).
+constexpr float kScaleCalibrationFactor = 374.76f;
 
 // Flow-gate defaults — tune via Test 9 (docs/06-flow-calibration-and-inventory.md).
 constexpr float kFlowThresholdG = 0.03f;

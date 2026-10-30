@@ -30,7 +30,7 @@ Rumtime v1 should include:
 - Bottle inventory tracking based on configured bottle size and dispensed usage.
 - Clustered individual nozzles over one fixed glass position.
 - Drip tray.
-- Basic physical controls: **main power** cutoff, start/cancel or equivalent, and status indication.
+- Basic physical controls: **main power** cutoff and status indication. Start/cancel is the kiosk (HTTP), not extra buttons.
 - Moderate cleaning workflow using water flush and sanitizer.
 - Replaceable tubing.
 - External bottles, not integrated bottle storage.
@@ -58,7 +58,7 @@ Rumtime v1 should not include:
 - Bottles are physically separate from the machine footprint.
 - Pump modules will be within about 3 ft of the main controller.
 - Noise is not a major concern.
-- On/off pump control is acceptable, though the electronics may support PWM.
+- On/off + reverse pump control is the v1 model (I2C GPIO expander → TB6612; PWM strapped high). Speed PWM is deferred.
 - A small amount of manual intervention is acceptable, especially for cleaning, fresh juices, garnishes, and carbonated top-offs.
 
 ## Success criteria

@@ -1,10 +1,17 @@
 # KPHM100 mount plate
 
-Measured mounting disc on **Kamoer KPHM100-HB-B10** bench units. Use as the pump reference for bracket and cartridge CAD in Onshape.
+Measured **Kamoer KPHM100-HB-B10** pump envelope and integral mounting plate.
+Use this as the pump reference for build123d mounting-interface and enclosure CAD.
 
-**Status:** Geometry captured 2026-06-27 — verify on spare/replacement units before locking cartridge tooling.
+**Status:** Mount pattern captured 2026-06-27; fit-check envelope iterated from
+physical measurements on 2026-07-18. Coupon fit **2026-07-19**
+([session 05](../../../docs/bench-results/2026-07-19-session-05.md)): keyed holes
+**pass**; interface clearance updated to **Ø 32 / Ø 3.3** after first print.
+Suitable for enclosure clearance work, but not manufacturing tooling.
 
-**Still to measure:** confirm **7 mm** plate thickness on physical unit; full plate outer diameter, pump body height above plate, inlet/outlet barb positions relative to this origin, screw depth / tap engagement on pump bosses.
+**Still to verify:** exact 7 mm integral-plate thickness, the estimated 6 mm
+blind-hole depth and thread, detailed barb profile, shaft, wire exits, and
+whether replacement pumps share the same envelope.
 
 ## Coordinate system
 
@@ -16,9 +23,10 @@ Measured mounting disc on **Kamoer KPHM100-HB-B10** bench units. Use as the pump
 
 | Feature | Value |
 | ------- | ----- |
-| Central circle (pump body / clearance) | **Ø 33 mm**, center at origin |
-| Mounting holes | **4× Ø 3.5 mm** |
-| Mounting plate / bracket thickness | **7 mm**, drawing-derived side-view value; verify physically |
+| Integral pump plate | **42.5 × 42.5 × 7 mm**, 6.25 mm corner radii |
+| Straight portion of each plate edge | **30 mm** |
+| Pump receiving holes | **4× Ø 2.4 mm**, approximately 6 mm blind depth from motor side |
+| Recommended mounting-interface clearance | **Ø 32 mm** central opening; **4× Ø 3.3 mm** screw clearance |
 
 ### Hole centers (mm)
 
@@ -51,67 +59,82 @@ Hole-to-hole spans (center to center, for bracket standoffs):
 
 ## Fit on KPHM100 pump face
 
-- The circular mount plate described here appears to align with the **front mounting face** of the Kamoer **KPHM100-HB-B10** pump.
-- The large **Ø 33 mm** circle is the central pump body / head clearance zone and should be **concentric** with the main circular boss or pump-head centerline.
-- The four asymmetric mounting holes align with the four screw/boss locations visible on the pump face.
+- The 42.5 mm rounded plate is an **integral part of the pump**.
+- The **Ø 32 mm** circle is the recommended opening in the separate custom
+  mounting interface, concentric with the Ø31 mm rear shim.
+- The four asymmetric Ø2.4 mm blind holes receive screws from the motor side.
 - The asymmetry of the **15.5 / 17.5 mm** X offsets and **8.5 / 15.5 mm** Y offsets means the plate is **keyed to a specific rotational orientation** — do not treat it as a generic rectangular four-hole pattern.
-- On the pump drawing, the four receiving holes are labeled **4× Ø 2.4**; the separate mount-plate drawing uses **4× Ø 3.5** clearance holes. That likely means the pump body has smaller screw/tap/core holes and the bracket should use **Ø 3.5 mm clearance** for **M3** hardware unless physical measurement proves otherwise.
-- The visible pump-face envelope appears to be about **42.5 mm** wide/tall on the drawing — **drawing-derived only**; verify on the bench unit before relying on it for bracket OD or cartridge cutouts.
+- Use **Ø3.3 mm clearance holes** in the custom interface for likely M3
+  hardware; verify thread and engagement before final fastener selection.
 - Test-fit with a **paper template** or **thin 3D-printed coupon** before machining or printing the final bracket.
 
 ### Orientation check
 
-Confirm hole positions against the pump with this checklist (origin = center of Ø 33 mm circle, +X right, +Y up):
+The drawing/front-face coordinates above must be mirrored left-to-right when
+viewed from the **motor side**, where screws enter the blind holes:
 
-| Hole | X (mm) | Y (mm) |
-| ---- | -----: | -----: |
-| Top-left | −15.5 | +15.5 |
-| Top-right | +17.5 | +8.5 |
-| Bottom-left | −17.5 | −8.5 |
-| Bottom-right | +15.5 | −15.5 |
+| Motor-side hole | X (mm) | Y (mm) |
+| --- | ---: | ---: |
+| Top-right | +15.5 | +15.5 |
+| Top-left | −17.5 | +8.5 |
+| Bottom-right | +17.5 | −8.5 |
+| Bottom-left | −15.5 | −15.5 |
 
-If the bracket is rotated **90°** or **mirrored**, hole spacing may look approximately right but will **not** align with the pump bosses — the offset pattern is the orientation key.
+The set is unchanged by a 180° rotation but **does change under a mirror**.
+Always state which face is being viewed.
 
-## Side view / axial stack
+## Measured fit envelope
 
-Side-view interpretation (drawing-derived unless noted):
+Coordinate convention used by `src/kphm100_pump.py`: X is horizontal, +Y is
+rearward toward the motor, and +Z is upward. The integral mounting plate's rear
+face is Y=0.
 
-- The side view shows the mounting bracket as the **7 mm axial plate** between the pump-head/body side and the motor/body side.
-- The top-view hole pattern and **Ø 33 mm** central clearance are features through or on this **7 mm** bracket.
-- The pump head/body projects about **26.9 mm** forward of the bracket.
-- The motor/body extends about **50.5 mm** behind the bracket.
-- The motor/body diameter is shown as **Ø 27.5 mm**.
-- A rear circular boss or collar near the bracket is shown as approximately **Ø 31.1 mm**.
-- Treat these as **drawing-derived** until physically measured.
+| Feature | Value | Notes |
+| --- | ---: | --- |
+| Pump housing | **35.28 W × 37 H × 26.66 mm** forward | Centered on plate |
+| Housing bottom straight | **21.4 mm** | Gives 6.94 mm lower corner radii |
+| Housing vertical straight | **22 mm** | Between lower radius and top arc |
+| Housing top arc radius | **~23.33 mm** | Derived from measured width and remaining 8.06 mm rise |
+| Front chamfer | **4.5 mm inset × ~2.60 mm axial** | 60° from housing side |
+| Side-exit envelope | **Ø 9 mm at 55°** | Smooth tangent sweep into vertical |
+| Attached tube envelope | **Ø 6 mm** | Top is 58 mm above housing bottom |
+| Overall side-exit width | **50 mm** | Outside-to-outside |
+| Rear circular shim | **Ø 31 × 11.9 mm** | Immediately behind plate |
+| Motor can | **Ø 27.6 × 32.6 mm** | Immediately behind shim |
+| Rear centered boss | **Ø 9.75 × 1.67 mm** | Shaft omitted |
+| Rear terminal tabs | **2× 6 × 3 × 0.5 mm** | Top/bottom centers 2 mm inward from can edge |
+| Maximum rear projection | **50.5 mm** | Set by terminal tabs |
 
-| Side-view feature | Value | Confidence |
-| ----------------- | ----: | ---------- |
-| Pump head/body projection forward of bracket | 26.9 mm | Drawing-derived |
-| Mounting bracket / plate thickness | 7 mm | Drawing-derived; likely correct |
-| Motor/body length behind bracket | 50.5 mm | Drawing-derived |
-| Motor/body diameter | Ø 27.5 mm | Drawing-derived |
-| Rear boss/collar near bracket | Ø 31.1 mm | Drawing-derived |
+Barb diameters were observed as approximately **4.3 mm maximum** and **3 mm
+minimum**, but the detailed barb profile is not modeled; the Ø6 tube clearance
+envelope controls enclosure fit.
 
 **Design implications:**
 
-- Model the bracket as a **7 mm extrude** unless physical measurement says otherwise.
-- Keep the **Ø 33 mm** central clearance aligned to the pump-head centerline.
-- Leave forward clearance for the pump head and tube fittings.
-- Leave rear clearance for the motor body and wires.
-- Do not use the side-view dimensions to define barb positions unless those are separately measured.
+- The 7 mm plate is part of the pump. A custom mounting interface must sit
+  behind it, not replace or overlap it.
+- Use the **motor-side mirrored hole coordinates** for the custom interface.
+- Keep the **Ø 32 mm** opening concentric so the Ø31 mm shim can pass through.
+- Account for the Ø6 tube sweeps above the pump and the 50.5 mm terminal reach
+  behind the integral plate.
 
 ## Onshape sketch (reference part)
 
-1. **Top** plane → new sketch.
-2. Origin = plate center.
-3. Circle at origin, **Ø 33 mm** (construction or solid per intent).
-4. Four circles **Ø 3.5 mm** at the coordinates above.
-5. Extrude the bracket/plate to **7 mm** as the current drawing-derived thickness; verify on the physical unit before final tooling. For a bracket-only part, sketch the hole pattern and extrude your stock to **7 mm** unless calipers disagree.
+1. View/sketch the custom interface from the **motor side**.
+2. Origin = pump centerline.
+3. Circle at origin, **Ø 32 mm**.
+4. Four circles **Ø 3.3 mm** at the motor-side mirrored coordinates.
+5. Extrude the custom interface to the selected thickness behind the integral
+   pump plate; do not model the pump's 7 mm plate as empty mounting space.
 
-**Bracket pilot holes:** use **Ø 3.5 mm** (clearance for M3) or **Ø 3.2 mm** if you want a light press-fit locator before final fasteners — confirm with a paper/printed template on the physical pump.
+**Bracket pilot holes:** use **Ø 3.3 mm** (close M3 clearance) or **Ø 3.2 mm** if
+you want a light press-fit locator before final fasteners — confirm with a
+paper/printed template on the physical pump.
 
 ## Bracket design hints
 
-- Mirror this hole pattern on the **pump side** of a printed mount; add **≥ 5 mm** flange beyond the outermost hole centers for screw heads/nuts unless using insert nuts from the back.
-- Keep the **Ø 33 mm** zone clear for pump body / head rotation service.
-- Leave open volume behind the plate for wire exit and tube bend radius (3×5 mm line).
+- Mirror the drawing/front-view pattern for a mount viewed from the **motor
+  side**; add **≥ 5 mm** flange beyond the outermost hole centers.
+- Keep the **Ø 32 mm** zone clear for pump body / head rotation service.
+- Leave open volume behind the plate for terminal tabs and wire strain relief;
+  reserve the modeled Ø6 tube sweeps in front of the plate.

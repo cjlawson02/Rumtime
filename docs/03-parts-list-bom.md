@@ -10,7 +10,7 @@ Prices are rough planning estimates. Verify price, availability, food-contact su
 | Pump modules   | Custom 4-pump PCB                           | 2 installed, design 3 |                   3 | Make all three if PCB quantity pricing is favorable.               |
 | Pumps          | 12 V reversible peristaltic pumps           |                     8 |                  12 | Kamoer-style budget pumps are likely best bang for buck.           |
 | Motor drivers  | Dual H-bridge driver, TB6612FNG-class       |                     4 |                   6 | Two pumps per driver chip. Verify pump stall current.              |
-| I/O expander   | PCA9685-style I2C PWM expander              |                     2 |                   3 | One per 4-pump module.                                             |
+| I/O expander   | MCP23017 I2C GPIO expander              |                     2 |                   3 | One per 4-pump module. PWM not used in v1.                         |
 | Power supply   | 12 V supply, roughly 10 A or higher         |                     1 |                   1 | External brick preferred for v1. Size after pump current is known. |
 | Logic power    | 12 V to 5 V buck converter                  |                     1 |                   1 | Feeds ESP32 and logic as needed.                                   |
 | Safety         | Main power cutoff / e-stop                  |                     1 |                   1 | Cuts rig power (pumps and supply); not a separate pump-only switch. |
@@ -83,24 +83,24 @@ Use a TB6612FNG-class dual H-bridge if pump current allows.
 
 Per 4-pump module:
 
-- 2 dual H-bridge chips.
+- 2× AliExpress TB6612 clone, SparkFun V11 pin order (item `3256807799494692`). Measured rows 15.25 mm, body 21 × 18 mm.
 - 4 motor connectors.
 - 1 module fuse/polyfuse.
-- 1 bulk capacitor on motor power.
-- Local decoupling capacitors.
+- Local decoupling at the expander (100 nF). Each carrier has 10 µF + 0.1 µF on VM — no extra module electrolytic.
 - Optional current-test pads.
 
 If pump stall current is too high for TB6612FNG-class drivers, switch to a higher-current H-bridge before final PCB fabrication.
 
 ## I/O expander parts
 
-Use a PCA9685-style I2C PWM expander per 4-pump module.
+Use an **MCP23017** I2C GPIO expander per 4-pump module (SOIC-28 default; TCA9539PWR backup). Do **not** use PCA9685 — v1 has no speed PWM.
 
 Benefits:
 
 - One short I2C connection controls a whole module.
-- Enough outputs for direction, PWM, enable, status LEDs, and spare signals.
-- Address pins allow multiple modules on the same bus.
+- 16 push-pull GPIOs cover 8× IN1/IN2 plus LEDs/spares.
+- Address pins allow multiple modules on the same bus (0x20–0x27).
+- Hardware /RESET follows ESP32 reset for safe-off.
 
 ## Power supply
 
@@ -132,9 +132,9 @@ Recommended low-cost/clean compromise:
 
 | Connection                     | Suggested connector                    |
 | ------------------------------ | -------------------------------------- |
-| Main 12 V pump power to module | XT30 or 2-pin pluggable terminal block |
-| Logic/I2C to module            | Locking JST-GH/JST-XH or Micro-Fit     |
-| Pump motor output              | JST-VH, Micro-Fit, or screw terminal   |
+| Main 12 V pump power to module | On the same Micro-Fit as logic (pin 1). No separate XT30 to the cartridge. |
+| Logic/I2C + 12 V to module     | Molex Micro-Fit 3.0 **2×3** vertical TH (`43045-0612`), one home-run per box |
+| Pump motor output              | **JST-XH 2-pin** (`B2B-XH-A` + female pigtail) |
 | Buttons/sensors                | JST-GH/JST-XH                          |
 
 Avoid Dupont jumpers for permanent wiring.

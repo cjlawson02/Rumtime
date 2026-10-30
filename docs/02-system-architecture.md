@@ -70,9 +70,9 @@ The recommended approach is a cluster of separate nozzles aimed at the center of
 
 Use:
 
-- I2C from main ESP32 to each 4-pump module.
-- One PCA9685-style PWM expander per module.
-- Two dual H-bridges per module.
+- I2C from main ESP32 to each 4-pump module. Controller has **four** Micro-Fit **2×3** OUTs (one home-run cable per cartridge). **No module daisy (no J2).** One I2C bus — do not ring-wire.
+- One **MCP23017** GPIO expander per module (not a PWM chip).
+- Two dual H-bridges per module; PWM pins strapped high.
 - Shared 12 V pump power distribution.
 - Shared logic ground.
 
@@ -106,8 +106,7 @@ ESP32-S3
     -> I2C SDA/SCL to modules
     -> module/pump enable line
     -> HX711 load cell amplifier
-    -> start/cancel/control buttons
-    -> status LEDs or small display later
+    -> status LED (kiosk is start/cancel; SW1 is the physical cutoff)
 ```
 
 ## Liquid block diagram

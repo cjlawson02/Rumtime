@@ -2,7 +2,7 @@
 
 This plan follows goal-driven execution: every step has a verification check.
 
-**Bench progress (2026-07-12):** [session 03](bench-results/2026-07-12-session-03.md) — product controller + kiosk Old Fashioned (P1+P2) under temporary open-loop; cancel + Wi‑Fi disconnect auto-stop OK; **scale still not wired**. Earlier liquid cal: [session 02](bench-results/2026-06-27-session-02.md) — P1+P2 @ 1.75 ml/s; dual **~0.4 A**; anti-drip 100 ms; Test 4b P2 50→~45 ml (anti-drip).
+**Bench progress (2026-08-20):** [session 08](bench-results/2026-08-20-session-08.md) — load cell **soldered and calibrated** (`scalecal 374.76`; Test 7.1 pass). Remaining Tests **7.2–7.6** / **9** **deferred** (operator). [Session 07](bench-results/2026-08-16-session-07.md) — cantilever printed/assembled. [Session 06](bench-results/2026-08-16-session-06.md) — bar **measured 75 × 12.75 mm**, holes **5 / 15 / 59 / 69**, **M4 tapped**. [Session 05](bench-results/2026-07-19-session-05.md) — four-pump CAD coupons: mount hole pattern **pass**; walls → **2 mm**; clearance **Ø32 / Ø3.3**; **clamp silicone snap still pending**. Session 03: product controller + kiosk pour / cancel / disconnect. Liquid cal: [session 02](bench-results/2026-06-27-session-02.md) — P1+P2 @ 1.75 ml/s; dual **~0.4 A**; anti-drip 100 ms; Test 4b P2 50→~45 ml.
 
 ## Phase 0: Confirm critical parts
 
@@ -38,12 +38,12 @@ Build a temporary rig with 2-4 pumps.
    - Verify: pump can dispense and flush them without obvious clogging.
 6. Test warm-water flush.
    - Verify: visible residue clears from lines/nozzles.
-7. Test load cell and flow-gating.
+7. Test load cell and flow-gating (v1 pour default; **not** a 4-pump PCB gate).
    - Verify: detects glass, glass plus ice, flow-gated vs timed pour (Tests 7–9).
-8. Validate I2C pump path before PCB order.
-   - Verify: PCA9685 breakout drives pumps; bus stable under motor load (Test 10).
+8. Validate I2C pump path on the **first assembled module** (Test 10).
+   - Verify: MCP23017 on the PCB drives pumps; bus stable under motor load. Not a pre-fab breakout.
 
-Exit criteria:
+Exit criteria (pour path; parallel with module schematic):
 
 - At least two pumps pass repeatability tests.
 - Syrup/grenadine can be flushed acceptably.
@@ -53,14 +53,16 @@ Exit criteria:
 
 ## Phase 2: First 4-pump module PCB
 
-**Prerequisite:** Phase 0–1 exit including Test 10 (PCA9685 I2C path).
+**Schematic v1:** ERC-clean (`hardware/kicad/scripts/check.sh`). HX711 is on the controller, not this board. Stall current already supports TB6612.
+
+**Layout:** in progress (silkscreen / placement). **Fab prerequisite:** DRC + schematic safe-off (Test 10.4). I2C hardware bring-up is Test 10 on first article.
 
 Design and fabricate one 4-pump module PCB.
 
 1. Create schematic.
-   - Verify: ERC passes and safe default pump-off behavior is reviewed.
+   - Verify: ERC passes and safe default pump-off behavior is reviewed. _(v1 ERC 0 — 2026-08-16.)_
 2. Create layout.
-   - Verify: DRC passes and motor current paths are sized appropriately.
+   - Verify: DRC passes and motor current paths are sized appropriately. _(Silkscreen/placement in progress.)_
 3. Confirm connectors.
    - Verify: connector pinouts match wiring harness plan.
 4. Confirm mounting.
@@ -183,7 +185,7 @@ Before using with ingredients:
 - Tubing/fitting compatibility test.
 - Syrup/grenadine cleaning test.
 - Anti-drip reverse tuning.
-- Load cell flow-gate validation (or documented fallback).
-- PCA9685 I2C bench test before PCB fab.
+- Load cell flow-gate validation (or documented fallback) — v1 pour default, not a module PCB gate.
+- MCP23017 I2C bring-up on the first module PCB (Test 10; not a pre-fab breakout).
 - Leak test with water before alcohol/sugar.
 - Hardware **main power** cutoff.

@@ -24,7 +24,7 @@ The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated t
 | `HttpServer` | `http_server.{h,cpp}` | **Implemented** — Arduino `WebServer` + ArduinoJson v7 on Core 0; enqueue-only handlers; HTTP preflight reads published snapshot rows only (no cross-core store access) |
 | `WiFiManager` | `wifi_manager.{h,cpp}` | **Implemented** — STA-only; serial provisioning; mDNS `rumtime.local`; reconnect on disconnect; modem sleep off + max TX; **cancel busy jobs on STA drop** (`wifi_link_safety.h`) |
 
-Not present yet: multi-pump parallel dispense, I2C/PCA9685, cleaning sequences, soft-AP captive portal.
+Not present yet: multi-pump parallel dispense, I2C/MCP23017, cleaning sequences, soft-AP captive portal.
 
 ## Safety model (this PR)
 
@@ -34,7 +34,7 @@ Not present yet: multi-pump parallel dispense, I2C/PCA9685, cleaning sequences, 
 - **Software stop:** `stopAll()` and TB6612 **STBY** stop motion while power is present.
 - **Wi-Fi lost while busy:** NetworkTask falling-edge on STA disconnect enqueues **cancel** (same path as HTTP/serial) when `job_busy`, `sequence_busy`, or `pumps_running`. Brief RF blips will abort a pour/prime — preferred over a runaway continuous prime when the kiosk cannot reach `/cancel`. The 60 s prime timeout remains a backup.
 - **Kiosk HTTP heartbeat:** HTTP-started pour/prime/dispense **arms** a watchdog. `GET /status` (kiosk poll) refreshes activity. If no HTTP for `kKioskHeartbeatTimeoutMs` (3 s) while still busy → **cancel**. Serial-started jobs are not armed. Covers “Wi-Fi up, kiosk dead”; STA cancel remains the fast path for RF drop.
-- **STBY pull-down:** add an external 10 kΩ resistor from STBY (GPIO 17) to GND. During the pre-`begin()` boot window the GPIO floats; the pull-down holds the TB6612 disabled until firmware asserts the pin.
+- **STBY pull-down:** add an external 10 kΩ resistor from STBY (GPIO 18 on the motherboard; bench was 17) to GND. During the pre-`begin()` boot window the GPIO floats; the pull-down holds the TB6612 disabled until firmware asserts the pin.
 
 ## Pin reference (`include/config.h`, copied from bench-rig)
 
@@ -46,11 +46,11 @@ Not present yet: multi-pump parallel dispense, I2C/PCA9685, cleaning sequences, 
 | BIN1 | 7 | Pump 2 direction |
 | BIN2 | 15 | Pump 2 direction |
 | PWMB | 16 | Pump 2 PWM |
-| STBY | 17 | Driver enable (HIGH = active) |
+| STBY | 18 | Driver enable (HIGH = active); bench was 17 |
 | VM | 12 V pump bus | Fed from main-powered 12 V supply (no separate pump cutoff) |
 | VCC / GND | 3.3 V / GND | Logic / common ground |
 
-HX711 uses GPIO 1 (`kScaleDout`) and GPIO 2 (`kScaleSck`).
+HX711 uses GPIO 6 (`kScaleDout`) and GPIO 7 (`kScaleSck`).
 
 ## Build and flash
 
@@ -347,7 +347,7 @@ Do **not** add motor calls outside `PumpChannel` / `PumpBus`. Keep **dispense**
 enqueue-only through `CommandQueue`; config edits are the documented exception until
 HTTP lands with proper cross-task routing.
 
-The scale still has no dedicated serial calibration path here; to bench-verify the HX711 on an N16R8 (GPIO 1/2), compare `status` `grams=` against the bench-rig `scale` / `weight` commands with the same known mass — the filtered grams should track within the rolling-filter tolerance.
+The scale still has no dedicated serial calibration path here; to bench-verify the HX711 on an N16R8 (GPIO 6/7 on the motherboard; bench-rig still 8/9), compare `status` `grams=` against the bench-rig `scale` / `weight` commands with the same known mass — the filtered grams should track within the rolling-filter tolerance.
 
 ## Machine config subsystem (ConfigStore + NVS)
 
@@ -391,4 +391,4 @@ per-pump values. `RAM is session-authoritative`; the flash write is deferred to 
 3. ~~**NVS config**~~ — done.
 4. ~~**Sequence runner**~~ — done (sequential pours).
 5. ~~**Wi-Fi HTTP**~~ — done: STA + mDNS + kiosk HTTP API + inventory + cross-task config queue.
-6. **Cleaning sequences**, then **I2C pump modules** (PCA9685 + TB6612).
+6. **Cleaning sequences**, then **I2C pump modules** (MCP23017 + TB6612).
