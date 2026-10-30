@@ -1,21 +1,52 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "labels": ["dependencies"],
+  "extends": [
+    "config:recommended"
+  ],
+  "labels": [
+    "dependencies"
+  ],
   "dependencyDashboard": true,
   "rangeStrategy": "bump",
   "packageRules": [
     {
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "automerge": true
+    },
+    {
       "description": "Group non-major npm updates in the kiosk UI",
-      "matchFileNames": ["ui/kiosk/**"],
-      "matchManagers": ["npm"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "kiosk non-major"
+      "matchFileNames": [
+        "ui/kiosk/**"
+      ],
+      "matchManagers": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "kiosk non-major",
+      "automerge": true
     },
     {
       "description": "Keep GitHub Actions updates grouped",
-      "matchManagers": ["github-actions"],
-      "groupName": "github-actions"
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github-actions",
+      "automerge": true,
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ]
     }
-  ]
+  ],
+  "platformAutomerge": true,
+  "automergeStrategy": "squash"
 }
