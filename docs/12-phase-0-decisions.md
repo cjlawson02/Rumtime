@@ -166,6 +166,8 @@ See `hardware/kicad/README.md` for repo layout, `kicad-cli` hooks, and schematic
 | 2026-10-25 | Motherboard parts **ordered** same day: Mini560 **5 V** ×2, Micro-Fit 6-pin **vertical**, KF301-5.0-2P ×10, 2.2 kΩ 0805, plain female **1×22** / **1×6** / **1×4** (TLZWLA; DevKit + HX711). Module still uses right-angle `43045-0600`. |
 | 2026-10-29 | Remaining electronics **ordered**: module **1×8** sockets; USB-C **6P**; **SS14**; 3 mm LEDs; **300 Ω** 0805; Micro-Fit **43025** housings + pre-crimped F–F leads; extra JST-XH 2-pin. |
 | 2026-10-29 | Main-controller PCB **ordered** for fab. Barbed 1/8" PP unions **deferred**. |
+| 2026-11-01 | AliExpress Oct 25 batches complete: module stuffing parts + motherboard Mini560 / Micro-Fit vertical / KF301 / 2.2 kΩ / 1×22·1×6·1×4 / module 10 kΩ·100 nF·1×8 / Micro-Fit RA / F1 / MCP23017 / both JST-XH. Still out: Oct 29 USB-C / SS14 / LEDs / 300 Ω / Micro-Fit harness; both PCBs. |
+| 2026-11-01 | JST-XH 2-pin female pigtails wired on **all 8** KPHM100 motors (module motor harness ready; board-side `B2B-XH-A` still waits on PCB/assembly). |
 | 2026-10-28 | Motherboard HX711 pins: **DT → GPIO 6**, **SCK → GPIO 7** (was bench 8/9; briefly 15/14 then 7/6). |
 | 2026-10-28 | Motherboard I2C: **SDA → GPIO 5**, **SCL → GPIO 4**. `Wire.begin(5, 4)`. |
 | 2026-10-28 | Motherboard **LED_STATUS → GPIO 38** (was planned 10). |

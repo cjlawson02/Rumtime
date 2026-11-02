@@ -4,7 +4,7 @@ Living Gantt and procurement log for Rumtime v1. Update after bench sessions, or
 
 Reference: [`09-build-plan-and-verification.md`](09-build-plan-and-verification.md), [`14-bench-test-protocol.md`](14-bench-test-protocol.md).
 
-**Last updated:** 2026-10-29 (main-controller PCB ordered; barbed unions deferred).
+**Last updated:** 2026-11-01 (KF301 + 1×22 in; Oct 25 motherboard batch complete; Oct 29 remainder + PCBs still out).
 
 ## Gantt chart
 
@@ -56,6 +56,8 @@ gantt
     Motherboard Mini560 + Micro-Fit verticals :done, mbparts, 2026-10-25, 1d
     Remaining electronics ordered  :done, mbparts2, 2026-10-29, 1d
     Main-controller PCB ordered    :done, mbpo, 2026-10-29, 1d
+    Partial AliExpress receive     :done, ae_recv1, 2026-11-01, 1d
+    JST-XH pigtails on all 8 motors :done, jst8, 2026-11-01, 1d
     4-pump PCB fab and assembly    :active, p2fab, after p2po, 21d
     Main-controller fab            :active, mbfab, after mbpo, 21d
     Cartridge and nozzle prototype  :p3, after p2fab, 21d
@@ -91,6 +93,9 @@ gantt
 | 2026-10-25 | Motherboard + module AliExpress batch (Mini560, Micro-Fit V/RA, F1, terminals, passives) | Operator |
 | 2026-10-29 | Remaining electronics: 1×8 sockets, Micro-Fit F–F harness, USB-C 6P, SS14, LEDs, 300 Ω | Operator |
 | 2026-10-29 | Main-controller PCB ordered for fab | Operator |
+| 2026-11-01 | Partial AliExpress receive: Micro-Fit RA 2×3, F1 1812-2A, JST-XH ×2 sets, MCP23017, Mini560 ×2, Micro-Fit vertical 6-pin | Operator |
+| 2026-11-01 | More AliExpress: 0805 **2.2 kΩ**, 0805 **100 nF**, 0805 **10 kΩ**, KF301-5.0-2P ×10, plain female **1×22** / **1×6** / **1×4** / **1×8** | Operator |
+| 2026-11-01 | JST-XH 2-pin female pigtails spliced/wired on **all 8** KPHM100 motors | Operator |
 | TBD        | Test 10 (I2C on first module)                  | Post-fab bring-up — **not** a Gerber gate |
 | TBD        | First drink from 8-pump v1                     | Phase 4 exit |
 
@@ -124,11 +129,11 @@ Fill **ordered** and **received** as you go. Sourced from [`13-phase-0-mini-bom.
 | Graduated cylinder (250 ml) | 1 | 2026-06-27 | OK | In use session 02 |
 | Breadboard + jumpers | 1 | 2026-06-27 | OK | |
 | MCP23017 breakout | 1 | — | **skip** | Not buying. Test 10 is first assembled module (2026-08-20). |
-| 4-pump module parts | 1 set | — | **ordered 2026-10-25 / 29** | Oct 25: MCP23017-E/SO, 10 kΩ, 100 nF, Micro-Fit RA 2×3, F1 1812-2A, JST-XH 2-pin 5-set. Oct 29: plain female **1×8** sockets; extra JST-XH 2-pin 5-set. |
-| Motherboard power / bus / sockets | see notes | — | **ordered 2026-10-25** | Mini560 **5 V** ×2; Micro-Fit vertical 6-pin; KF301-5.0-2P ×10; 2.2 kΩ; 1×22 / 1×6 / 1×4 (DevKit + HX711). |
-| Motherboard remainder + harness | see notes | — | **ordered 2026-10-29** | USB-C **6P** top-mount class; **SS14** Schottky; 3 mm LED kit; **300 Ω** 0805 (LED_STATUS); Micro-Fit **43025** housings + **pre-crimped F–F leads** (DIY home-runs for ~3 modules). |
+| 4-pump module parts | 1 set | **2026-11-01** | **OK (parts)** | **On hand:** MCP23017-E/SO; Micro-Fit RA 2×3 (`43045-0600` class); F1 1812-2A; **both** JST-XH 2-pin 5-sets; 0805 **10 kΩ**; 0805 **100 nF**; plain female **1×8** sockets. **Harness:** female JST-XH pigtails wired on **all 8** motors (2026-11-01). Module PCB still out (OSH Park). |
+| Motherboard power / bus / sockets | see notes | **2026-11-01** | **OK** | Mini560 **5 V** ×2; Micro-Fit vertical 6-pin; KF301-5.0-2P ×10; 0805 **2.2 kΩ**; plain female **1×22** / **1×6** / **1×4** (DevKit + HX711). |
+| Motherboard remainder + harness | see notes | — | **ordered 2026-10-29** | Still out: USB-C **6P** top-mount class; **SS14** Schottky; 3 mm LED kit; **300 Ω** 0805 (LED_STATUS); Micro-Fit **43025** housings + **pre-crimped F–F leads** (DIY home-runs for ~3 modules). |
 
-**Order dates:** Bulk mini-BOM **2026-06-18** (delivered **2026-06-27**). Load cell bar + HX711 **2026-06-23** — soldered and calibrated **2026-08-20** (`scalecal 374.76`). Module + motherboard AliExpress **2026-10-25** and **2026-10-29** (awaiting delivery).
+**Order dates:** Bulk mini-BOM **2026-06-18** (delivered **2026-06-27**). Load cell bar + HX711 **2026-06-23** — soldered and calibrated **2026-08-20** (`scalecal 374.76`). Module + motherboard AliExpress **2026-10-25** and **2026-10-29** — Oct 25 batches **complete 2026-11-01**; still out: Oct 29 harness/USB-C/LED parts, both PCBs.
 
 ### Open replacements
 
@@ -150,8 +155,8 @@ Fill **ordered** and **received** as you go. Sourced from [`13-phase-0-mini-bom.
 | Item | Target phase | Ordered | Received |
 | ---- | ------------ | ------- | -------- |
 | 4-pump KiCad module PCB | 2 | 2026-10-25 (OSH Park, 3) | — |
-| 4-pump module parts (+ F1, 1×8) | 2 | 2026-10-25 / 29 (AliExpress) | — |
-| Mini560 + Micro-Fit vertical + KF301 + sockets | 5 (motherboard) | 2026-10-25 (AliExpress) | — |
+| 4-pump module parts (+ F1, 1×8) | 2 | 2026-10-25 / 29 (AliExpress) | **2026-11-01** (all stuffing parts on hand; PCB separate) |
+| Mini560 + Micro-Fit vertical + KF301 + sockets | 5 (motherboard) | 2026-10-25 (AliExpress) | **2026-11-01** |
 | USB-C, SS14, LEDs, 300 Ω, Micro-Fit harness | 5 (motherboard) | 2026-10-29 (AliExpress) | — |
 | Main-controller PCB | 5 | 2026-10-29 | — |
 | GST120A12-R7B (8-pump PSU) | 4 | — | — |

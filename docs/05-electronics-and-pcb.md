@@ -177,7 +177,7 @@ Pin map: [`hardware/kicad/4-pump-module-spec.md`](../hardware/kicad/4-pump-modul
 
 ### Pump motors
 
-**Default:** JST-XH 2-pin (`B2B-XH-A` header + female XH pigtail spliced to each KPHM100 lead). Polarized, 3 A vs ~0.9 A dry stall. Buy 10 pigtails for 8 pumps + 2 spare. No crimp tool.
+**Default:** JST-XH 2-pin (`B2B-XH-A` header + female XH pigtail spliced to each KPHM100 lead). Polarized, 3 A vs ~0.9 A dry stall. Buy 10 pigtails for 8 pumps + 2 spare. No crimp tool. **Status 2026-11-01:** female pigtails wired on all 8 motors.
 
 **Not:** JST-VH (old schematic family; scarce pigtails), JST-PH / Adafruit “JST 2-pin” LiPo cables (2.0 mm, will not mate), Dupont.
 
