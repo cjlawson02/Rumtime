@@ -187,6 +187,20 @@ Phase 0 uses direct GPIO → TB6612. Production uses **MCP23017 → TB6612** on 
 | 10.3 | Reset ESP32 during I2C-driven dispense                                      | Pumps stop or remain off (`PUMP_BUS_ENABLE` + expander /RESET + IN1/IN2 PDs) |
 | 10.4 | Review module schematic: IN1/IN2 pulldowns, STBY PD, PWM strap, MCP23017 /RESET | Documented safe-off state (pre-fab) |
 
+## Test 11 — Enclosure draft checks (before cutting wood)
+
+Checks from the 2026-11-01 enclosure draft ([`08-mechanical-design.md`](08-mechanical-design.md)). Run with the first assembled four-pump cartridge.
+
+| Step | Action | Pass |
+| ---- | ------ | ---- |
+| 11.1 | **Suction lift:** pump at table edge; bottle liquid surface 0 / 1 / 2 / 3 / 4 / 6 ft below the pump; 20 ml timed pour on the scale at each. Water, then a 40% spirit, then 1:1 syrup | Record the height where the pour falls **>3%** below the 0 ft result; update the lift table in 08 |
+| 11.2 | **Slot-height drip:** restricted nozzle tip fitted; outlet line set at slot A height (pump ~0.5 ft **below** the tip) and slot D height (~0.3 ft **above**) | Drip ≤1/3 after 10 s, and next pour within Test 4 tolerance; record `anti_drip_reverse_ms` per slot height |
+| 11.3 | **Slide-in:** cartridge with all tubes attached enters a mock slot with **10 mm** clearance under the shelf | No kink or catch; else raise `LEVEL_GAP_MM` |
+| 11.4 | **Nozzle ring coupon:** 16 lines on Ø36 mm (7.07 mm pitch) | All 16 seat without crushing; else enlarge the ring |
+| 11.5 | **Scale noise, full slot:** Test 7.6 with all 4 pumps of one cartridge running, cartridge on the same base as the scale post | Noise below the flow-gate threshold; else isolate the post |
+| 11.6 | **Blind mate:** cartridge slid into a mock slot on rails, dock plug (latch relieved) in a floating bracket; 20 insert/remove cycles with SW1 off; bus check (`status` sees the module) after each | All 20 mate on the first push with no bent pins and pull out without tools; else widen float or add guide pins |
+| 11.7 | **Inlet plug heat:** 5.5 × 2.1 screw-terminal plug ([`dc-inlet-plug.md`](../hardware/cad/refs/dc-inlet-plug.md)) in the 12 V path. Run the highest planned load for 30 min (8 pumps running, plus Kindle charging if fitted; ~4 A); measure supply current. Then hold 2 pumps stalled for 60 s. Check plug temperature by IR or touch and voltage drop across the plug | Plug stays comfortable to hold (≤ ~50 °C), drop **≤ 0.2 V**, no smell or discoloration, screws still tight; else hardwire the PSU into J1 |
+
 ## Phase 0–1 exit decision
 
 The **4-pump module** is MCP23017 + TB6612 (PWM strapped high). The load cell is on the controller. Tests 7.2–9 still gate **flow-gate as a proven v1 default**, not module schematic or fab — **deferred 2026-08-20** (session 08) after bar cal.

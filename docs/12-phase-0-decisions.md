@@ -81,7 +81,10 @@ TB6612FNG is appropriate for this pump. Bench (session 01–02, Pololu carrier, 
 | ----------------------- | ------------------------------------------------ | ------------------------------------------------------- |
 | Phase 0 bench (2 pumps) | **Mean Well GST60A12-P1J** (12 V, **5 A**, 60 W) | ~$19; ~1 A running, 2–3 A headroom for inrush           |
 | Full v1 (8 pumps)       | **Mean Well GST120A12-R7B** (12 V, 8.5 A, 102 W) | ~$43–55; 8 × 0.5 A = 4 A continuous running with margin |
+| 12 or 16 pumps          | **Same GST120**; run **≤ 8 pumps at once** (the v1 simultaneous ceiling) | No board respin; see budget below |
 | Defer                   | Internal mains PSU, per-module brick             | Stay with external brick for v1                         |
+
+**12/16-pump budget (2026-11-01, from bench currents).** Running pumps draw ~0.2–0.33 A each, so 16 running is ~5 A. The risk is many stalling at once: **0.9 A** dry stall each. Kindle charging (5 V / 3 A) plus logic is ~**1.5 A** at 12 V. Eight running is ~2.6 A plus 1.5 A, well inside the 8.5 A GST120. Eight all stalled at once (~8.7 A) is at the rating. That is unlikely in a pour, and the brick's overload protection hiccups rather than failing. Installed pump count doesn't matter; what matters is how many run at once. Sixteen all stalling would need ~16 A, beyond even a GST220-class 15 A brick. So the lever is a concurrency ceiling, not a bigger brick. Revisit with question 13 in [`10-open-questions-and-v2.md`](10-open-questions-and-v2.md) and Test 1.5b. The enclosure always has four slots.
 
 Size final fuse/cutoff after measured max current. Do not assume 0.5 A rated equals stall current.
 

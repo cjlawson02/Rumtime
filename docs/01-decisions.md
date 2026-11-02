@@ -149,7 +149,7 @@ Rationale: Carbonated liquids foam, lose carbonation, and complicate cleaning. M
 | Footprint         | No hard limit, excluding bottles.                                                 |
 | Portability       | Not required.                                                                     |
 | Bottle visibility | Bottles separate from machine.                                                    |
-| Labeling          | Label above each **inlet barb** on machine; matching label on **bottle stopper**. |
+| Labeling          | Label on each **rear inlet-comb clip**; matching label on **bottle stopper**.     |
 | Drip tray         | Required.                                                                         |
 | Nozzle style      | Individual clustered nozzles; removable funnel acceptable if easy to clean.       |
 

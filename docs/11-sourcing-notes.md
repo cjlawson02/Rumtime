@@ -63,7 +63,7 @@ Colder quick disconnect 1/8 hose barb
 Budget approach:
 
 - Barbs and clamps for internal lines.
-- Optional quick disconnects at machine inlet panel.
+- Optional quick disconnects at the rear inlet comb.
 - Avoid premium valved quick disconnects everywhere until v1 is proven.
 
 ## Electronics

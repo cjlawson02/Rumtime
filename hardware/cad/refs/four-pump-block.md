@@ -7,7 +7,8 @@ pumps. Build two identical blocks for the eight-pump bench/bar-cart setup.
 feedback **2026-07-19** ([session 05](../../../docs/bench-results/2026-07-19-session-05.md)):
 mount hole pattern **pass**; walls thinned to **2 mm**; central opening **Ø32**;
 screw holes **Ø3.3**. Tube-clamp **silicone snap still pending**. Enclosure
-layout dims remain fit-test assumptions; the rear PCB keep-out is provisional.
+layout dims remain fit-test assumptions. Rear PCB placement and the J1 wall
+opening follow the ordered **4-pump-module** board (2026-11-01).
 
 ## Coordinate system
 
@@ -74,13 +75,13 @@ bottom — it does not slide.
 
 Flat **216 × ~78.65 × 2 mm** rear-entry slider. On the **top exterior**, four
 curved horizontal press-fit clamps sit in a tight cluster above the rear
-PCB / cable-exit zone (centered on X=0):
+PCB / J1 zone (centered on X=0):
 
 - Length **15 mm** along +Y (tube axis front/rear)
 - Cavity **Ø5.15 mm**, top throat **3.9 mm**, wall **1.5 mm** (snap for 5 mm OD)
 - Block height **4 mm** above the panel (open-top C)
 - Cluster pitch **10 mm**; centers at **−15, −5, +5, +15 mm**
-- Cluster at **Y=63 mm** (above the rear cable opening)
+- Cluster at **Y=63 mm** (above the rear PCB keep-out)
 - Inter-clamp gaps filled solid so the four throats sit in one block
 - Angled side ramps **8 mm** run on the outer ends of the cluster only
 
@@ -98,7 +99,8 @@ Remove in reverse. Print the body floor-down, the front panel via
 `four_pump_block_top_tube_panel_print` (flat down, clamps up).
 
 - Pump heads and replaceable pump tubing remain accessible from the front.
-- Rear/side cable openings must provide strain relief for 12 V and I2C wiring.
+- Rear **Micro-Fit J1** opening blind-mates the module bus at the cartridge
+  slot front; motor leads stay internal to the block.
 - Keep each ingredient on an independent tube path; this enclosure does not
   create a liquid manifold.
 - Do not put ventilation openings in the top tube panel where bottle or tube
@@ -107,19 +109,48 @@ Remove in reverse. Print the body floor-down, the front panel via
 
 ## Fixed rear PCB clearance
 
-Use a simple **170 × 18 × 40 mm** keep-out box (X × +Y × +Z) until the
-finished PCB STEP or measured outline is available. The **40 mm** vertical size
-is only scaled to the slim cavity so clearance exports still build.
+**Source board:** **84.70 × 20.85 × 1.6 mm** (`Edge.Cuts`), no mounting holes —
+shell retention only. See [`4-pump-module-pcb.md`](4-pump-module-pcb.md).
 
-The PCB volume stands vertically behind the motors. It occupies
-**Y=51.5–69.5 mm** and **Z=7–47 mm**, leaving:
+### Block placement (flat on 3 mm standoffs)
 
-- **8 mm** behind the 50.5 mm terminal envelope.
-- **2.5 mm** between the PCB keep-out and inside rear wall.
-- Clearance above the floor and below the top-panel datum.
+| Mapping | Rule |
+| --- | --- |
+| Board top-left (`Edge.Cuts` min X, min KiCad Y) | Block **(−42.35, 73.0, 5.0) mm** (board underside on **3 mm** standoffs above the 2 mm floor, clearing through-hole pins) — rear outline edge on the **inner** rear wall (**Y = 73**), long axis centered on **X = 0** |
+| KiCad **+X** | Block **+X** |
+| KiCad **+Y** | Block **−Y** (toward pump front) |
+| KiCad **+Z** (component side) | Block **+Z** |
 
-No PCB mounting holes, bosses, or connector-specific cutouts are locked in this
-revision.
+Occupied block envelope (board + **12 mm** assumed carrier height above
+**1.6 mm** PCB):
+
+| Axis | Range (mm) |
+| --- | --- |
+| **X** | **−42.35 … +42.35** |
+| **Y** | **52.15 … 73.0** |
+| **Z** | **5.0 … 18.6** |
+
+Clearances vs fit-test pumps (**PUMP_REAR_Y = 43.5 mm**):
+
+- **~0.65 mm** between PCB front edge and the **8 mm** nominal motor gap plane
+  (**Y = 51.5 mm**).
+- **~0 mm** nominal between the J1 mating face and the inner rear wall (face
+  centered **~0.6 mm** inset from **Y = 73**).
+
+### Micro-Fit J1 rear-wall opening
+
+Blind-mate plug travel: block **+Y** (same as cartridge slide-in direction after
+the enclosure’s 180° block rotation).
+
+| Item | Value |
+| --- | ---: |
+| Mating-face center (block coords) | **(−35.25, 72.42, 8.8) mm** |
+| Mate direction (unit) | **(0, +1, 0)** |
+| Wall cutout (X × Z), **1 mm** clearance/side | **16.2 × 10.0 mm** |
+| Cutout center (block coords) | **(−35.25, 74.0, 8.8) mm** (rear wall mid-thickness; leaves **3.8 mm** of wall below the cut) |
+
+The former **36 × 18 mm** rear cable exit is **removed**; bus power and I2C
+leave through **J1** only.
 
 ## Still to verify
 

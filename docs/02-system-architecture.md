@@ -22,12 +22,13 @@ ESP32-S3 main controller
 
 ## Expansion architecture
 
-Design the electronics and enclosure with space for three pump modules:
+Design the electronics and enclosure with space for four pump modules (16 pumps max). The controller has four Micro-Fit home-runs, and the enclosure tower has four slots ([`08-mechanical-design.md`](08-mechanical-design.md)):
 
 ```text
 Module A: pumps 1-4, installed in v1
 Module B: pumps 5-8, installed in v1
-Module C: pumps 9-12, empty slot or later upgrade
+Module C: pumps 9-12, third board (parts on hand) or later upgrade
+Module D: pumps 13-16, empty slot
 ```
 
 Each module should be physically removable. It does not need to be safe to unplug while powered. The safe procedure is:
@@ -98,6 +99,7 @@ Do not start there unless I2C fails defined tests.
         -> module A fuse -> H-bridges -> pumps 1-4
         -> module B fuse -> H-bridges -> pumps 5-8
         -> module C fuse -> H-bridges -> pumps 9-12 later
+        -> module D fuse -> H-bridges -> pumps 13-16 later
     -> 5 V buck converter
         -> ESP32 board / logic
         -> I2C pullups if appropriate

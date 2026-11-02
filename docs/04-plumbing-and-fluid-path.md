@@ -19,7 +19,7 @@ External bottle/jar
   -> weighted pickup tube or dropped tube
   -> optional bottle cap/collar for strain relief
   -> tube bundle to machine
-  -> machine inlet panel
+  -> rear inlet comb (labeled clip, strain relief)
   -> 4-pump cartridge
   -> short outlet tube
   -> nozzle plate
@@ -63,7 +63,7 @@ Cons:
 - More CAD and printing work.
 - Caps need to be cleaned too.
 
-Recommended v1 compromise: start with dropped-in tubes, but design the machine inlet panel so bottle cap adapters can be added later without changing pump modules.
+Recommended v1 compromise: start with dropped-in tubes, but design the rear inlet comb so bottle cap adapters can be added later without changing pump modules.
 
 ## Nozzle design
 
@@ -159,7 +159,7 @@ Use:
 
 Add:
 
-- Hose-barb quick disconnects on the machine inlet panel.
+- Hose-barb quick disconnects at the rear inlet comb.
 - Valved quick disconnects only where spill reduction is worth the cost.
 - Labeled bottle-side tube harnesses.
 

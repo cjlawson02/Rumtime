@@ -39,7 +39,7 @@ To stay near the $500 target:
 - Use Kamoer-style or equivalent budget peristaltic pumps.
 - Build custom pump driver PCBs instead of using many breakout boards in the final machine.
 - Use barbed fittings and clamps for most internal plumbing.
-- Use quick disconnects only at the machine inlet panel or where cleaning benefit is high.
+- Use quick disconnects only at the rear inlet comb, the per-slot outlet unions, or where cleaning benefit is high.
 - Use an external 12 V power brick or enclosed supply instead of a complex internal mains supply.
 - Use a wood enclosure with 3D printed brackets/cartridges instead of fully machined metal.
 - Defer carbonation, fridge plumbing, bottle scales, and fancy displays.
@@ -146,7 +146,7 @@ Recommended v1 compromise:
 | Location            | Suggested fitting                                 |
 | ------------------- | ------------------------------------------------- |
 | Inside machine      | Barbed fittings and clamps                        |
-| Machine inlet panel | Optional hose-barb quick disconnects              |
+| Rear inlet comb     | Optional hose-barb quick disconnects              |
 | Bottle side         | Dropped pickup tubes first; 3D printed caps later |
 | Nozzle plate        | Individual removable nozzles                      |
 

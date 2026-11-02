@@ -17,10 +17,10 @@
 11. What `flow_threshold` and timeout work across water, syrup, and simultaneous 2-pump pours?
 12. Is **8-pump simultaneous** pour into one glass acceptable for splash/overflow? *(Not testable on 2-pump bench — Phase 4.)*
 13. Does **GST120** handle 8-pump inrush without sag that breaks calibration? *(Simulate on bench with measured currents.)*
-7. What enclosure dimensions are needed after real pump/cartridge measurements?
+7. ~~What enclosure dimensions are needed after real pump/cartridge measurements?~~ **Layout decided (draft, 2026-11-01):** four-slot rear tower with pump heads out the back, open glass bay, electronics box under slot A, Fire HD 8 pivot mount. Draft size 284 × 266 × 409 mm. Wood dimensions stay open until the cartridge slide-in and nozzle-ring checks in [`08-mechanical-design.md`](08-mechanical-design.md) pass.
 8. How much residue remains after syrup/grenadine/citrus cleaning tests?
-9. ~~Is 8 pumps enough for the desired drink menu, or should the enclosure start with 12 physical nozzle positions?~~ **Resolved:** Start with **8 installed pumps**; design enclosure and electronics for **16 pumps max** (four 4-pump module slots). MCP23017 addressing allows more; 16 remains the mechanical/power ceiling. Pre-plan physical space for 16 inlet barbs and nozzles; populate only 8 at first build.
-10. ~~How should pump/bottle labels be handled so setup is obvious?~~ **Resolved:** **Dual labels** — engraved/printed label above each **inlet barb** on the machine panel; matching label on each **bottle stopper** where the pickup tube enters. Tube color optional later.
+9. ~~Is 8 pumps enough for the desired drink menu, or should the enclosure start with 12 physical nozzle positions?~~ **Resolved:** Start with **8 installed pumps**; design enclosure and electronics for **16 pumps max** (four 4-pump module slots). MCP23017 addressing allows more; 16 remains the mechanical/power ceiling. Pre-plan physical space for 16 inlet clips and nozzles; populate only 8 at first build.
+10. ~~How should pump/bottle labels be handled so setup is obvious?~~ **Resolved:** **Dual labels** — label on each **rear inlet-comb clip** (no inlet panel since the 2026-11-01 open-back layout); matching label on each **bottle stopper** where the pickup tube enters. Tube color optional later.
 
 ## V2 ideas
 

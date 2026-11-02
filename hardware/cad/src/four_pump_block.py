@@ -117,17 +117,35 @@ PANEL_CHANNEL_H_MM = TOP_RIM_Z_MM
 # Fit-test pump center: ≥5 mm flange beyond outermost mount holes on the panel.
 PUMP_CENTER_Z_MM = 29.0
 
-# Provisional PCB keep-out only; height scaled to the slim shell, not a board outline.
-# Box args map as: width→X, depth→enclosure +Y, height→enclosure +Z.
-PCB_W_MM = 170.0
-PCB_Y_MM = 18.0
-PCB_Z_MM = 40.0
+# Ordered 4-pump module PCB — ref: refs/4-pump-module-pcb.md
+PCB_BOARD_L_MM = 84.70
+PCB_BOARD_W_MM = 20.85
+PCB_THICKNESS_MM = 1.6
+# Socketed TB6612 carrier boards; bench measurement pending.
+PCB_CARRIER_HEIGHT_MM = 12.0
 PCB_REAR_GAP_AFTER_MOTOR_MM = 8.0
+PCB_STANDOFF_MM = 3.0  # clears through-hole pins under the board
+PCB_TOPLEFT_X_MM = -PCB_BOARD_L_MM / 2
+PCB_TOPLEFT_Y_MM = BODY_D_MM - WALL_T_MM
+PCB_BOTTOM_Z_MM = CAVITY_BOTTOM_Z_MM + PCB_STANDOFF_MM
 
-# Rear wiring opening; connector-specific geometry remains deferred.
-CABLE_EXIT_W_MM = 36.0
-CABLE_EXIT_H_MM = 18.0
-CABLE_EXIT_BOTTOM_Z_MM = CAVITY_BOTTOM_Z_MM + 8.0
+J1_ORIGIN_BOARD_X_MM = 4.1
+J1_ORIGIN_BOARD_Y_MM = 9.5
+J1_FACE_OFFSET_BOARD_X_MM = 3.0
+J1_FACE_OFFSET_BOARD_Y_MM = -4.5
+J1_SHROUD_EXTENT_BOARD_Y_MM = 9.42
+J1_FACE_INSET_FROM_REAR_EDGE_MM = J1_ORIGIN_BOARD_Y_MM - 8.92
+
+MICROFIT_OPENING_CLEARANCE_MM = 1.0
+MICROFIT_OPENING_W_MM = 14.16 + 2 * MICROFIT_OPENING_CLEARANCE_MM
+MICROFIT_OPENING_H_MM = 8.0 + 2 * MICROFIT_OPENING_CLEARANCE_MM
+MICROFIT_MATE_DIR = (0.0, 1.0, 0.0)
+MICROFIT_FACE_CENTER_MM = (
+    PCB_TOPLEFT_X_MM + J1_ORIGIN_BOARD_X_MM + J1_FACE_OFFSET_BOARD_X_MM,
+    PCB_TOPLEFT_Y_MM - J1_FACE_INSET_FROM_REAR_EDGE_MM,
+    PCB_BOTTOM_Z_MM + PCB_THICKNESS_MM / 2 + 3.0,
+)
+MICROFIT_OPENING_CENTER_Y_MM = BODY_D_MM - WALL_T_MM / 2
 
 # Top tube panel — flat slider with exterior press-fit clamps for 3x5 mm tubing.
 TUBE_LINE_OD_MM = 5.0
@@ -154,6 +172,19 @@ def pump_x_centers() -> tuple[float, ...]:
     """Return symmetric pump centers without altering each keyed hole pattern."""
     first = -((PUMP_COUNT - 1) * PUMP_PITCH_MM) / 2
     return tuple(first + index * PUMP_PITCH_MM for index in range(PUMP_COUNT))
+
+
+def _pcb_front_y_mm() -> float:
+    """Return the block +Y front edge of the flat PCB outline."""
+    return PCB_TOPLEFT_Y_MM - PCB_BOARD_W_MM
+
+
+def _pcb_component_top_z_mm() -> float:
+    return PCB_BOTTOM_Z_MM + PCB_THICKNESS_MM + PCB_CARRIER_HEIGHT_MM
+
+
+def _j1_face_center_mm() -> tuple[float, float, float]:
+    return MICROFIT_FACE_CENTER_MM
 
 
 def _validate_parameters() -> None:
@@ -186,15 +217,22 @@ def _validate_parameters() -> None:
     if printed_depth > PRINT_XY_LIMIT_MM:
         raise ValueError("Printed body exceeds the buffered XY print-bed limit")
 
-    rear_pcb_y = PUMP_REAR_Y_MM + PCB_REAR_GAP_AFTER_MOTOR_MM
-    if rear_pcb_y + PCB_Y_MM > BODY_D_MM - WALL_T_MM:
-        raise ValueError("Rear PCB keep-out does not fit inside body depth")
+    pcb_front_y = _pcb_front_y_mm()
+    motor_gap_plane_y = PUMP_REAR_Y_MM + PCB_REAR_GAP_AFTER_MOTOR_MM
+    if pcb_front_y < motor_gap_plane_y - 0.01:
+        raise ValueError("Rear PCB overlaps the motor rear clearance gap")
 
-    pcb_bottom_z = CAVITY_BOTTOM_Z_MM + (BODY_H_MM - PCB_Z_MM) / 2
-    if pcb_bottom_z <= CAVITY_BOTTOM_Z_MM:
-        raise ValueError("Rear PCB keep-out does not clear the cavity bottom")
-    if pcb_bottom_z + PCB_Z_MM >= CAVITY_TOP_Z_MM:
-        raise ValueError("Rear PCB keep-out collides with the top panel datum")
+    if _pcb_component_top_z_mm() >= CAVITY_TOP_Z_MM:
+        raise ValueError("Rear PCB component envelope collides with the top panel datum")
+
+    if PCB_TOPLEFT_Y_MM > BODY_D_MM - WALL_T_MM + 0.01:
+        raise ValueError("Rear PCB rear edge exceeds the inner rear wall")
+
+    _, face_y, face_z = _j1_face_center_mm()
+    if face_y > PCB_TOPLEFT_Y_MM:
+        raise ValueError("J1 mating face sits forward of the PCB rear edge")
+    if face_z - MICROFIT_OPENING_H_MM / 2 < CAVITY_BOTTOM_Z_MM:
+        raise ValueError("J1 opening cuts into the floor; raise the PCB standoffs")
 
     if PANEL_CHANNEL_OUTER_X_MM > BODY_W_MM / 2:
         raise ValueError("Panel channels exceed the enclosure width")
@@ -211,8 +249,8 @@ def _validate_parameters() -> None:
     if CLAMP_CLUSTER_PITCH_MM < CLAMP_CAVITY_D_MM + 2 * CLAMP_WALL_T_MM:
         raise ValueError("Clamp cluster pitch is tighter than the clamp outer diameter")
     clamp_span = (PUMP_COUNT - 1) * CLAMP_CLUSTER_PITCH_MM + CLAMP_CAVITY_D_MM + 2 * CLAMP_WALL_T_MM
-    if clamp_span > CABLE_EXIT_W_MM + 20.0:
-        raise ValueError("Clamp cluster is much wider than the rear cable/PCB opening")
+    if clamp_span > SLIDER_W_MM:
+        raise ValueError("Clamp cluster is wider than the top tube panel")
     if CLAMP_Y_MM + CLAMP_LENGTH_MM / 2 > SLIDER_REAR_Y_MM:
         raise ValueError("Clamp cluster extends past the top panel rear edge")
     if CLAMP_Y_MM - CLAMP_LENGTH_MM / 2 < SLIDER_FRONT_Y_MM:
@@ -355,18 +393,28 @@ def build_body() -> Part:
                 )
         _slider_slot_cut(TOP_SLOT_BOTTOM_Z_MM, TOP_SLOT_TOP_Z_MM)
 
-        # Rear cable exit.
+        # Rear Micro-Fit J1 blind-mate opening (replaces the old cable exit).
+        face_x, _, face_z = _j1_face_center_mm()
+        with Locations((face_x, MICROFIT_OPENING_CENTER_Y_MM, face_z)):
+            Box(
+                MICROFIT_OPENING_W_MM,
+                WALL_T_MM + 2 * BOOLEAN_OVERLAP_MM,
+                MICROFIT_OPENING_H_MM,
+                align=(Align.CENTER, Align.CENTER, Align.CENTER),
+                mode=Mode.SUBTRACT,
+            )
+        lead_in_scale = 1.0 + 2.0 / MICROFIT_OPENING_W_MM
         with Locations(
             (
-                0,
-                BODY_D_MM - WALL_T_MM / 2,
-                CABLE_EXIT_BOTTOM_Z_MM + CABLE_EXIT_H_MM / 2,
+                face_x,
+                MICROFIT_OPENING_CENTER_Y_MM + WALL_T_MM / 2 + 0.5,
+                face_z,
             )
         ):
             Box(
-                CABLE_EXIT_W_MM,
-                WALL_T_MM + 2,
-                CABLE_EXIT_H_MM,
+                MICROFIT_OPENING_W_MM * lead_in_scale,
+                1.0,
+                MICROFIT_OPENING_H_MM * lead_in_scale,
                 align=(Align.CENTER, Align.CENTER, Align.CENTER),
                 mode=Mode.SUBTRACT,
             )
@@ -558,18 +606,43 @@ def build_top_tube_panel_print() -> Part:
     return panel.translate((0, 0, -panel.bounding_box().min.Z))
 
 
-def build_pcb_envelope_rear() -> Part:
-    """Return the provisional fixed-rear PCB keep-out."""
+def build_j1_body_keepout() -> Part:
+    """Return a J1 shroud keep-out extending toward block +Y from the PCB rear edge."""
+    _validate_parameters()
+    origin_x = PCB_TOPLEFT_X_MM + J1_ORIGIN_BOARD_X_MM - 4.08
+    inner_y = PCB_TOPLEFT_Y_MM - J1_ORIGIN_BOARD_Y_MM - 0.5
+    origin_z = PCB_BOTTOM_Z_MM + PCB_THICKNESS_MM
+    return Box(
+        14.16,
+        J1_SHROUD_EXTENT_BOARD_Y_MM + 1.0,
+        8.0,
+        align=(Align.MIN, Align.MIN, Align.MIN),
+    ).translate((origin_x, inner_y, origin_z))
+
+
+def build_pcb_envelope_rear() -> Compound:
+    """Return the fixed-rear PCB keep-out (board + carrier height + J1 shroud)."""
     _validate_parameters()
 
-    y = PUMP_REAR_Y_MM + PCB_REAR_GAP_AFTER_MOTOR_MM
-    z = CAVITY_BOTTOM_Z_MM + (BODY_H_MM - PCB_Z_MM) / 2
-    return Box(
-        PCB_W_MM,
-        PCB_Y_MM,
-        PCB_Z_MM,
-        align=(Align.CENTER, Align.MIN, Align.MIN),
-    ).translate((0, y, z))
+    board = Box(
+        PCB_BOARD_L_MM,
+        PCB_BOARD_W_MM,
+        PCB_THICKNESS_MM,
+        align=(Align.MIN, Align.MAX, Align.MIN),
+    ).translate((PCB_TOPLEFT_X_MM, PCB_TOPLEFT_Y_MM, PCB_BOTTOM_Z_MM))
+    components = Box(
+        PCB_BOARD_L_MM,
+        PCB_BOARD_W_MM,
+        PCB_CARRIER_HEIGHT_MM,
+        align=(Align.MIN, Align.MAX, Align.MIN),
+    ).translate(
+        (
+            PCB_TOPLEFT_X_MM,
+            PCB_TOPLEFT_Y_MM,
+            PCB_BOTTOM_Z_MM + PCB_THICKNESS_MM,
+        )
+    )
+    return Compound(children=[board, components, build_j1_body_keepout()])
 
 
 def build_pump_envelopes() -> Compound:

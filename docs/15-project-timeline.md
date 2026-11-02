@@ -96,7 +96,9 @@ gantt
 | 2026-11-01 | Partial AliExpress receive: Micro-Fit RA 2×3, F1 1812-2A, JST-XH ×2 sets, MCP23017, Mini560 ×2, Micro-Fit vertical 6-pin | Operator |
 | 2026-11-01 | More AliExpress: 0805 **2.2 kΩ**, 0805 **100 nF**, 0805 **10 kΩ**, KF301-5.0-2P ×10, plain female **1×22** / **1×6** / **1×4** / **1×8** | Operator |
 | 2026-11-01 | JST-XH 2-pin female pigtails spliced/wired on **all 8** KPHM100 motors | Operator |
+| 2026-11-01 | Enclosure layout draft accepted (four-slot rear tower, open back, Fire HD 8 pivot mount) | [`08-mechanical-design.md`](08-mechanical-design.md) layout + slot contract; `hardware/cad/src/enclosure_rear_bay_concept.py` |
 | TBD        | Test 10 (I2C on first module)                  | Post-fab bring-up — **not** a Gerber gate |
+| TBD        | Test 11 (enclosure draft checks) → cut wood    | Gates "Cartridge and nozzle prototype" |
 | TBD        | First drink from 8-pump v1                     | Phase 4 exit |
 
 ## Bench session log (timeline)

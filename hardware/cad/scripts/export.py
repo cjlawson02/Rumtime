@@ -71,6 +71,7 @@ PART_SPECS: dict[str, tuple[str, str]] = {
     ),
     "tube_bundle_clamp": ("tube_bundle_clamp", "build_clamp"),
     "tube_bundle_clamp_print": ("tube_bundle_clamp", "build_clamp_print"),
+    "enclosure_rear_bay_concept": ("enclosure_rear_bay_concept", "build"),
 }
 
 
