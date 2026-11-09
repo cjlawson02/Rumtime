@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MockDeviceClient, getMockDeviceStatus, resetMockDevice } from "@/api/mock-device";
+import {
+  MockDeviceClient,
+  getMockDeviceStatus,
+  resetMockDevice,
+  setMockGlassPresent,
+} from "@/api/mock-device";
 import { getRecipeById } from "@/data/load-recipes";
 import { MAX_PRIME_SECONDS } from "@/lib/calibration";
-import { pourStepsFromRecipe } from "@/lib/pour-steps";
+import { pourPhasesFromRecipe } from "@/lib/pour-steps";
 
 describe("MockDeviceClient", () => {
   beforeEach(() => {
@@ -13,7 +18,7 @@ describe("MockDeviceClient", () => {
   function pourCommand(recipeId: string) {
     const recipe = getRecipeById(recipeId);
     if (!recipe) throw new Error(`missing recipe ${recipeId}`);
-    return { recipeId, steps: pourStepsFromRecipe(recipe) };
+    return { recipeId, phases: pourPhasesFromRecipe(recipe) };
   }
 
   it("rejects a second pour while prompt is active", async () => {
@@ -119,6 +124,17 @@ describe("MockDeviceClient", () => {
     await client.updatePrimed({ ingredientId: "bourbon", primed: false });
 
     await expect(client.startPour(pourCommand("old-fashioned"))).rejects.toThrow(/422.*primed/i);
+  });
+
+  it("rejects recipe pour when no glass is present", async () => {
+    const client = new MockDeviceClient();
+    setMockGlassPresent(false);
+    expect(getMockDeviceStatus().glassPresent).toBe(false);
+
+    await expect(client.startPour(pourCommand("old-fashioned"))).rejects.toThrow(/422.*no_glass/i);
+
+    setMockGlassPresent(true);
+    await expect(client.startPour(pourCommand("old-fashioned"))).resolves.toBeUndefined();
   });
 
   it("updates pump calibration and primed state", async () => {

@@ -148,7 +148,7 @@ describe("useDeviceMutations", () => {
       run: () =>
         expectCommandMutationInvalidates(useStartPour, startPour, {
           recipeId: "old-fashioned",
-          steps: [{ ingredientId: "bourbon", ml: 45 }],
+          phases: [{ steps: [{ ingredientId: "bourbon", ml: 45 }] }],
         }),
     },
     {
@@ -231,7 +231,7 @@ describe("useDeviceMutations", () => {
     await act(async () => {
       await result.current.mutateAsync({
         recipeId: "old-fashioned",
-        steps: [{ ingredientId: "bourbon", ml: 45 }],
+        phases: [{ steps: [{ ingredientId: "bourbon", ml: 45 }] }],
       });
     });
 

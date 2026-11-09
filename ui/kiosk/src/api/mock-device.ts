@@ -121,6 +121,7 @@ const state: MockState = {
     connected: true,
     firmwareVersion: "mock-0.1.0",
     hostname: "rumtime.local",
+    glassPresent: true,
     link: {
       ssid: "MockNet",
       ip: "192.168.1.50",
@@ -346,11 +347,18 @@ function startPumpDispenseSimulation(command: PumpDispenseCommand) {
   }, 100);
 }
 
+function resolvePourSteps(command: PourCommand): PourStep[] {
+  if (command.phases && command.phases.length > 0) {
+    return command.phases.flatMap((phase) => phase.steps);
+  }
+  return command.steps ?? [];
+}
+
 function startPourSimulation(command: PourCommand) {
   clearPourTimer();
   const recipe = getRecipeById(command.recipeId);
   const pumped = recipe?.ingredients.filter((i) => i.kind === "pumped") ?? [];
-  const steps = command.steps;
+  const steps = resolvePourSteps(command);
   let completedSteps = 0;
 
   const stepName = (index: number) => pumped[index]?.name ?? steps[index].ingredientId;
@@ -414,12 +422,30 @@ export function getMockDeviceStatus(): DeviceStatus {
   return cloneStatus(state.status);
 }
 
+/** Test/dev helper — mirrors firmware glassPresent on /status. */
+export function setMockGlassPresent(present: boolean) {
+  state.status.glassPresent = present;
+  if (!present) {
+    state.status.notifications = [
+      {
+        id: "no_glass",
+        severity: "warning",
+        title: "Glass required",
+        message: "Place a glass on the platform before pouring.",
+      },
+    ];
+  } else if (state.status.notifications?.some((n) => n.id === "no_glass")) {
+    state.status.notifications = state.status.notifications.filter((n) => n.id !== "no_glass");
+  }
+}
+
 export function resetMockDevice() {
   clearAllTimers();
   state.status = {
     connected: true,
     firmwareVersion: "mock-0.1.0",
     hostname: "rumtime.local",
+    glassPresent: true,
     link: {
       ssid: "MockNet",
       ip: "192.168.1.50",
@@ -463,7 +489,16 @@ export class MockDeviceClient implements DeviceClient {
     return runDeviceMutation(() => {
       assertDeviceIdle();
 
-      for (const step of command.steps) {
+      if (state.status.glassPresent === false) {
+        throw new Error("422: no_glass — place a glass on the platform");
+      }
+
+      const steps = resolvePourSteps(command);
+      if (steps.length === 0) {
+        throw new Error("422: phases or steps required");
+      }
+
+      for (const step of steps) {
         if (!(step.ingredientId in state.status.bindings)) {
           throw new Error("422: ingredient not bound");
         }
@@ -483,7 +518,7 @@ export class MockDeviceClient implements DeviceClient {
         }
       }
 
-      validatePourInventory(command.steps);
+      validatePourInventory(steps);
 
       if (state.status.job) {
         setJob(null);

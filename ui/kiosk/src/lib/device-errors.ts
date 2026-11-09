@@ -31,6 +31,9 @@ export function deviceErrorMessage(error: unknown): string {
         if (code === "low_inventory" || text.includes("inventory")) {
           return "Not enough liquid remaining for this pour.";
         }
+        if (code === "no_glass" || text.includes("glass")) {
+          return "Place a glass on the platform before pouring.";
+        }
         return "Cannot pour — check ingredients, inventory, or glass.";
       }
       case 503:

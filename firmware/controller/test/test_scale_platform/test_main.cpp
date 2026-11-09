@@ -353,9 +353,27 @@ void setUp() {
 void tearDown() {
 }
 
+void test_glass_present_threshold() {
+  FakeScale fake;
+  g_fake = &fake;
+  fake.grams = {0.0f, 0.0f, 0.0f, 80.0f, 80.0f, 80.0f};
+  ScalePlatform scale;
+  scale.begin(makeOps());
+  TEST_ASSERT_TRUE(scale.ready());
+  scale.tick(0);
+  scale.tick(10);
+  scale.tick(20);
+  TEST_ASSERT_FALSE(scale.glassPresent());
+  scale.tick(30);
+  scale.tick(40);
+  scale.tick(50);
+  TEST_ASSERT_TRUE(scale.glassPresent());
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_rolling_filter_average);
+  RUN_TEST(test_glass_present_threshold);
   RUN_TEST(test_flow_gate_consecutive_threshold);
   RUN_TEST(test_flow_below_threshold_does_not_detect);
   RUN_TEST(test_flow_timeout_elapsed_without_blocking);

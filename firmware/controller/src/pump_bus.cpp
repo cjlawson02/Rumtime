@@ -20,6 +20,13 @@ void PumpBus::begin(const GpioOps& gpio) {
   initialized_ = false;
   driver_enabled_ = false;
   gpio_ = &gpio;
+  max_concurrent_ = kMaxConcurrentPumps;
+  if (max_concurrent_ > kNumChannels) {
+    max_concurrent_ = kNumChannels;
+  }
+  if (max_concurrent_ < 1) {
+    max_concurrent_ = 1;
+  }
 
   // Safe boot ordering: STBY low first so channel writes cannot drive motors,
   // then park each channel with IN1/IN2 low and PWM off.
@@ -29,6 +36,16 @@ void PumpBus::begin(const GpioOps& gpio) {
   channels_[0].begin(pins::kPump1In1, pins::kPump1In2, pins::kPump1Pwm, gpio);
   channels_[1].begin(pins::kPump2In1, pins::kPump2In2, pins::kPump2Pwm, gpio);
   initialized_ = true;
+}
+
+void PumpBus::setMaxConcurrent(uint8_t max_concurrent) {
+  if (max_concurrent < 1) {
+    max_concurrent_ = 1;
+  } else if (max_concurrent > kNumChannels) {
+    max_concurrent_ = kNumChannels;
+  } else {
+    max_concurrent_ = max_concurrent;
+  }
 }
 
 bool PumpBus::run(uint8_t channel, PumpDirection direction, int duty) {
@@ -42,10 +59,9 @@ bool PumpBus::run(uint8_t channel, PumpDirection direction, int duty) {
     stop(channel);
     return true;
   }
-  for (uint8_t i = 0; i < kNumChannels; ++i) {
-    if (i != channel && channels_[i].direction() != PumpDirection::kStop) {
-      channels_[i].stop();
-    }
+  const bool already_running = channels_[channel].direction() != PumpDirection::kStop;
+  if (!already_running && runningCount() >= max_concurrent_) {
+    return false;
   }
   channels_[channel].run(direction, clampDuty(duty));
   enableDriver();
@@ -73,12 +89,17 @@ void PumpBus::stopAll() {
 }
 
 bool PumpBus::anyRunning() const {
+  return runningCount() > 0;
+}
+
+uint8_t PumpBus::runningCount() const {
+  uint8_t count = 0;
   for (uint8_t i = 0; i < kNumChannels; ++i) {
     if (channels_[i].direction() != PumpDirection::kStop) {
-      return true;
+      ++count;
     }
   }
-  return false;
+  return count;
 }
 
 void PumpBus::enableDriver() {

@@ -9,11 +9,11 @@ The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated t
 | Component | File(s) | State |
 | --------- | ------- | ----- |
 | `PumpChannel` | `pump_channel.{h,cpp}` | **Implemented** — one TB6612 channel (IN1/IN2/PWM); sole GPIO writer for its motor outputs; injected `GpioOps` seam enables host-side unit tests |
-| `PumpBus` | `pump_bus.{h,cpp}` | **Implemented** — owns STBY + 2 channels; `run`/`stop`/`stopAll`; stops other channel before starting a new run; safe-boot ordering; clamps duty |
+| `PumpBus` | `pump_bus.{h,cpp}` | **Implemented** — owns STBY + channels; `run`/`stop`/`stopAll`; soft concurrency ceiling `kMaxConcurrentPumps` (6); safe-boot ordering; clamps duty |
 | `ScalePlatform` | `scale_platform.{h,cpp}` | **Implemented** — non-blocking HX711 FSM; one conversion per `tick()`, multi-tick tare, rolling filter, flow-gate + no-flow timeout flags; injected `ScaleOps` seam enables host-side unit tests |
 | `ControlTask` | `control_task.{h,cpp}` | **Implemented** — 5 ms `vTaskDelayUntil` loop; queue drain, coordinator, sequence runner, idle NVS commit (atomic config+inventory when both dirty), status publish, serial poll; TWDT feed each tick |
-| `Coordinator` | `coordinator.{h,cpp}` | **Implemented** — one job at a time; non-blocking single-pump gated timed dispense sub-FSM advanced in `tick(now_ms)`; continuous forward **prime** with operator stop and 60 s prime timeout; drives `PumpBus` + `ScalePlatform` only (no direct GPIO). Multi-pump parallel still deferred |
-| `SequenceRunner` | `sequence_runner.{h,cpp}` | **Implemented** — sequential multi-step pours (`ingredient_id` + `ml`); resolves pumps via `ConfigStore::channelForIngredient`; each step runs through the coordinator flow-gated dispense FSM; max **16** steps per sequence; parallel groups still deferred |
+| `Coordinator` | `coordinator.{h,cpp}` | **Implemented** — one job at a time; non-blocking single-pump gated timed dispense sub-FSM advanced in `tick(now_ms)`; continuous forward **prime** with operator stop and 60 s prime timeout; drives `PumpBus` + `ScalePlatform` only (no direct GPIO). Parallel multi-pump within a pour phase is owned by `SequenceRunner`, not the coordinator |
+| `SequenceRunner` | `sequence_runner.{h,cpp}` | **Implemented** — ordered pour **phases**; steps within a phase run concurrently (open-loop timed, ≤ `kMaxConcurrentPumps`); single-step phases use the coordinator flow-gated FSM; max **16** phases / **16** total steps |
 | `CommandQueue` | `command_queue.{h,cpp}` + `queue_ops.h` | **Implemented (host-tested)** — depth-1 queue policy + `QueueOps` seam (FreeRTOS on ESP32, in-memory fake on host); `std::atomic` cancel; `markCommandAfterCancel()` preserves a command enqueued in the same poll as `cancel` |
 | `StatusPublisher` | `status_snapshot.{h,cpp}` | **Implemented (host-tested)** — seqlock publish/read; carries `command_pending`, `job_cancelled`, config persist status |
 | `SerialTransport` | `serial_transport.{h,cpp}` | **Implemented (bench-verified)** — capped bytes/poll; pour calibration at enqueue; config/inventory ops via `ConfigOpQueue`; Wi-Fi provisioning commands; rejects config edits when queue pending or job busy |
@@ -24,7 +24,7 @@ The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated t
 | `HttpServer` | `http_server.{h,cpp}` | **Implemented** — Arduino `WebServer` + ArduinoJson v7 on Core 0; enqueue-only handlers; HTTP preflight reads published snapshot rows only (no cross-core store access) |
 | `WiFiManager` | `wifi_manager.{h,cpp}` | **Implemented** — STA-only; serial provisioning; mDNS `rumtime.local`; reconnect on disconnect; modem sleep off + max TX; **cancel busy jobs on STA drop** (`wifi_link_safety.h`) |
 
-Not present yet: multi-pump parallel dispense, I2C/MCP23017, cleaning sequences, soft-AP captive portal.
+Not present yet: I2C/MCP23017 product path (bench still direct GPIO), cleaning sequences, soft-AP captive portal. Parallel pour phases are implemented (open-loop within a phase; solo steps stay flow-gated).
 
 ## Safety model (this PR)
 
@@ -127,9 +127,9 @@ Non-blocking port of the bench `ScaleDriver` to the `ControlTask` tick (docs/16:
 - **Config:** `setCalibrationFactor(...)`, `setFlowConfig(threshold, consecutive, timeout)`; introspection via `ready()`, `lastDeltaG()`, `flowDetectTimeoutMs()`, etc.
 - **Liveness:** `ready()` reflects `initialized_ && !stale_` — it goes false if no successful conversion occurs within `kScaleStaleTimeoutMs`, and recovers on the tick after reads resume, so a dead sensor is visible in the status snapshot; the no-flow timeout still fires from the wall clock even without a conversion.
 
-All HX711 I/O lives behind the injected `ScaleOps` (see `scale_ops.h`); the real bogde/HX711 wiring is in `control_task.cpp` (ESP32 path only, excluded from the native build). The scale is ticked in the control loop and its `ready` / filtered `grams` / `flow_detected` / `flow_timed_out` / `last_delta_g` are published in the status snapshot.
+All HX711 I/O lives behind the injected `ScaleOps` (see `scale_ops.h`); the real bogde/HX711 wiring is in `control_task.cpp` (ESP32 path only, excluded from the native build). The scale is ticked in the control loop and its `ready` / `glass_present` / filtered `grams` / `flow_detected` / `flow_timed_out` / `last_delta_g` are published in the status snapshot.
 
-**Deferred:** glass-present detection is not implemented — the mass thresholds/heuristic are still open (docs/16), so callers get raw filtered grams and decide policy later.
+**Glass present (v1):** `ScalePlatform::glassPresent()` is true when the scale is ready, not taring, and filtered grams ≥ `kGlassPresentMinGrams` (50 g provisional). Recipe pours are rejected with `no_glass` when false. The hood ring light (`pins::kRingLight` = GPIO 13 → external MOSFET) tracks `glass_present` each control tick.
 
 ## Dispense subsystem (Coordinator + CommandQueue + SerialTransport)
 
@@ -185,7 +185,7 @@ operator never gets a wrong volume without notice):
 - **Cancel aborts immediately** — `stopAll()`, no anti-drip reverse, emits `// job:cancelled` (not ok or error).
 - **Scale not ready at start** → `dispense` (flow-gated) is rejected with `Error:scale not ready`. Use `dispense open` for timed pour without the scale.
 - **Scale goes not-ready during flow wait** → abort the pour (before the no-flow timeout can fire).
-- **No glass-present check** — mass/glass heuristics are still open (docs/16); the coordinator does not gate on a glass.
+- **Glass required for recipe pour** — HTTP/serial `pour` preflight and `SequenceRunner::start` both require `glassPresent()`; single-pump `dispense` / prime / flush are unchanged (setup path).
 - **`ml_per_s` / `anti_drip_ms` per pump from NVS** (`ConfigStore`); the `config.h` values are seed defaults only.
 - **Prime timeout** at 60 s (`kMaxPrimeDurationMs`) aborts continuous prime.
 

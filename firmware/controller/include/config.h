@@ -21,6 +21,10 @@ constexpr int kStandby = 18;  // PUMP_BUS_ENABLE; bench was 17
 
 constexpr int kLedStatus = 38;  // right header; active high
 
+// Hood 12 V COB ring (external low-side MOSFET). Free DevKit pin — do not reuse
+// LED_STATUS (GPIO 38). Active high turns the FET on.
+constexpr int kRingLight = 13;
+
 // I2C → pump modules (Micro-Fit pins 5/6). Silk labels = GPIO numbers.
 constexpr int kI2cSda = 5;
 constexpr int kI2cScl = 4;
@@ -49,8 +53,13 @@ constexpr unsigned long kDefaultAntiDripMs = 100;
 constexpr uint8_t kMaxPumps = 16;
 constexpr std::size_t kIngredientIdMax = 24;  // includes the NUL terminator
 
-// Max steps in one pour sequence (sequential only; parallel groups deferred).
+// Soft concurrency ceiling on PumpBus::run (GST60 headroom; see docs/12).
+constexpr uint8_t kMaxConcurrentPumps = 6;
+
+// Max steps / phases in one pour sequence. Steps within a phase run concurrently
+// (up to kMaxConcurrentPumps); phases run in order.
 constexpr uint8_t kMaxPourSequenceSteps = 16;
+constexpr uint8_t kMaxPourPhases = 16;
 
 // Blob is guarded by magic + schema version; a mismatch resets to seed defaults
 // (docs/16: "Version the schema; migrate or reset on breaking changes.").
@@ -103,6 +112,10 @@ constexpr float kScaleCalibrationFactor = 374.76f;
 constexpr float kFlowThresholdG = 0.03f;
 constexpr int kFlowDetectConsecutive = 3;
 constexpr unsigned long kFlowDetectTimeoutMs = 5000;
+
+// Glass-present (provisional until Test 7.2 locks the heuristic). After tare,
+// empty platform ≈ 0 g; any drinking glass is typically well above this floor.
+constexpr float kGlassPresentMinGrams = 50.0f;
 
 // Rolling average depth for readFilteredGrams() (RAM only). Also the raw-sample
 // count for a tare, spread across ControlTask ticks (never blocking).

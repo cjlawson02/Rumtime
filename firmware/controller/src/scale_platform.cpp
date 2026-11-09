@@ -42,6 +42,7 @@ void ScalePlatform::begin(const ScaleOps& ops) {
   ops_ = &ops;
   calibrationFactor_ = kScaleCalibrationFactor;
   flowThresholdG_ = kFlowThresholdG;
+  glassPresentMinGrams_ = kGlassPresentMinGrams;
   flowDetectConsecutive_ = kFlowDetectConsecutive;
   flowDetectTimeoutMs_ = kFlowDetectTimeoutMs;
 
@@ -87,6 +88,10 @@ void ScalePlatform::setFlowConfig(float thresholdG, int consecutive, unsigned lo
   flowThresholdG_ = thresholdG < 0.0f ? 0.0f : thresholdG;
   flowDetectConsecutive_ = consecutive < 1 ? 1 : consecutive;
   flowDetectTimeoutMs_ = timeoutMs;
+}
+
+void ScalePlatform::setGlassPresentMinGrams(float grams) {
+  glassPresentMinGrams_ = grams < 0.0f ? 0.0f : grams;
 }
 
 void ScalePlatform::tare() {

@@ -141,6 +141,8 @@ RuntimeContext& ctx() {
 
 void ControlTask::begin() {
   pumps_.begin(kArduinoGpioOps);
+  pinMode(pins::kRingLight, OUTPUT);
+  digitalWrite(pins::kRingLight, LOW);
   scale_.begin(kHx711Ops);
   ctx().config.begin(kPrefsOps);
   ctx().inventory.begin(kPrefsOps);
@@ -392,8 +394,7 @@ void ControlTask::tick() {
         case CommandType::kPourSequence:
           std::strncpy(active_recipe_id_, command.pour_sequence.recipe_id, kRecipeIdMax - 1);
           active_recipe_id_[kRecipeIdMax - 1] = '\0';
-          if (!sequence_.start(command.pour_sequence.steps, command.pour_sequence.step_count,
-                               now)) {
+          if (!sequence_.start(command.pour_sequence, now)) {
             armJobTerminal(JobTerminalState::kError, now, sequence_.lastReject());
             serial_.emitJobEvent(false, sequence_.lastReject());
             sequence_.clearTerminalResult();
@@ -415,10 +416,12 @@ void ControlTask::tick() {
   StatusSnapshot snapshot;
   snapshot.pumps_running = pumps_.anyRunning();
   snapshot.scale_ready = scale_.ready();
+  snapshot.glass_present = scale_.glassPresent();
   snapshot.grams = scale_.readFilteredGrams();
   snapshot.flow_detected = scale_.flowDetected();
   snapshot.flow_timed_out = scale_.flowTimedOut();
   snapshot.last_delta_g = scale_.lastDeltaG();
+  digitalWrite(pins::kRingLight, snapshot.glass_present ? HIGH : LOW);
   snapshot.job_busy = top_job_busy;
   snapshot.command_pending = ctx().queue.hasPending();
   snapshot.config_op_pending = ctx().config_queue.hasPending();

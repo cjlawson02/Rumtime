@@ -5,6 +5,7 @@ export const CATEGORIES = [
   { id: "gin", label: "Gin" },
   { id: "rum", label: "Rum" },
   { id: "tequila", label: "Tequila" },
+  { id: "shot", label: "Shot" },
 ] as const;
 
 export type CategoryId = (typeof CATEGORIES)[number]["id"];

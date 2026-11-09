@@ -146,5 +146,26 @@
         "when": "after"
       }
     ]
+  },
+  {
+    "id": "b-52",
+    "name": "B-52",
+    "categories": ["shot"],
+    "description": "Layered shot — Kahlúa, then Baileys, then Grand Marnier floated last.",
+    "ingredients": [
+      { "id": "kahlua", "name": "Kahlúa", "ml": 15, "kind": "pumped" },
+      { "id": "baileys", "name": "Baileys", "ml": 15, "kind": "pumped" },
+      {
+        "id": "grand_marnier",
+        "name": "Grand Marnier",
+        "ml": 15,
+        "kind": "pumped"
+      }
+    ],
+    "phases": [
+      { "ingredientIds": ["kahlua"] },
+      { "ingredientIds": ["baileys"] },
+      { "ingredientIds": ["grand_marnier"] }
+    ]
   }
 ]

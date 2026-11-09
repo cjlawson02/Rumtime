@@ -157,6 +157,19 @@ struct Harness {
     coordinator.begin(pumps, scale, config);
     sequence.begin(coordinator, config, inventory, pumps, scale);
     gpio.reset();
+    // Default: glass on platform (filtered grams above kGlassPresentMinGrams).
+    armGlass(100.0f);
+  }
+
+  void armGlass(float grams) {
+    scale_fake.grams = {grams, grams, grams, grams, grams};
+    scale_fake.grams_idx = 0;
+    // Tick at now=0 so last_conv_ms_ stays aligned with tests that start their clock at 0
+    // (unsigned stale math would wrap if arming used a later timestamp).
+    for (int i = 0; i < 8; ++i) {
+      scale.tick(0);
+    }
+    scale_fake.grams_idx = 0;
   }
 
   void seedPrimed(const char* ingredient, float remaining_ml = 750.0f) {
@@ -506,6 +519,72 @@ void test_progress_weighted_by_step_duration() {
   TEST_ASSERT_EQUAL(90, h.sequence.progressPercent(50));  // 45/55 + half of 10/55
 }
 
+void test_parallel_phase_runs_both_pumps() {
+  Harness h;
+  h.begin();
+  TEST_ASSERT_TRUE(h.config.setBinding(0, "bourbon"));
+  TEST_ASSERT_TRUE(h.config.setBinding(1, "simple"));
+  TEST_ASSERT_TRUE(h.config.setCalibration(0, kDefaultMlPerSecond, 0));
+  TEST_ASSERT_TRUE(h.config.setCalibration(1, kDefaultMlPerSecond, 0));
+  h.seedPrimed("bourbon", 200.0f);
+  h.seedPrimed("simple", 200.0f);
+
+  PourSequenceCommand cmd = {};
+  cmd.phase_count = 1;
+  cmd.phases[0].step_count = 2;
+  cmd.phases[0].steps[0] = makeStep("bourbon", kOneSecondMl);
+  cmd.phases[0].steps[1] = makeStep("simple", kOneSecondMl);
+
+  TEST_ASSERT_TRUE(h.sequence.start(cmd, 0));
+  TEST_ASSERT_TRUE(h.sequence.busy());
+  TEST_ASSERT_TRUE(pumpForwardCh(h.gpio, pins::kPump1In1, pins::kPump1In2, pins::kPump1Pwm));
+  TEST_ASSERT_TRUE(pumpForwardCh(h.gpio, pins::kPump2In1, pins::kPump2In2, pins::kPump2Pwm));
+  TEST_ASSERT_EQUAL_UINT(2, h.pumps.runningCount());
+
+  unsigned long now = 0;
+  runUntilSequenceDone(h, now, 5000);
+  TEST_ASSERT_TRUE(h.sequence.ok());
+  TEST_ASSERT_EQUAL_FLOAT(200.0f - kOneSecondMl, h.inventory.find("bourbon")->remaining_ml);
+  TEST_ASSERT_EQUAL_FLOAT(200.0f - kOneSecondMl, h.inventory.find("simple")->remaining_ml);
+  TEST_ASSERT_TRUE(pumpStoppedCh(h.gpio, pins::kPump1In1, pins::kPump1In2, pins::kPump1Pwm));
+  TEST_ASSERT_TRUE(pumpStoppedCh(h.gpio, pins::kPump2In1, pins::kPump2In2, pins::kPump2Pwm));
+}
+
+void test_start_rejects_without_glass() {
+  Harness h;
+  h.begin();
+  TEST_ASSERT_TRUE(h.config.setBinding(0, "bourbon"));
+  h.seedPrimed("bourbon");
+  h.armGlass(0.0f);
+  TEST_ASSERT_FALSE(h.scale.glassPresent());
+
+  PourSequenceStep steps[1] = {makeStep("bourbon", kOneSecondMl)};
+  TEST_ASSERT_FALSE(h.sequence.start(steps, 1, 0));
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kNoGlass),
+                    static_cast<int>(h.sequence.lastReject()));
+}
+
+void test_parallel_phase_rejects_over_cap() {
+  Harness h;
+  h.begin();
+  TEST_ASSERT_TRUE(h.config.setBinding(0, "bourbon"));
+  TEST_ASSERT_TRUE(h.config.setBinding(1, "simple"));
+  h.seedPrimed("bourbon");
+  h.seedPrimed("simple");
+  h.pumps.setMaxConcurrent(1);
+
+  PourSequenceCommand cmd = {};
+  cmd.phase_count = 1;
+  cmd.phases[0].step_count = 2;
+  cmd.phases[0].steps[0] = makeStep("bourbon", kOneSecondMl);
+  cmd.phases[0].steps[1] = makeStep("simple", kOneSecondMl);
+
+  TEST_ASSERT_FALSE(h.sequence.start(cmd, 0));
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kPumpRefused),
+                    static_cast<int>(h.sequence.lastReject()));
+  TEST_ASSERT_FALSE(h.pumps.anyRunning());
+}
+
 }  // namespace
 
 void setUp() {
@@ -530,5 +609,8 @@ int main() {
   RUN_TEST(test_clear_terminal_result_before_coordinator_job);
   RUN_TEST(test_per_step_inventory_subtract_on_partial_failure);
   RUN_TEST(test_progress_weighted_by_step_duration);
+  RUN_TEST(test_parallel_phase_runs_both_pumps);
+  RUN_TEST(test_parallel_phase_rejects_over_cap);
+  RUN_TEST(test_start_rejects_without_glass);
   return UNITY_END();
 }

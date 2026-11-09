@@ -137,6 +137,58 @@ Fill **ordered** and **received** as you go. Sourced from [`13-phase-0-mini-bom.
 
 **Order dates:** Bulk mini-BOM **2026-06-18** (delivered **2026-06-27**). Load cell bar + HX711 **2026-06-23** — soldered and calibrated **2026-08-20** (`scalecal 374.76`). Module + motherboard AliExpress **2026-10-25** and **2026-10-29** — Oct 25 batches **complete 2026-11-01**; still out: Oct 29 harness/USB-C/LED parts, both PCBs.
 
+### Recorded line prices (2026-11-08)
+
+Operator-dictated line prices only. No grand total.
+
+| Source | Item | Qty | Price (USD) |
+| ------ | ---- | --- | ----------: |
+| OSH Park | 4-pump module PCB | 3 boards | $13.65 |
+| OSH Park | Main-controller PCB | 3 boards | $30.35 |
+| AliExpress | 1×8 pin header | 10 pcs (paid total) | $1.86 |
+| AliExpress | 0805 300 Ω resistors | — | $1.40 |
+| AliExpress | JST 4-pin (XH) | — | $2.60 |
+| AliExpress | Green LEDs | — | $1.36 |
+| AliExpress | Red LEDs | — | $1.33 |
+| AliExpress | Micro-Fit connector housings | — | $5.21 |
+| AliExpress | Micro-Fit pre-crimped | — | $9.76 |
+| AliExpress | USB-C jacks | — | $1.72 |
+| AliExpress | Schottky diodes | — | $1.66 |
+| AliExpress | Mini560 | 2 ($1.38 each; paid total after coupon) | $1.97 |
+| AliExpress | 2-pin terminal blocks | — | $1.26 |
+| AliExpress | Male header pin through-hole Micro-Fit (vertical, not right-angle) | — | $3.31 |
+| AliExpress | 1812 2 A fuse | — | $1.14 |
+| AliExpress | 0805 2.2 kΩ | — | $0.93 |
+| AliExpress | 0805 10 kΩ | — | $1.43 |
+| AliExpress | Right-angle Micro-Fit | — | $4.19 |
+| AliExpress | 2-pin JST-XH | — | $3.48 |
+| AliExpress | MCP23017-E SO | — | $6.33 |
+| AliExpress | 0805 100 nF capacitor | — | $0.99 |
+| AliExpress | Motors (2026-07-04 order) | 6 (paid total) | $64.98 |
+| AliExpress | Motors (2026-06-18 order) | 4 ordered, 2 retained (net after refund; see note) | $23.77 |
+| AliExpress | 12 V DC female and male barrel connectors | — | $2.37 |
+| AliExpress | On-off switches | 5 pcs | $2.97 |
+| AliExpress | Silicon cable, 12 AWG | 2 m | $5.44 |
+| AliExpress | Unions | — (**excluded** — full refund; see note) | $4.59 |
+| AliExpress | Silicon tubing | 10 m (paid total) | $12.21 |
+| AliExpress | M5 tube clamps | — | $1.62 |
+| Amazon (2026-06-18) | Inline fuse holders | 4-pack | $7.59 |
+| Amazon (2026-06-18) | Mean Well GST60A12 power supply | — | $18.96 |
+| AliExpress (2026-06-23) | Estardyn load cell + HX711 | — | $2.16 |
+| AliExpress (2026-06-18) | ESP32-S3-DevKitC-1 N16R8 | 1 | $0.95 |
+| AliExpress (2026-06-18) | Snvi TB6612FNG | 4 (paid total, incl. shipping) | $9.00 |
+| AliExpress | 1×6 female sockets | 10 pcs | $1.33 |
+| AliExpress | 1×4 female sockets | 10 pcs | $1.45 |
+| AliExpress | 1×22 female sockets | 10 pcs | $2.07 |
+
+**Note (4-motor / Jun 18 line):** Paid **$54.52** for 4; 2 returned (wrong units) with **$30.75** refund. **Net in running total: $23.77** for the 2 retained motors (`$54.52 − $30.75`). Jul 4 six-pack remains **$64.98**.
+
+**Note (1×6 / 1×4 / 1×22 sockets group):** group total **$3.46** (subtotal **$4.85** minus coupon **$0.57** and bonus **$1.20**; ignore / disregard any **$0.38** additional charge).
+
+**Note (unions):** Fully refunded (**$4.59**). **Excluded from running total** (same as canceled LCSC fuse).
+
+Related earlier AliExpress line (Jun 18): SW1 round rocker 5 pcs **$2.97** — see [`hardware/cad/refs/sw1-round-rocker.md`](../hardware/cad/refs/sw1-round-rocker.md). Same figure as the on-off switches row above.
+
 ### Open replacements
 
 | Item | Need | Action |
@@ -151,6 +203,7 @@ Fill **ordered** and **received** as you go. Sourced from [`13-phase-0-mini-bom.
 | ---- | ----- |
 | GST120A12-R7B | Phase 4 / 8-pump PSU — not needed for first module |
 | Barbed unions | **Deferred** (see open replacements) |
+| Logic-level N-MOSFET (ring light) | **Open (2026-11-08):** verify whether a suitable logic-level N-channel MOSFET is already on hand to switch the hood **12 V ALLCOBLED COB ring** from a free DevKit GPIO (+ external low-side switch). If not on hand, order one (TO-220 or SOT-23). Do **not** reuse `LED_STATUS` / GPIO 38; see [`12-phase-0-decisions.md`](12-phase-0-decisions.md) 2026-11-08 rev-2 note. |
 
 ### Future orders (not Phase 0)
 

@@ -20,6 +20,7 @@ enum class CommandReject : uint8_t {
   kPourTooLong,
   kSubResolutionMl,
   kScaleNotReady,
+  kNoGlass,
   kBusy,
   kLineTooLong,
   kBadCalibration,

@@ -178,9 +178,10 @@ void test_dispense_then_cancel_preserves_pour() {
   TEST_ASSERT_TRUE(queue.begin(kFakeQueueOps));
 
   PourSequenceCommand seq;
-  strncpy(seq.steps[0].ingredient_id, "bourbon", kIngredientIdMax);
-  seq.steps[0].ml = 30.0f;
-  seq.step_count = 1;
+  strncpy(seq.phases[0].steps[0].ingredient_id, "bourbon", kIngredientIdMax);
+  seq.phases[0].steps[0].ml = 30.0f;
+  seq.phases[0].step_count = 1;
+  seq.phase_count = 1;
   TEST_ASSERT_TRUE(queue.enqueuePourSequence(seq));
   queue.markCommandAfterCancel();
   queue.enqueueCancel();
@@ -191,7 +192,7 @@ void test_dispense_then_cancel_preserves_pour() {
   Command out;
   TEST_ASSERT_TRUE(queue.drainCommand(out));
   TEST_ASSERT_EQUAL(static_cast<int>(CommandType::kPourSequence), static_cast<int>(out.type));
-  TEST_ASSERT_EQUAL_FLOAT(30.0f, out.pour_sequence.steps[0].ml);
+  TEST_ASSERT_EQUAL_FLOAT(30.0f, out.pour_sequence.phases[0].steps[0].ml);
 }
 
 int main(int, char**) {

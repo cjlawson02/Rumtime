@@ -49,4 +49,29 @@ describe("estimateRecipePourDurationMs", () => {
       DEFAULT_ANTI_DRIP_MS;
     expect(ms).toBeCloseTo(expected);
   });
+
+  it("uses the longest step wall time for concurrent phase members", () => {
+    const parallel: Recipe = {
+      ...recipe,
+      phases: [{ ingredientIds: ["bourbon", "simple"] }],
+    };
+    const ms = estimateRecipePourDurationMs(parallel, [
+      {
+        pumpId: 1,
+        ingredientId: "bourbon",
+        mlPerSecond: 1.75,
+        antiDripMs: 100,
+      },
+      {
+        pumpId: 2,
+        ingredientId: "simple",
+        mlPerSecond: 1.75,
+        antiDripMs: 100,
+      },
+    ]);
+
+    const bourbonMs = (45 / 1.75) * 1000 + 100;
+    const simpleMs = (10 / 1.75) * 1000 + 100;
+    expect(ms).toBeCloseTo(Math.max(bourbonMs, simpleMs));
+  });
 });

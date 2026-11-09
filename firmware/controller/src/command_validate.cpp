@@ -166,6 +166,101 @@ CommandReject preflightDispenseEnqueueImpl(const DispenseCommand& cmd, const Sta
   return validateDispenseParams(cmd, num_pumps, ml_per_s);
 }
 
+CommandReject validatePourSequencePhasesImpl(const PourSequenceCommand& cmd, uint8_t num_pumps,
+                                             const ConfigStore* config,
+                                             const StatusSnapshot* status) {
+  if (cmd.phase_count == 0 || cmd.phase_count > kMaxPourPhases) {
+    return CommandReject::kBadArgs;
+  }
+
+  uint8_t flat_count = 0;
+  float total_ml = 0.0f;
+  unsigned long total_wall_ms = 0;
+
+  for (uint8_t p = 0; p < cmd.phase_count; ++p) {
+    const PourSequencePhase& phase = cmd.phases[p];
+    if (phase.step_count == 0 || phase.step_count > kMaxConcurrentPumps) {
+      return CommandReject::kBadArgs;
+    }
+    if (phase.step_count > num_pumps) {
+      return CommandReject::kBadArgs;
+    }
+
+    unsigned long phase_wall_ms = 0;
+    for (uint8_t s = 0; s < phase.step_count; ++s) {
+      if (flat_count >= kMaxPourSequenceSteps) {
+        return CommandReject::kTooManySteps;
+      }
+      const PourSequenceStep& step = phase.steps[s];
+      if (step.ingredient_id[0] == '\0') {
+        return CommandReject::kBadIngredient;
+      }
+
+      int channel = -1;
+      if (config != nullptr) {
+        channel = config->channelForIngredient(step.ingredient_id);
+      } else if (status != nullptr) {
+        channel = snapshotChannelForIngredient(*status, step.ingredient_id);
+      } else {
+        return CommandReject::kBadArgs;
+      }
+      if (channel < 0 || static_cast<uint8_t>(channel) >= num_pumps) {
+        return CommandReject::kBadIngredient;
+      }
+      for (uint8_t prior = 0; prior < s; ++prior) {
+        int prior_channel = -1;
+        if (config != nullptr) {
+          prior_channel = config->channelForIngredient(phase.steps[prior].ingredient_id);
+        } else {
+          prior_channel = snapshotChannelForIngredient(*status, phase.steps[prior].ingredient_id);
+        }
+        if (prior_channel == channel) {
+          return CommandReject::kBadArgs;
+        }
+      }
+
+      DispenseCommand dispense;
+      dispense.channel = static_cast<uint8_t>(channel);
+      dispense.ml = step.ml;
+      dispense.flow_gate = phase.step_count == 1;
+
+      const float ml_per_s = config != nullptr ? config->mlPerSecond(dispense.channel)
+                                               : snapshotMlPerSecond(*status, dispense.channel);
+      const CommandReject params = validateDispenseParams(dispense, num_pumps, ml_per_s);
+      if (params != CommandReject::kNone) {
+        return params;
+      }
+
+      unsigned long pour_ms = 0;
+      if (!computePourDurationMs(dispense, num_pumps, ml_per_s, &pour_ms, nullptr)) {
+        return CommandReject::kBadMl;
+      }
+      unsigned long step_wall = pour_ms;
+      if (dispense.flow_gate) {
+        step_wall += kFlowDetectTimeoutMs;
+      }
+      if (step_wall > phase_wall_ms) {
+        phase_wall_ms = step_wall;
+      }
+
+      ++flat_count;
+      total_ml += step.ml;
+    }
+    total_wall_ms += phase_wall_ms;
+  }
+
+  if (flat_count == 0) {
+    return CommandReject::kBadArgs;
+  }
+  if (total_ml > kMaxSequenceTotalMl) {
+    return CommandReject::kBadMl;
+  }
+  if (total_wall_ms > kMaxSequenceDurationMs) {
+    return CommandReject::kPourTooLong;
+  }
+  return CommandReject::kNone;
+}
+
 CommandReject preflightPourSequenceEnqueueImpl(const PourSequenceCommand& cmd,
                                                const StatusSnapshot& status, uint8_t num_pumps,
                                                const ConfigStore* config,
@@ -174,15 +269,26 @@ CommandReject preflightPourSequenceEnqueueImpl(const PourSequenceCommand& cmd,
   if (!status.scale_ready) {
     return CommandReject::kScaleNotReady;
   }
+  if (!status.glass_present) {
+    return CommandReject::kNoGlass;
+  }
 
-  const CommandReject validated = validatePourSequenceStepsImpl(
-      cmd.steps, cmd.step_count, num_pumps, config, config == nullptr ? &status : nullptr);
+  const CommandReject validated =
+      validatePourSequencePhasesImpl(cmd, num_pumps, config, config == nullptr ? &status : nullptr);
   if (validated != CommandReject::kNone) {
     return validated;
   }
 
+  PourSequenceStep flat[kMaxPourSequenceSteps] = {};
+  uint8_t flat_count = 0;
+  for (uint8_t p = 0; p < cmd.phase_count; ++p) {
+    for (uint8_t s = 0; s < cmd.phases[p].step_count; ++s) {
+      flat[flat_count++] = cmd.phases[p].steps[s];
+    }
+  }
+
   const CommandReject inventory_reject = validatePourSequenceInventoryImpl(
-      cmd.steps, cmd.step_count, inventory, inventory == nullptr ? &status : nullptr);
+      flat, flat_count, inventory, inventory == nullptr ? &status : nullptr);
   if (inventory_reject != CommandReject::kNone) {
     return inventory_reject;
   }
@@ -215,6 +321,8 @@ const char* commandRejectText(CommandReject reject) {
       return "Error:sub-resolution ml";
     case CommandReject::kScaleNotReady:
       return "Error:scale not ready";
+    case CommandReject::kNoGlass:
+      return "Error:no glass";
     case CommandReject::kBusy:
       return "busy";
     case CommandReject::kLineTooLong:
@@ -259,6 +367,8 @@ const char* jobRejectText(JobReject reject) {
       return "scale-fault";
     case JobReject::kScaleNotReady:
       return "scale-not-ready";
+    case JobReject::kNoGlass:
+      return "no-glass";
     case JobReject::kPrimeTimeout:
       return "prime-timeout";
     case JobReject::kUnboundIngredient:
@@ -329,6 +439,8 @@ JobReject commandRejectToJobReject(CommandReject reject) {
       return JobReject::kSubResolutionMl;
     case CommandReject::kScaleNotReady:
       return JobReject::kScaleNotReady;
+    case CommandReject::kNoGlass:
+      return JobReject::kNoGlass;
     case CommandReject::kBadIngredient:
       return JobReject::kUnboundIngredient;
     case CommandReject::kBadCalibration:
@@ -570,10 +682,10 @@ CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, ui
   }
 
   if (strcmp(verb, "pour") == 0) {
-    PourSequenceCommand seq;
+    PourSequenceCommand seq = {};
     char* ingredient = strtok(nullptr, " \t");
     while (ingredient != nullptr) {
-      if (seq.step_count >= kMaxPourSequenceSteps) {
+      if (seq.phase_count >= kMaxPourPhases) {
         result.reject = CommandReject::kTooManySteps;
         return result;
       }
@@ -593,13 +705,14 @@ CommandParseResult parseCommandLine(char* line, const StatusSnapshot& status, ui
         result.reject = CommandReject::kBadIngredient;
         return result;
       }
-      PourSequenceStep& step = seq.steps[seq.step_count];
-      memcpy(step.ingredient_id, ingredient, len);
-      step.ml = ml;
-      ++seq.step_count;
+      PourSequencePhase& phase = seq.phases[seq.phase_count];
+      memcpy(phase.steps[0].ingredient_id, ingredient, len);
+      phase.steps[0].ml = ml;
+      phase.step_count = 1;
+      ++seq.phase_count;
       ingredient = strtok(nullptr, " \t");
     }
-    if (seq.step_count == 0) {
+    if (seq.phase_count == 0) {
       result.reject = CommandReject::kPourUsage;
       return result;
     }

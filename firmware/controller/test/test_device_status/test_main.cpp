@@ -229,6 +229,17 @@ void test_device_status_notifications_scale_not_ready() {
   TEST_ASSERT_TRUE(jsonContains(json, "\"id\":\"scale_not_ready\""));
 }
 
+void test_device_status_notifications_no_glass() {
+  StatusSnapshot snap;
+  snap.scale_ready = true;
+  snap.glass_present = false;
+  DeviceStatusInputs in;
+  in.snapshot = &snap;
+  const std::string json = buildDeviceStatusJson(in);
+  TEST_ASSERT_TRUE(jsonContains(json, "\"glassPresent\":false"));
+  TEST_ASSERT_TRUE(jsonContains(json, "\"id\":\"no_glass\""));
+}
+
 void test_device_status_config_op_apply_failed_notification() {
   StatusSnapshot snap;
   snap.config_op_apply_failed = true;
@@ -303,6 +314,7 @@ int main() {
   RUN_TEST(test_device_status_job_terminal_flow_timeout_message);
   RUN_TEST(test_device_status_published_bindings);
   RUN_TEST(test_device_status_notifications_scale_not_ready);
+  RUN_TEST(test_device_status_notifications_no_glass);
   RUN_TEST(test_device_status_config_op_apply_failed_notification);
   RUN_TEST(test_config_op_queue_enqueue_drain);
   RUN_TEST(test_apply_binding_seeds_inventory);

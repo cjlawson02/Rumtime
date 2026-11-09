@@ -31,7 +31,7 @@ import { deviceErrorMessage } from "@/lib/device-errors";
 import { isActivePourJob, isTerminalPourJob } from "@/lib/pour-job";
 import { shouldCancelPourOnLeave } from "@/lib/pour-leave";
 import { estimateRecipePourDurationMs } from "@/lib/pour-progress";
-import { pourStepsFromRecipe } from "@/lib/pour-steps";
+import { pourPhasesFromRecipe } from "@/lib/pour-steps";
 import { consumePourInventoryBypass, peekPourInventoryBypass } from "@/lib/pour-inventory-bypass";
 import {
   createPumpPourTracker,
@@ -222,7 +222,7 @@ export function PourPage() {
     try {
       await startPour.mutateAsync({
         recipeId: recipe.id,
-        steps: pourStepsFromRecipe(recipe),
+        phases: pourPhasesFromRecipe(recipe),
       });
       if (bypassInventory) {
         consumePourInventoryBypass(recipe.id);

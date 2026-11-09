@@ -13,4 +13,20 @@ describe("recipe catalog", () => {
     expect(recipe?.name).toBe("Old Fashioned");
     expect(getRecipeById("missing-drink")).toBeUndefined();
   });
+
+  it("includes the B-52 with layered pour order", () => {
+    const recipe = getRecipeById("b-52");
+    expect(recipe?.name).toBe("B-52");
+    expect(recipe?.categories).toContain("shot");
+    expect(recipe?.ingredients.map((ingredient) => ingredient.id)).toEqual([
+      "kahlua",
+      "baileys",
+      "grand_marnier",
+    ]);
+    expect(recipe?.phases).toEqual([
+      { ingredientIds: ["kahlua"] },
+      { ingredientIds: ["baileys"] },
+      { ingredientIds: ["grand_marnier"] },
+    ]);
+  });
 });

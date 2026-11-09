@@ -151,9 +151,9 @@ describe("PourPage", () => {
 
     expect(startPourMutate).toHaveBeenCalledWith({
       recipeId: "old-fashioned",
-      steps: [
-        { ingredientId: "bourbon", ml: 45 },
-        { ingredientId: "simple", ml: 10 },
+      phases: [
+        { steps: [{ ingredientId: "bourbon", ml: 45 }] },
+        { steps: [{ ingredientId: "simple", ml: 10 }] },
       ],
     });
   });

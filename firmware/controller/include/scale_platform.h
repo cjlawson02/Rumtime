@@ -53,9 +53,14 @@ class ScalePlatform {
   bool ready() const {
     return initialized_ && !stale_;
   }
+  // True when the scale is ready, not taring, and filtered mass ≥ glass floor.
+  bool glassPresent() const {
+    return ready() && state_ != State::kTaring && filteredGrams_ >= glassPresentMinGrams_;
+  }
   float lastDeltaG() const {
     return lastDeltaG_;
   }
+  void setGlassPresentMinGrams(float grams);
   unsigned long flowDetectTimeoutMs() const {
     return flowDetectTimeoutMs_;
   }
@@ -74,6 +79,7 @@ class ScalePlatform {
 
   float calibrationFactor_ = 0.0f;
   float flowThresholdG_ = 0.0f;
+  float glassPresentMinGrams_ = 0.0f;
   int flowDetectConsecutive_ = 0;
   unsigned long flowDetectTimeoutMs_ = 0;
 

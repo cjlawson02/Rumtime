@@ -45,6 +45,7 @@ void seedPrimedInventory(const char* ingredient_id, float remaining_ml = 750.0f)
 StatusSnapshot idleStatus() {
   StatusSnapshot s;
   s.scale_ready = true;
+  s.glass_present = true;
   return s;
 }
 
@@ -52,6 +53,7 @@ StatusSnapshot busyStatus() {
   StatusSnapshot s;
   s.job_busy = true;
   s.scale_ready = true;
+  s.glass_present = true;
   return s;
 }
 
@@ -430,9 +432,9 @@ void test_pour_two_step_ok() {
   const CommandParseResult r = parseCopy("pour bourbon 30 simple 15", idleStatus());
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
   TEST_ASSERT_EQUAL(static_cast<int>(CommandType::kPourSequence), static_cast<int>(r.command.type));
-  TEST_ASSERT_EQUAL_UINT8(2, r.command.pour_sequence.step_count);
-  TEST_ASSERT_EQUAL_FLOAT(30.0f, r.command.pour_sequence.steps[0].ml);
-  TEST_ASSERT_EQUAL_FLOAT(15.0f, r.command.pour_sequence.steps[1].ml);
+  TEST_ASSERT_EQUAL_UINT8(2, r.command.pour_sequence.phase_count);
+  TEST_ASSERT_EQUAL_FLOAT(30.0f, r.command.pour_sequence.phases[0].steps[0].ml);
+  TEST_ASSERT_EQUAL_FLOAT(15.0f, r.command.pour_sequence.phases[1].steps[0].ml);
 }
 
 void test_pour_unbound_ingredient() {
@@ -456,6 +458,15 @@ void test_pour_reject_scale_not_ready() {
   seedPrimedInventory("bourbon");
   const CommandParseResult r = parseCopy("pour bourbon 30", s);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kScaleNotReady), static_cast<int>(r.reject));
+}
+
+void test_pour_reject_no_glass() {
+  StatusSnapshot s = idleStatus();
+  s.glass_present = false;
+  TEST_ASSERT_TRUE(g_config.setBinding(0, "bourbon"));
+  seedPrimedInventory("bourbon");
+  const CommandParseResult r = parseCopy("pour bourbon 30", s);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNoGlass), static_cast<int>(r.reject));
 }
 
 void test_pour_reject_aggregate_total_ml() {
@@ -502,11 +513,13 @@ void test_pour_reject_duplicate_ingredient_aggregate_inventory() {
   TEST_ASSERT_TRUE(g_config.setBinding(0, "bourbon"));
   seedPrimedInventory("bourbon", 100.0f);
   PourSequenceCommand seq = {};
-  seq.step_count = 2;
-  std::strncpy(seq.steps[0].ingredient_id, "bourbon", kIngredientIdMax - 1);
-  seq.steps[0].ml = 60.0f;
-  std::strncpy(seq.steps[1].ingredient_id, "bourbon", kIngredientIdMax - 1);
-  seq.steps[1].ml = 55.0f;
+  seq.phase_count = 2;
+  seq.phases[0].step_count = 1;
+  std::strncpy(seq.phases[0].steps[0].ingredient_id, "bourbon", kIngredientIdMax - 1);
+  seq.phases[0].steps[0].ml = 60.0f;
+  seq.phases[1].step_count = 1;
+  std::strncpy(seq.phases[1].steps[0].ingredient_id, "bourbon", kIngredientIdMax - 1);
+  seq.phases[1].steps[0].ml = 55.0f;
   const CommandReject reject =
       preflightPourSequenceEnqueue(seq, idleStatus(), kNumPumps, g_config, g_inventory);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kLowInventory), static_cast<int>(reject));
@@ -587,6 +600,7 @@ int main() {
   RUN_TEST(test_pour_unbound_ingredient);
   RUN_TEST(test_pour_reject_when_sequence_busy);
   RUN_TEST(test_pour_reject_scale_not_ready);
+  RUN_TEST(test_pour_reject_no_glass);
   RUN_TEST(test_pour_reject_aggregate_total_ml);
   RUN_TEST(test_pour_reject_not_primed);
   RUN_TEST(test_pour_reject_low_inventory);

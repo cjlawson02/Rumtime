@@ -175,3 +175,4 @@ See `hardware/kicad/README.md` for repo layout, `kicad-cli` hooks, and schematic
 | 2026-10-28 | Motherboard I2C: **SDA → GPIO 5**, **SCL → GPIO 4**. `Wire.begin(5, 4)`. |
 | 2026-10-28 | Motherboard **LED_STATUS → GPIO 38** (was planned 10). |
 | 2026-10-28 | Motherboard **PUMP_BUS_ENABLE → GPIO 18** (bench STBY was 17). |
+| 2026-11-08 | If a **main-controller rev 2** is ever spun: add a **dedicated GPIO** (and onboard MOSFET or switched 12 V header) for the hood **12 V COB ring light** (ALLCOBLED angel-eye above the glass). Do **not** reuse `LED_STATUS` / GPIO 38 for that load — v1 can drive the ring from a free DevKit pin + external MOSFET. |

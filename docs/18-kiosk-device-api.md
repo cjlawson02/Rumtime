@@ -80,6 +80,7 @@ stop | cancel         abort — job cancelled (mid-prime emergency only in kiosk
   "connected": true,
   "firmwareVersion": "0.1.0",
   "hostname": "rumtime.local",
+  "glassPresent": true,
   "link": {
     "ssid": "IoT",
     "ip": "192.168.5.29",
@@ -152,6 +153,7 @@ Example firmware mappings (when HTTP ships):
 | Snapshot / condition | Suggested `id` | Severity |
 | -------------------- | -------------- | -------- |
 | `scale_ready == false` during guest pour window | `scale_not_ready` | `warning` |
+| `scale_ready` and `glass_present == false` | `no_glass` | `warning` |
 | `config_persist_error` | `config_persist_error` | `error` |
 | `flow_timed_out` on last job | `flow_timeout` | `warning` |
 

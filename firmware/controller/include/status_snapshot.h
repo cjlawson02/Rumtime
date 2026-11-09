@@ -17,6 +17,7 @@ enum class JobReject : uint8_t {
   kFlowTimeout,
   kScaleFault,
   kScaleNotReady,
+  kNoGlass,
   kPrimeTimeout,
   kUnboundIngredient,
   kBadCalibration,
@@ -46,6 +47,7 @@ struct SnapshotPump {
 struct StatusSnapshot {
   bool pumps_running = false;
   bool scale_ready = false;
+  bool glass_present = false;
   float grams = 0.0f;  // filtered
   bool flow_detected = false;
   bool flow_timed_out = false;

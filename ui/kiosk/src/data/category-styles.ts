@@ -45,6 +45,12 @@ const STYLES: Record<CategoryId, CategoryStyle> = {
     pillIdle: "text-lime-200/70 hover:bg-lime-500/10",
     gradient: "from-lime-900/40 to-lime-950/20",
   },
+  shot: {
+    label: "Shot",
+    pillActive: "border-rose-400/40 bg-rose-500/25 text-rose-200",
+    pillIdle: "text-rose-200/70 hover:bg-rose-500/10",
+    gradient: "from-rose-900/40 to-rose-950/20",
+  },
 };
 
 export function getCategoryStyle(category: string): CategoryStyle | undefined {

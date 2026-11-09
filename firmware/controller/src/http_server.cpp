@@ -132,16 +132,6 @@ void handlePour() {
     sendError(HttpStatus::kUnprocessable, "bad_request", "recipeId required");
     return;
   }
-  JsonArray steps_json = doc["steps"].as<JsonArray>();
-  if (steps_json.isNull() || steps_json.size() == 0) {
-    sendError(HttpStatus::kUnprocessable, "bad_request", "steps required");
-    return;
-  }
-  if (steps_json.size() > kMaxPourSequenceSteps) {
-    sendError(HttpStatus::kUnprocessable, "too_many_steps", "Too many steps");
-    return;
-  }
-
   PourSequenceCommand seq = {};
   const std::size_t recipe_len = std::strlen(recipe_id);
   if (recipe_len >= kRecipeIdMax) {
@@ -150,24 +140,73 @@ void handlePour() {
   }
   std::memcpy(seq.recipe_id, recipe_id, recipe_len);
 
-  uint8_t idx = 0;
-  for (JsonObject step : steps_json) {
-    const char* ingredient = step["ingredientId"] | "";
-    const float ml = step["ml"] | 0.0f;
-    if (ingredient[0] == '\0' || !(ml > 0.0f)) {
-      sendError(HttpStatus::kUnprocessable, "bad_ml", "Invalid step");
+  JsonArray phases_json = doc["phases"].as<JsonArray>();
+  JsonArray steps_json = doc["steps"].as<JsonArray>();
+  if (!phases_json.isNull() && phases_json.size() > 0) {
+    if (phases_json.size() > kMaxPourPhases) {
+      sendError(HttpStatus::kUnprocessable, "too_many_steps", "Too many phases");
       return;
     }
-    const std::size_t len = std::strlen(ingredient);
-    if (len >= kIngredientIdMax) {
-      sendError(HttpStatus::kUnprocessable, "bad_ingredient", "ingredientId too long");
+    for (JsonObject phase_obj : phases_json) {
+      if (seq.phase_count >= kMaxPourPhases) {
+        sendError(HttpStatus::kUnprocessable, "too_many_steps", "Too many phases");
+        return;
+      }
+      JsonArray phase_steps = phase_obj["steps"].as<JsonArray>();
+      if (phase_steps.isNull() || phase_steps.size() == 0) {
+        sendError(HttpStatus::kUnprocessable, "bad_request", "phase steps required");
+        return;
+      }
+      if (phase_steps.size() > kMaxConcurrentPumps) {
+        sendError(HttpStatus::kUnprocessable, "too_many_steps", "Too many steps in phase");
+        return;
+      }
+      PourSequencePhase& phase = seq.phases[seq.phase_count];
+      for (JsonObject step : phase_steps) {
+        const char* ingredient = step["ingredientId"] | "";
+        const float ml = step["ml"] | 0.0f;
+        if (ingredient[0] == '\0' || !(ml > 0.0f)) {
+          sendError(HttpStatus::kUnprocessable, "bad_ml", "Invalid step");
+          return;
+        }
+        const std::size_t len = std::strlen(ingredient);
+        if (len >= kIngredientIdMax) {
+          sendError(HttpStatus::kUnprocessable, "bad_ingredient", "ingredientId too long");
+          return;
+        }
+        std::memcpy(phase.steps[phase.step_count].ingredient_id, ingredient, len);
+        phase.steps[phase.step_count].ml = ml;
+        ++phase.step_count;
+      }
+      ++seq.phase_count;
+    }
+  } else if (!steps_json.isNull() && steps_json.size() > 0) {
+    if (steps_json.size() > kMaxPourPhases) {
+      sendError(HttpStatus::kUnprocessable, "too_many_steps", "Too many steps");
       return;
     }
-    std::memcpy(seq.steps[idx].ingredient_id, ingredient, len);
-    seq.steps[idx].ml = ml;
-    ++idx;
+    for (JsonObject step : steps_json) {
+      const char* ingredient = step["ingredientId"] | "";
+      const float ml = step["ml"] | 0.0f;
+      if (ingredient[0] == '\0' || !(ml > 0.0f)) {
+        sendError(HttpStatus::kUnprocessable, "bad_ml", "Invalid step");
+        return;
+      }
+      const std::size_t len = std::strlen(ingredient);
+      if (len >= kIngredientIdMax) {
+        sendError(HttpStatus::kUnprocessable, "bad_ingredient", "ingredientId too long");
+        return;
+      }
+      PourSequencePhase& phase = seq.phases[seq.phase_count];
+      std::memcpy(phase.steps[0].ingredient_id, ingredient, len);
+      phase.steps[0].ml = ml;
+      phase.step_count = 1;
+      ++seq.phase_count;
+    }
+  } else {
+    sendError(HttpStatus::kUnprocessable, "bad_request", "phases or steps required");
+    return;
   }
-  seq.step_count = idx;
 
   const StatusSnapshot status = g_ctx->status.read();
   const CommandReject reject = preflightPourSequenceEnqueue(seq, status, PumpBus::kNumChannels);

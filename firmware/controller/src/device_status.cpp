@@ -89,7 +89,9 @@ void appendNotifications(std::string& out, const StatusSnapshot& s) {
   };
 
   if (!s.scale_ready) {
-    add("scale_not_ready", "warning", "Scale not ready", "Place an empty glass on the platform.");
+    add("scale_not_ready", "warning", "Scale not ready", "Check the scale connection and tare.");
+  } else if (!s.glass_present) {
+    add("no_glass", "warning", "Glass required", "Place a glass on the platform before pouring.");
   }
   if (s.config_persist_error) {
     add("config_persist_error", "error", "Config save failed",
@@ -185,6 +187,7 @@ std::string buildDeviceStatusJson(const DeviceStatusInputs& in) {
   appendKeyBool(out, "connected", in.wifi_connected);
   appendKeyString(out, "firmwareVersion", in.firmware_version);
   appendKeyString(out, "hostname", in.hostname);
+  appendKeyBool(out, "glassPresent", s.glass_present);
 
   out.append("\"link\":{");
   appendKeyString(out, "ssid", in.wifi_ssid != nullptr ? in.wifi_ssid : "");
@@ -269,6 +272,9 @@ std::string buildDeviceStatusJson(const DeviceStatusInputs& in) {
         case JobReject::kScaleNotReady:
         case JobReject::kScaleFault:
           label = "Scale not ready";
+          break;
+        case JobReject::kNoGlass:
+          label = "No glass on platform";
           break;
         default:
           label = "Pour failed";

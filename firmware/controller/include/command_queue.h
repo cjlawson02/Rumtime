@@ -42,11 +42,18 @@ struct PourSequenceStep {
   float ml = 0.0f;
 };
 
-// Multi-step pour sequence (sequential only; parallel groups deferred).
+// One pour phase: steps in the phase run concurrently (≤ kMaxConcurrentPumps).
+struct PourSequencePhase {
+  PourSequenceStep steps[kMaxConcurrentPumps] = {};
+  uint8_t step_count = 0;
+};
+
+// Multi-phase pour sequence. Phases run in order; steps within a phase are
+// concurrent. Legacy flat `steps` callers wrap each step as its own phase.
 struct PourSequenceCommand {
   char recipe_id[kRecipeIdMax] = {0};
-  PourSequenceStep steps[kMaxPourSequenceSteps] = {};
-  uint8_t step_count = 0;
+  PourSequencePhase phases[kMaxPourPhases] = {};
+  uint8_t phase_count = 0;
 };
 
 struct Command {

@@ -28,6 +28,8 @@ const char* httpErrorCode(CommandReject reject) {
       return "sub_resolution_ml";
     case CommandReject::kScaleNotReady:
       return "scale_not_ready";
+    case CommandReject::kNoGlass:
+      return "no_glass";
     case CommandReject::kBadCalibration:
       return "bad_calibration";
     case CommandReject::kBadIngredient:
@@ -91,6 +93,8 @@ const char* httpMessageForReject(CommandReject reject) {
       return "Device busy";
     case CommandReject::kScaleNotReady:
       return "Scale not ready";
+    case CommandReject::kNoGlass:
+      return "Place a glass on the platform";
     case CommandReject::kNotPrimed:
       return "Ingredient line not primed";
     case CommandReject::kLowInventory:

@@ -35,17 +35,72 @@ export const recipeIngredientSchema = z
     }
   });
 
-export const spiritCategorySchema = z.enum(["whiskey", "vodka", "gin", "rum", "tequila"]);
+export const spiritCategorySchema = z.enum(["whiskey", "vodka", "gin", "rum", "tequila", "shot"]);
 
-export const recipeSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  categories: z.array(spiritCategorySchema).min(1),
-  description: z.string(),
-  /** Guest adds ice to the glass before the machine pours. */
-  needsIce: z.boolean().optional(),
-  ingredients: z.array(recipeIngredientSchema),
+/** One pour phase: listed pumped ingredients run concurrently, then the next phase. */
+export const recipePhaseSchema = z.object({
+  ingredientIds: z.array(z.string()).min(1),
 });
+
+export const recipeSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    categories: z.array(spiritCategorySchema).min(1),
+    description: z.string(),
+    /** Guest adds ice to the glass before the machine pours. */
+    needsIce: z.boolean().optional(),
+    ingredients: z.array(recipeIngredientSchema),
+    /**
+     * Optional ordered pour phases. Each phase lists pumped ingredient ids that run
+     * together. Omitted → each pumped ingredient is its own sequential phase.
+     */
+    phases: z.array(recipePhaseSchema).optional(),
+  })
+  .superRefine((recipe, ctx) => {
+    const pumpedIds = recipe.ingredients
+      .filter((ingredient) => ingredient.kind === "pumped")
+      .map((ingredient) => ingredient.id);
+    if (!recipe.phases) {
+      return;
+    }
+    const seen = new Set<string>();
+    for (const [phaseIndex, phase] of recipe.phases.entries()) {
+      if (phase.ingredientIds.length > 6) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Phase ${phaseIndex} has more than 6 concurrent pumps`,
+          path: ["phases", phaseIndex, "ingredientIds"],
+        });
+      }
+      for (const id of phase.ingredientIds) {
+        if (!pumpedIds.includes(id)) {
+          ctx.addIssue({
+            code: "custom",
+            message: `Phase ingredient "${id}" must be a pumped recipe ingredient`,
+            path: ["phases", phaseIndex, "ingredientIds"],
+          });
+        }
+        if (seen.has(id)) {
+          ctx.addIssue({
+            code: "custom",
+            message: `Ingredient "${id}" appears in more than one phase`,
+            path: ["phases", phaseIndex, "ingredientIds"],
+          });
+        }
+        seen.add(id);
+      }
+    }
+    for (const id of pumpedIds) {
+      if (!seen.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Pumped ingredient "${id}" is missing from phases`,
+          path: ["phases"],
+        });
+      }
+    }
+  });
 
 export const recipeCatalogSchema = z.array(recipeSchema);
 
@@ -135,6 +190,8 @@ export const deviceStatusSchema = z.object({
   connected: z.boolean(),
   firmwareVersion: z.string().optional(),
   hostname: z.string().optional(),
+  /** Scale mass gate — true when filtered grams ≥ glass floor (firmware). */
+  glassPresent: z.boolean().optional(),
   link: deviceLinkSchema.optional(),
   bindings: z.record(z.string(), ingredientBindingSchema),
   pumps: z.array(pumpSlotSchema).optional(),
@@ -148,11 +205,28 @@ export const pourStepSchema = z.object({
   ml: z.number().positive(),
 });
 
-export const pourCommandSchema = z.object({
-  /** Kiosk UI correlation only — firmware executes `steps`, not recipe semantics. */
-  recipeId: z.string(),
-  steps: z.array(pourStepSchema).min(1),
+export const pourPhaseCommandSchema = z.object({
+  steps: z.array(pourStepSchema).min(1).max(6),
 });
+
+export const pourCommandSchema = z
+  .object({
+    /** Kiosk UI correlation only — firmware executes phases/steps, not recipe docs. */
+    recipeId: z.string(),
+    /** Preferred: ordered phases; steps within a phase run concurrently. */
+    phases: z.array(pourPhaseCommandSchema).min(1).optional(),
+    /** Legacy flat list — each step becomes its own sequential phase. */
+    steps: z.array(pourStepSchema).min(1).optional(),
+  })
+  .superRefine((command, ctx) => {
+    if ((command.phases?.length ?? 0) === 0 && (command.steps?.length ?? 0) === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Provide phases or steps",
+        path: ["phases"],
+      });
+    }
+  });
 
 export const refillCommandSchema = z.object({
   ingredientId: z.string(),
@@ -212,6 +286,7 @@ export const pumpDispenseCommandSchema = z
 export type IngredientKind = z.infer<typeof ingredientKindSchema>;
 export type ManualTiming = z.infer<typeof manualTimingSchema>;
 export type RecipeIngredient = z.infer<typeof recipeIngredientSchema>;
+export type RecipePhase = z.infer<typeof recipePhaseSchema>;
 export type Recipe = z.infer<typeof recipeSchema>;
 export type IngredientBinding = z.infer<typeof ingredientBindingSchema>;
 export type PourJobState = z.infer<typeof pourJobStateSchema>;
@@ -222,6 +297,7 @@ export type PumpJob = z.infer<typeof pumpJobSchema>;
 export type DeviceStatus = z.infer<typeof deviceStatusSchema>;
 export type DeviceLink = z.infer<typeof deviceLinkSchema>;
 export type PourStep = z.infer<typeof pourStepSchema>;
+export type PourPhaseCommand = z.infer<typeof pourPhaseCommandSchema>;
 export type PourCommand = z.infer<typeof pourCommandSchema>;
 export type RefillCommand = z.infer<typeof refillCommandSchema>;
 export type PumpSlot = z.infer<typeof pumpSlotSchema>;

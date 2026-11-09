@@ -141,7 +141,7 @@ void test_stby_raised_once_and_dropped_after_last_stop() {
   TEST_ASSERT_FALSE(fake.standby_high);
 }
 
-void test_run_stops_other_channel_first() {
+void test_run_allows_concurrent_channels() {
   FakeGpio fake;
   g_fake = &fake;
   PumpBus bus;
@@ -150,8 +150,28 @@ void test_run_stops_other_channel_first() {
 
   TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kForward, 100));
   TEST_ASSERT_TRUE(bus.run(1, PumpDirection::kForward, 80));
-  TEST_ASSERT_EQUAL(0, fake.lastAnalogDuty(pins::kPump1Pwm));
+  TEST_ASSERT_EQUAL(100, fake.lastAnalogDuty(pins::kPump1Pwm));
   TEST_ASSERT_EQUAL(80, fake.lastAnalogDuty(pins::kPump2Pwm));
+  TEST_ASSERT_EQUAL_UINT(2, bus.runningCount());
+}
+
+void test_run_rejects_over_concurrent_cap() {
+  FakeGpio fake;
+  g_fake = &fake;
+  PumpBus bus;
+  bus.begin(makeOps());
+  bus.setMaxConcurrent(1);
+  fake.reset();
+
+  TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kForward, 100));
+  TEST_ASSERT_FALSE(bus.run(1, PumpDirection::kForward, 80));
+  TEST_ASSERT_EQUAL(100, fake.lastAnalogDuty(pins::kPump1Pwm));
+  TEST_ASSERT_EQUAL(-1, fake.lastAnalogDuty(pins::kPump2Pwm));
+  TEST_ASSERT_EQUAL_UINT(1, bus.runningCount());
+
+  // Retune of an already-running channel still succeeds under the cap.
+  TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kReverse, 50));
+  TEST_ASSERT_EQUAL(50, fake.lastAnalogDuty(pins::kPump1Pwm));
 }
 
 void test_direction_truth_table() {
@@ -251,7 +271,8 @@ int main() {
   RUN_TEST(test_invalid_channel_returns_false_and_no_writes);
   RUN_TEST(test_run_before_begin_returns_false_and_no_writes);
   RUN_TEST(test_stby_raised_once_and_dropped_after_last_stop);
-  RUN_TEST(test_run_stops_other_channel_first);
+  RUN_TEST(test_run_allows_concurrent_channels);
+  RUN_TEST(test_run_rejects_over_concurrent_cap);
   RUN_TEST(test_direction_truth_table);
   RUN_TEST(test_begin_drives_stby_low_before_any_channel_write);
   RUN_TEST(test_duty_clamp_on_bus_run);

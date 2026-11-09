@@ -13,6 +13,9 @@ describe("deviceErrorMessage", () => {
     expect(deviceErrorMessage(new DeviceApiError(422, "unassigned", "unassigned"))).toMatch(
       /assigned/i,
     );
+    expect(deviceErrorMessage(new DeviceApiError(422, "Place a glass", "no_glass"))).toMatch(
+      /glass/i,
+    );
   });
 
   it("maps busy and timeout errors", () => {
