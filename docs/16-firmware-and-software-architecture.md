@@ -131,6 +131,7 @@ Optional PersistTask (Core 1, low priority)
 | I2C | Single-owner in ControlTask; optional bus mutex only if a second task touches I2C later |
 | NVS | RAM authoritative during session; **no NVS writes in ControlTask during motion** |
 | Migration to ESP-IDF | Deferred until operational pain (OTA, library blocking), not required for v1 |
+| OTA firmware updates | **Open (2026-11-08)** — USB-serial only today; see [`10-open-questions-and-v2.md`](10-open-questions-and-v2.md) item 4 (dual-app partitions + idle HTTP upload; not ESPHome’s native TCP protocol) |
 
 **Why not `loop()`-only:** Kindle HTTP handlers run on a different task. Enqueue-only + snapshot avoids mutex soup and matches the coordinator’s one-job model.
 
@@ -326,6 +327,7 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 | Glass-present required for all recipe pours? | **Locked:** yes, with manual bypass — doc 17 |
 | Kiosk UX (menu, PIN, bottle bay, pour tuning, inventory block, pour anyway, session confirm) | **Locked** — [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md) |
 | Wi-Fi soft-AP provisioning | **Deferred** — serial provisioning for v1 |
+| OTA firmware updates (ESP32-S3) | **Open (2026-11-08)** — dual-app layout + idle HTTP upload; see doc 10 item 4 |
 | HTTP library choice | Implementation open |
 | Core pinning and priorities | Implementation open until profiled |
 | Whether `loop()` or ControlTask feeds TWDT | **ControlTask feeds TWDT** in controller firmware (including before/after idle NVS commit) |
@@ -342,6 +344,7 @@ These were not explicitly decided in conversation; they were inferred for v1 and
 | Closed-loop mass stop per ingredient | After timed + flow-gate validated insufficient |
 | Full command-framework (WPILib-style requirements) | Add only if pump conflicts appear in practice |
 | Auth on LAN | Optional PIN if untrusted guests on Wi-Fi |
+| OTA firmware updates | Dual-app partitions + idle authenticated HTTP upload; rollback/hardening; tracked in [`10-open-questions-and-v2.md`](10-open-questions-and-v2.md) |
 
 ## Related documents
 

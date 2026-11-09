@@ -5,6 +5,7 @@
 1. HTTP/API contract shape (`/dispense`, `/config`, status transport) — deferred until firmware layers are stable; see [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md).
 2. Offline pour when internet is down but LAN works — deferred; options are kiosk recipe cache or ESP32 favorites snapshot. Kiosk UX locked in [`17-kiosk-ui-plan.md`](17-kiosk-ui-plan.md).
 3. LAN authentication (PIN, pairing) — deferred; home-trusted LAN assumed for v1.
+4. **OTA firmware updates (ESP32-S3) — Open (2026-11-08):** not implemented; updates are USB-serial only (default board flash profile, no custom partition map). Planned approach (inspired by ESPHome, not a copy of its native TCP protocol): dual-app partition layout (`app0`/`app1` + `otadata`, NVS preserved), Arduino or ESP-IDF OTA write APIs, idle-only authenticated HTTP upload on the existing device HTTP server, plus rollback confirmation and hardening. Effort: a few days for a prototype; about a week or two including rollback and hardening. Do not start until explicitly prioritized. See [`16-firmware-and-software-architecture.md`](16-firmware-and-software-architecture.md).
 
 ## Open questions before buying full BOM
 
