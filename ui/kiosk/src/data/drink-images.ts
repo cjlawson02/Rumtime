@@ -6,12 +6,14 @@ const UNSPLASH = (id: string) =>
 const UNSPLASH_CARD = (id: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&h=600&q=80`;
 
+const LOCAL_CARD = (path: string) => path;
+
 /** Verified 200 — warm bar interior for menu hero. */
 export const MENU_HERO_IMAGE = UNSPLASH("photo-1572116469696-31de0f17cc34");
 
 export const FALLBACK_DRINK_IMAGE = UNSPLASH_CARD("photo-1572116469696-31de0f17cc34");
 
-/** Per-recipe card art (IDs verified HTTP 200, 2026-07-04). */
+/** Per-recipe card art (Unsplash IDs verified HTTP 200, 2026-07-04; local shots 2026-11-09). */
 const DRINK_IMAGES: Record<string, string> = {
   "old-fashioned": UNSPLASH_CARD("photo-1470337458703-46ad1756a187"),
   margarita: UNSPLASH_CARD("photo-1756521973702-b7b496adab70"),
@@ -20,6 +22,14 @@ const DRINK_IMAGES: Record<string, string> = {
   daiquiri: UNSPLASH_CARD("photo-1544145945-f90425340c7e"),
   "whiskey-sour": UNSPLASH_CARD("photo-1591634586875-a1e4b9725c94"),
   amf: UNSPLASH_CARD("photo-1578664182930-39d6469c49bf"),
+  // CC BY 2.0 — JD (Kinchan1), Wikimedia Commons "B-52 Splash.jpg"
+  "b-52": LOCAL_CARD("/drinks/b-52.jpg"),
+  // Single-ingredient shots — local free-licensed photos (not cocktail reuse).
+  "bourbon-shot": LOCAL_CARD("/drinks/bourbon-shot.jpg"),
+  "vodka-shot": LOCAL_CARD("/drinks/vodka-shot.jpg"),
+  "gin-shot": LOCAL_CARD("/drinks/gin-shot.jpg"),
+  "rum-shot": LOCAL_CARD("/drinks/rum-shot.jpg"),
+  "tequila-shot": LOCAL_CARD("/drinks/tequila-shot.jpg"),
 };
 
 export function getDrinkImage(recipeId: string): string {

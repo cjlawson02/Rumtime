@@ -167,5 +167,45 @@
       { "ingredientIds": ["baileys"] },
       { "ingredientIds": ["grand_marnier"] }
     ]
+  },
+  {
+    "id": "bourbon-shot",
+    "name": "Bourbon Shot",
+    "categories": ["shot"],
+    "description": "Straight bourbon shot.",
+    "ingredients": [{ "id": "bourbon", "name": "Bourbon", "ml": 45, "kind": "pumped" }],
+    "phases": [{ "ingredientIds": ["bourbon"] }]
+  },
+  {
+    "id": "vodka-shot",
+    "name": "Vodka Shot",
+    "categories": ["shot"],
+    "description": "Straight vodka shot.",
+    "ingredients": [{ "id": "vodka", "name": "Vodka", "ml": 45, "kind": "pumped" }],
+    "phases": [{ "ingredientIds": ["vodka"] }]
+  },
+  {
+    "id": "gin-shot",
+    "name": "Gin Shot",
+    "categories": ["shot"],
+    "description": "Straight gin shot.",
+    "ingredients": [{ "id": "gin", "name": "Gin", "ml": 45, "kind": "pumped" }],
+    "phases": [{ "ingredientIds": ["gin"] }]
+  },
+  {
+    "id": "rum-shot",
+    "name": "White Rum Shot",
+    "categories": ["shot"],
+    "description": "Straight white rum shot.",
+    "ingredients": [{ "id": "rum", "name": "White rum", "ml": 45, "kind": "pumped" }],
+    "phases": [{ "ingredientIds": ["rum"] }]
+  },
+  {
+    "id": "tequila-shot",
+    "name": "Tequila Shot",
+    "categories": ["shot"],
+    "description": "Straight tequila shot.",
+    "ingredients": [{ "id": "tequila", "name": "Tequila", "ml": 45, "kind": "pumped" }],
+    "phases": [{ "ingredientIds": ["tequila"] }]
   }
 ]

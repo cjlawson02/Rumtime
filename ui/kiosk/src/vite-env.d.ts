@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_DEVICE_API_BASE?: string;
   readonly VITE_SETUP_PIN?: string;
   readonly VITE_DEVICE_POLL_MS?: string;
+  /** Force MSW on/off in dev (`true`/`false`). Unset uses hostname heuristic. */
+  readonly VITE_USE_MSW?: string;
 }
 
 interface ImportMeta {

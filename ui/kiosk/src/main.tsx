@@ -25,6 +25,10 @@ function installGlobalErrorHandlers() {
 }
 
 function shouldStartMsw(): boolean {
+  // Explicit overrides win over hostname heuristics.
+  if (import.meta.env.VITE_USE_MSW === "true") {
+    return true;
+  }
   if (import.meta.env.VITE_USE_MSW === "false") {
     return false;
   }
@@ -44,6 +48,10 @@ async function bootstrap() {
   if (import.meta.env.DEV && shouldStartMsw()) {
     const { startMockServiceWorker } = await import("@/api/msw/browser");
     await startMockServiceWorker();
+  } else if (import.meta.env.DEV) {
+    console.info(
+      "[msw] skipped — VITE_DEVICE_API_BASE looks like hardware. Use http://rumtime.local or VITE_USE_MSW=true for the mock device.",
+    );
   }
 
   if (import.meta.env.PROD) {

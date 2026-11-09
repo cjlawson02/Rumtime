@@ -96,6 +96,24 @@ const INITIAL_BINDINGS: DeviceStatus["bindings"] = {
     bottleSizeMl: 750,
     primed: true,
   },
+  kahlua: {
+    ingredientId: "kahlua",
+    remainingMl: 500,
+    bottleSizeMl: 750,
+    primed: true,
+  },
+  baileys: {
+    ingredientId: "baileys",
+    remainingMl: 500,
+    bottleSizeMl: 750,
+    primed: true,
+  },
+  grand_marnier: {
+    ingredientId: "grand_marnier",
+    remainingMl: 500,
+    bottleSizeMl: 750,
+    primed: true,
+  },
 };
 
 function buildInitialPumps(): PumpSlot[] {

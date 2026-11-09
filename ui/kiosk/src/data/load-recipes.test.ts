@@ -29,4 +29,21 @@ describe("recipe catalog", () => {
       { ingredientIds: ["grand_marnier"] },
     ]);
   });
+
+  it("includes a single-ingredient shot for every alcohol pumped ingredient", () => {
+    const alcoholIds = ["bourbon", "vodka", "gin", "rum", "tequila"];
+    const shotRecipes = getRecipes().filter((recipe) => recipe.categories.includes("shot"));
+    const singleShots = shotRecipes.filter(
+      (recipe) =>
+        recipe.ingredients.filter((ingredient) => ingredient.kind === "pumped").length === 1,
+    );
+
+    expect(singleShots).toHaveLength(alcoholIds.length);
+    for (const id of alcoholIds) {
+      const shot = singleShots.find((recipe) => recipe.ingredients[0]?.id === id);
+      expect(shot, `missing shot for ${id}`).toBeDefined();
+      expect(shot?.ingredients[0]?.ml).toBe(45);
+      expect(shot?.phases).toEqual([{ ingredientIds: [id] }]);
+    }
+  });
 });
