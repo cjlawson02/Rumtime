@@ -56,7 +56,7 @@ HX711 uses GPIO 6 (`kScaleDout`) and GPIO 7 (`kScaleSck`).
 
 Requires [PlatformIO](https://platformio.org/). Uses **USB CDC on boot** — flash via the DevKit native USB port.
 
-Platform: **pioarduino** `55.03.39` (Arduino-ESP32 **3.3.9** / IDF **5.5.4**). Official PlatformIO `espressif32` still ships Arduino 2.0.17 only.
+Platform: official PlatformIO **espressif32@8.0.0** (Arduino-ESP32 **3.3.12** / IDF **5.5.5**).
 
 ```bash
 cd firmware/controller
