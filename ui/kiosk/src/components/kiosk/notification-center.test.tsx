@@ -1,3 +1,4 @@
+import { waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -121,6 +122,9 @@ describe("NotificationCenter", () => {
 
     await user.click(getByRole("link", { name: "View drink" }));
 
-    expect(queryByRole("heading", { name: "Notifications" })).not.toBeInTheDocument();
+    // Base UI keeps the popup mounted through the exit animation (~100ms).
+    await waitFor(() => {
+      expect(queryByRole("heading", { name: "Notifications" })).not.toBeInTheDocument();
+    });
   });
 });
