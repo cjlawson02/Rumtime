@@ -8,7 +8,7 @@ The **pump**, **scale**, **command queue**, **coordinator** (single-pump gated t
 
 | Component | File(s) | State |
 | --------- | ------- | ----- |
-| `PumpChannel` | `pump_channel.{h,cpp}` | **Implemented** — one TB6612 channel (IN1/IN2/PWM); sole GPIO writer for its motor outputs; injected `GpioOps` seam enables host-side unit tests |
+| `PumpChannel` | `pump_channel.{h,cpp}` | **Implemented** — one TB6612 channel (IN1/IN2/PWM); sole GPIO writer for its motor outputs; `kInvertMotorPolarity` matches as-built module JST (red→M−); injected `GpioOps` seam enables host-side unit tests |
 | `PumpBus` | `pump_bus.{h,cpp}` | **Implemented** — owns STBY + channels; `run`/`stop`/`stopAll`; soft concurrency ceiling `kMaxConcurrentPumps` (6); safe-boot ordering; clamps duty |
 | `ScalePlatform` | `scale_platform.{h,cpp}` | **Implemented** — non-blocking HX711 FSM; one conversion per `tick()`, multi-tick tare, rolling filter, flow-gate + no-flow timeout flags; injected `ScaleOps` seam enables host-side unit tests |
 | `ControlTask` | `control_task.{h,cpp}` | **Implemented** — 5 ms `vTaskDelayUntil` loop; queue drain, coordinator, sequence runner, idle NVS commit (atomic config+inventory when both dirty), status publish, serial poll; TWDT feed each tick |

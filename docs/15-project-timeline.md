@@ -4,7 +4,7 @@ Living Gantt and procurement log for Rumtime v1. Update after bench sessions, or
 
 Reference: [`09-build-plan-and-verification.md`](09-build-plan-and-verification.md), [`14-bench-test-protocol.md`](14-bench-test-protocol.md).
 
-**Last updated:** 2026-11-01 (KF301 + 1×22 in; Oct 25 motherboard batch complete; Oct 29 remainder + PCBs still out).
+**Last updated:** 2026-11-10 (3× 4-pump module PCBs received; **2 assembled**; 3rd bare — short on stuffing parts).
 
 ## Gantt chart
 
@@ -45,7 +45,6 @@ gantt
     Fuse and main power cutoff install    :active, safe, 2026-06-27, 14d
     Test 6 syrup and grenadine      :t6, 2026-07-11, 7d
     Tests 7 to 9 load cell gating   :active, t79, 2026-08-16, 14d
-    Test 10 I2C on first module     :t10, after p2fab, 7d
     Phase 0 to 1 pour review        :milestone, crit, p01exit, 2026-08-01, 1d
 
     section Phase 2 plus
@@ -58,9 +57,12 @@ gantt
     Main-controller PCB ordered    :done, mbpo, 2026-10-29, 1d
     Partial AliExpress receive     :done, ae_recv1, 2026-11-01, 1d
     JST-XH pigtails on all 8 motors :done, jst8, 2026-11-01, 1d
-    4-pump PCB fab and assembly    :active, p2fab, after p2po, 21d
+    4-pump PCB fab received        :done, p2fab, after p2po, 16d
+    First 4-pump module assembled  :done, p2asm1, 2026-11-10, 1d
+    Second 4-pump module assembled :done, p2asm2, after p2asm1, 1d
+    Test 10 I2C on first module    :active, t10, after p2asm1, 7d
     Main-controller fab            :active, mbfab, after mbpo, 21d
-    Cartridge and nozzle prototype  :p3, after p2fab, 21d
+    Cartridge and nozzle prototype  :p3, after t10, 21d
     8-pump v1 assembly              :p4, after p3, 30d
 ```
 
@@ -97,7 +99,9 @@ gantt
 | 2026-11-01 | More AliExpress: 0805 **2.2 kΩ**, 0805 **100 nF**, 0805 **10 kΩ**, KF301-5.0-2P ×10, plain female **1×22** / **1×6** / **1×4** / **1×8** | Operator |
 | 2026-11-01 | JST-XH 2-pin female pigtails spliced/wired on **all 8** KPHM100 motors | Operator |
 | 2026-11-01 | Enclosure layout draft accepted (four-slot rear tower, open back, Fire HD 8 pivot mount) | [`08-mechanical-design.md`](08-mechanical-design.md) layout + slot contract; `hardware/cad/src/enclosure_rear_bay_concept.py` |
-| TBD        | Test 10 (I2C on first module)                  | Post-fab bring-up — **not** a Gerber gate |
+| 2026-11-10 | 4-pump module PCBs **received** (OSH Park, 3 boards) | Operator |
+| 2026-11-10 | Two 4-pump modules **assembled**; 3rd bare (not stuffing — short on parts) | Operator |
+| TBD        | Test 10 (I2C on first module)                  | First-article bring-up — 2 boards assembled 2026-11-10 |
 | TBD        | Test 11 (enclosure draft checks) → cut wood    | Gates "Cartridge and nozzle prototype" |
 | TBD        | First drink from 8-pump v1                     | Phase 4 exit |
 
@@ -131,11 +135,14 @@ Fill **ordered** and **received** as you go. Sourced from [`13-phase-0-mini-bom.
 | Graduated cylinder (250 ml) | 1 | 2026-06-27 | OK | In use session 02 |
 | Breadboard + jumpers | 1 | 2026-06-27 | OK | |
 | MCP23017 breakout | 1 | — | **skip** | Not buying. Test 10 is first assembled module (2026-08-20). |
-| 4-pump module parts | 1 set | **2026-11-01** | **OK (parts)** | **On hand:** MCP23017-E/SO; Micro-Fit RA 2×3 (`43045-0600` class); F1 1812-2A; **both** JST-XH 2-pin 5-sets; 0805 **10 kΩ**; 0805 **100 nF**; plain female **1×8** sockets. **Harness:** female JST-XH pigtails wired on **all 8** motors (2026-11-01). Module PCB still out (OSH Park). |
+| 4-pump module PCB | 3 | **2026-11-10** | **OK** | OSH Park. **2 assembled** 2026-11-10; **1 bare** — not assembling (short on stuffing parts). |
+| 4-pump module parts | 1 set | **2026-11-01** | **OK (parts)** | **On hand:** MCP23017-E/SO; Micro-Fit RA 2×3 (`43045-0600` class); F1 1812-2A; **both** JST-XH 2-pin 5-sets; 0805 **10 kΩ**; 0805 **100 nF**; female **1×8** sockets (**10 pcs** + **100 pcs** — see note). **Harness:** female JST-XH pigtails wired on **all 8** motors (2026-11-01). |
 | Motherboard power / bus / sockets | see notes | **2026-11-01** | **OK** | Mini560 **5 V** ×2; Micro-Fit vertical 6-pin; KF301-5.0-2P ×10; 0805 **2.2 kΩ**; plain female **1×22** / **1×6** / **1×4** (DevKit + HX711). |
-| Motherboard remainder + harness | see notes | — | **ordered 2026-10-29** | Still out: USB-C **6P** top-mount class; **SS14** Schottky; 3 mm LED kit; **300 Ω** 0805 (LED_STATUS); Micro-Fit **43025** housings + **pre-crimped F–F leads** (DIY home-runs for ~3 modules). |
+| Motherboard remainder + harness | see notes | **2026-11-08** | **OK** | USB-C **6P**; **SS14**; 3 mm LED kit; **300 Ω** 0805; Micro-Fit **43025** housings + **pre-crimped F–F leads**. |
 
-**Order dates:** Bulk mini-BOM **2026-06-18** (delivered **2026-06-27**). Load cell bar + HX711 **2026-06-23** — soldered and calibrated **2026-08-20** (`scalecal 374.76`). Module + motherboard AliExpress **2026-10-25** and **2026-10-29** — Oct 25 batches **complete 2026-11-01**; still out: Oct 29 harness/USB-C/LED parts, both PCBs.
+**Order dates:** Bulk mini-BOM **2026-06-18** (delivered **2026-06-27**). Load cell bar + HX711 **2026-06-23** — soldered and calibrated **2026-08-20** (`scalecal 374.76`). Module + motherboard AliExpress **2026-10-25** and **2026-10-29** — Oct 25 **complete 2026-11-01**; Oct 29 remainder **complete 2026-11-08**; module PCBs **2026-11-10**. Main-controller PCB still out.
+
+**Note (1×8 sockets):** Need **4 per module** (J7–J10) → **12** for three boards. Documented buy is the Oct 29 **10 pcs** pack ($1.86). Operator also has a **100 pcs** 1×8 pack on hand (not separately priced in the line table). Keep the 100; the 10 alone is short for three boards. No return.
 
 ### Recorded line prices (2026-11-08)
 
@@ -145,7 +152,7 @@ Operator-dictated line prices only. No grand total.
 | ------ | ---- | --- | ----------: |
 | OSH Park | 4-pump module PCB | 3 boards | $13.65 |
 | OSH Park | Main-controller PCB | 3 boards | $30.35 |
-| AliExpress | 1×8 pin header | 10 pcs (paid total) | $1.86 |
+| AliExpress | 1×8 female pin socket | 10 pcs (paid total; also 100 pcs pack on hand) | $1.86 |
 | AliExpress | 0805 300 Ω resistors | — | $1.40 |
 | AliExpress | JST 4-pin (XH) | — | $2.60 |
 | AliExpress | Green LEDs | — | $1.36 |
@@ -209,10 +216,10 @@ Related earlier AliExpress line (Jun 18): SW1 round rocker 5 pcs **$2.97** — s
 
 | Item | Target phase | Ordered | Received |
 | ---- | ------------ | ------- | -------- |
-| 4-pump KiCad module PCB | 2 | 2026-10-25 (OSH Park, 3) | — |
-| 4-pump module parts (+ F1, 1×8) | 2 | 2026-10-25 / 29 (AliExpress) | **2026-11-01** (all stuffing parts on hand; PCB separate) |
+| 4-pump KiCad module PCB | 2 | 2026-10-25 (OSH Park, 3) | **2026-11-10** (2 assembled; 3rd bare — short on parts) |
+| 4-pump module parts (+ F1, 1×8) | 2 | 2026-10-25 / 29 (AliExpress) | **2026-11-01** (all stuffing parts on hand) |
 | Mini560 + Micro-Fit vertical + KF301 + sockets | 5 (motherboard) | 2026-10-25 (AliExpress) | **2026-11-01** |
-| USB-C, SS14, LEDs, 300 Ω, Micro-Fit harness | 5 (motherboard) | 2026-10-29 (AliExpress) | — |
+| USB-C, SS14, LEDs, 300 Ω, Micro-Fit harness | 5 (motherboard) | 2026-10-29 (AliExpress) | **2026-11-08** |
 | Main-controller PCB | 5 | 2026-10-29 | — |
 | GST120A12-R7B (8-pump PSU) | 4 | — | — |
 | Barbed 1/8" PP unions | plumbing | **deferred** | — |

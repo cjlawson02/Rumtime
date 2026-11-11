@@ -176,3 +176,7 @@ See `hardware/kicad/README.md` for repo layout, `kicad-cli` hooks, and schematic
 | 2026-10-28 | Motherboard **LED_STATUS → GPIO 38** (was planned 10). |
 | 2026-10-28 | Motherboard **PUMP_BUS_ENABLE → GPIO 18** (bench STBY was 17). |
 | 2026-11-08 | If a **main-controller rev 2** is ever spun: add a **dedicated GPIO** (and onboard MOSFET or switched 12 V header) for the hood **12 V COB ring light** (ALLCOBLED angel-eye above the glass). Do **not** reuse `LED_STATUS` / GPIO 38 for that load — v1 can drive the ring from a free DevKit pin + external MOSFET. |
+| 2026-11-08 | Oct 29 AliExpress remainder **received** (USB-C 6P, SS14, LEDs, 300 Ω, Micro-Fit 43025 + F–F leads, module 1×8). |
+| 2026-11-10 | 4-pump module PCBs **received** (OSH Park, 3). **Two boards assembled**; 3rd stays bare (short on stuffing parts). Test 10 still open. |
+| 2026-11-10 | Female **1×8** inventory: documented Oct 29 buy is **10 pcs** ($1.86); operator also has a **100 pcs** pack. Need **4/module × 3 = 12**. Keep the 100; do not return either pack. |
+| 2026-11-10 | Motor JST-XH as-built: **red wire is on the right pin** of the XH housing (mates to schematic **M−** / pin 2, not M+ / pin 1). Do **not** respin. Firmware: `kInvertMotorPolarity = true` in `firmware/controller/include/config.h` so `kForward` = pour. Bench-rig stays non-inverted. |

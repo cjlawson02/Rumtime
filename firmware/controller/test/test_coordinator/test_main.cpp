@@ -186,20 +186,29 @@ DispenseCommand dispenseCmd(uint8_t channel, float ml, bool flow_gate) {
 }
 
 // Pump 1 (channel 0) direction predicates via recorded GPIO writes.
+// Matches PumpChannel + kInvertMotorPolarity (as-built module JST polarity).
 bool pumpForward(const FakeGpio& g) {
-  return g.lastDigitalLevel(pins::kPump1In1) == kGpioLevelHigh &&
-         g.lastDigitalLevel(pins::kPump1In2) == kGpioLevelLow &&
-         g.lastAnalogDuty(pins::kPump1Pwm) > 0;
+  const int fwd_in1 = kInvertMotorPolarity ? kGpioLevelLow : kGpioLevelHigh;
+  const int fwd_in2 = kInvertMotorPolarity ? kGpioLevelHigh : kGpioLevelLow;
+  return g.lastDigitalLevel(pins::kPump1In1) == fwd_in1 &&
+         g.lastDigitalLevel(pins::kPump1In2) == fwd_in2 && g.lastAnalogDuty(pins::kPump1Pwm) > 0;
 }
 bool pumpReverse(const FakeGpio& g) {
-  return g.lastDigitalLevel(pins::kPump1In1) == kGpioLevelLow &&
-         g.lastDigitalLevel(pins::kPump1In2) == kGpioLevelHigh &&
+  const int fwd_in1 = kInvertMotorPolarity ? kGpioLevelLow : kGpioLevelHigh;
+  const int fwd_in2 = kInvertMotorPolarity ? kGpioLevelHigh : kGpioLevelLow;
+  return g.lastDigitalLevel(pins::kPump1In1) == fwd_in2 &&
+         g.lastDigitalLevel(pins::kPump1In2) == fwd_in1 &&
          g.lastAnalogDuty(pins::kPump1Pwm) > 0;  // reverse must actually purge
 }
 bool pumpStopped(const FakeGpio& g) {
   return g.lastDigitalLevel(pins::kPump1In1) == kGpioLevelLow &&
          g.lastDigitalLevel(pins::kPump1In2) == kGpioLevelLow &&
          g.lastAnalogDuty(pins::kPump1Pwm) == 0;
+}
+
+// Pin that goes high only in reverse under the current polarity mapping.
+int pump1ReverseHighPin() {
+  return kInvertMotorPolarity ? pins::kPump1In1 : pins::kPump1In2;
 }
 
 // ml == kDefaultMlPerSecond -> pour lasts exactly 1000 ms.
@@ -350,7 +359,7 @@ void test_cancel_aborts_immediately_without_anti_drip() {
   TEST_ASSERT_TRUE(h.coordinator.cancelled());
   TEST_ASSERT_TRUE(pumpStopped(h.gpio));
   // Cancel skips anti-drip: pump 1 was never driven in reverse.
-  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pins::kPump1In2, kGpioLevelHigh));
+  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pump1ReverseHighPin(), kGpioLevelHigh));
 }
 
 void test_reject_when_busy() {
@@ -558,7 +567,7 @@ void test_prime_stop_completes_ok_without_anti_drip() {
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_TRUE(h.coordinator.ok());
   TEST_ASSERT_TRUE(pumpStopped(h.gpio));
-  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pins::kPump1In2, kGpioLevelHigh));
+  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pump1ReverseHighPin(), kGpioLevelHigh));
 }
 
 void test_prime_timeout_errors_without_anti_drip() {
@@ -572,7 +581,7 @@ void test_prime_timeout_errors_without_anti_drip() {
   TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kPrimeTimeout),
                     static_cast<int>(h.coordinator.lastReject()));
   TEST_ASSERT_TRUE(pumpStopped(h.gpio));
-  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pins::kPump1In2, kGpioLevelHigh));
+  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pump1ReverseHighPin(), kGpioLevelHigh));
 }
 
 void test_cancel_during_prime_aborts_without_anti_drip() {
@@ -585,7 +594,7 @@ void test_cancel_during_prime_aborts_without_anti_drip() {
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_TRUE(h.coordinator.cancelled());
   TEST_ASSERT_TRUE(pumpStopped(h.gpio));
-  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pins::kPump1In2, kGpioLevelHigh));
+  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pump1ReverseHighPin(), kGpioLevelHigh));
 }
 
 void test_reject_prime_when_busy() {

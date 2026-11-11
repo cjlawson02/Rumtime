@@ -39,6 +39,11 @@ constexpr int kScaleSck = 7;
 // PWM duty for full-speed runs (0–255).
 constexpr int kPumpPwmFull = 255;
 
+// As-built 4-pump module JST-XH (2026-11-10): red pump lead lands on schematic
+// M− / pin 2, not M+ / pin 1. Invert IN1/IN2 so kForward = pour toward nozzle.
+// Bench-rig Pololu wiring is separate and stays non-inverted.
+constexpr bool kInvertMotorPolarity = true;
+
 // Dispense defaults — copied from firmware/bench-rig/include/config.h (bench-validated
 // 2026-06-27). Open-loop ml/s calibration model and anti-drip reverse; re-cal per line.
 // These are the SEED values ConfigStore writes into a fresh (or reset) NVS record;

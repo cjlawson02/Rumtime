@@ -181,13 +181,16 @@ void test_direction_truth_table() {
   bus.begin(makeOps());
   fake.reset();
 
+  // With kInvertMotorPolarity, logical forward drives IN1 low / IN2 high.
+  const int fwd_in1 = kInvertMotorPolarity ? kGpioLevelLow : kGpioLevelHigh;
+  const int fwd_in2 = kInvertMotorPolarity ? kGpioLevelHigh : kGpioLevelLow;
   TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kForward, 100));
-  TEST_ASSERT_EQUAL(kGpioLevelHigh, fake.lastDigitalLevel(pins::kPump1In1));
-  TEST_ASSERT_EQUAL(kGpioLevelLow, fake.lastDigitalLevel(pins::kPump1In2));
+  TEST_ASSERT_EQUAL(fwd_in1, fake.lastDigitalLevel(pins::kPump1In1));
+  TEST_ASSERT_EQUAL(fwd_in2, fake.lastDigitalLevel(pins::kPump1In2));
 
   TEST_ASSERT_TRUE(bus.run(0, PumpDirection::kReverse, 100));
-  TEST_ASSERT_EQUAL(kGpioLevelLow, fake.lastDigitalLevel(pins::kPump1In1));
-  TEST_ASSERT_EQUAL(kGpioLevelHigh, fake.lastDigitalLevel(pins::kPump1In2));
+  TEST_ASSERT_EQUAL(fwd_in2, fake.lastDigitalLevel(pins::kPump1In1));
+  TEST_ASSERT_EQUAL(fwd_in1, fake.lastDigitalLevel(pins::kPump1In2));
 
   bus.stop(0);
   TEST_ASSERT_EQUAL(kGpioLevelLow, fake.lastDigitalLevel(pins::kPump1In1));

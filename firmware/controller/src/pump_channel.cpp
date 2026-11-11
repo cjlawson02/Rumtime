@@ -1,5 +1,7 @@
 #include "pump_channel.h"
 
+#include "config.h"
+
 namespace {
 
 int clampDuty(int duty) {
@@ -47,14 +49,16 @@ void PumpChannel::stop() {
 
 void PumpChannel::applyDirection(PumpDirection direction) {
   direction_ = direction;
+  // Logical forward/reverse; optional hardware invert for as-built JST polarity.
+  const bool forward_in1_high = !kInvertMotorPolarity;
   switch (direction) {
     case PumpDirection::kForward:
-      gpio_->digitalWrite(in1_, kGpioLevelHigh);
-      gpio_->digitalWrite(in2_, kGpioLevelLow);
+      gpio_->digitalWrite(in1_, forward_in1_high ? kGpioLevelHigh : kGpioLevelLow);
+      gpio_->digitalWrite(in2_, forward_in1_high ? kGpioLevelLow : kGpioLevelHigh);
       break;
     case PumpDirection::kReverse:
-      gpio_->digitalWrite(in1_, kGpioLevelLow);
-      gpio_->digitalWrite(in2_, kGpioLevelHigh);
+      gpio_->digitalWrite(in1_, forward_in1_high ? kGpioLevelLow : kGpioLevelHigh);
+      gpio_->digitalWrite(in2_, forward_in1_high ? kGpioLevelHigh : kGpioLevelLow);
       break;
     case PumpDirection::kStop:
     default:

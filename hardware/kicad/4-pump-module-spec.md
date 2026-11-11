@@ -178,7 +178,7 @@ Harness: **one home-run per module**. Controller J_BUS1–4 → boxes A–D J1. 
 | MPN | `B2B-XH-A(LF)(SN)` |
 | Values | `PUMP1` … `PUMP4` (or P1–P4) |
 
-Pin 1 = square pad = **M+** (keep red = pin 1 on every pigtail). Alternate if cables must exit the board edge: `JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal`. Do **not** use `JST_VH_B2P-VH` or a PH (2.0 mm) footprint.
+Pin 1 = square pad = net **M+**; pin 2 = **M−**. **As-built (2026-11-10):** red pump lead is on the **right** XH pin and lands on **pin 2 / M−**. Do not respin or rewire — firmware chooses which IN1/IN2 sense is pour-forward at Test 10. Alternate if cables must exit the board edge: `JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal`. Do **not** use `JST_VH_B2P-VH` or a PH (2.0 mm) footprint.
 
 Harness: female XH 2-pin pigtails spliced/heatshrunk to each KPHM100 lead. No crimp tool. Buy 10 (8 + 2 spare). Zip-tie strain relief on the cartridge — the latch is not the strain member. Documented alternate: 5.08 mm pluggable screw terminal (Phoenix MSTB / 2EDG).
 

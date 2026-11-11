@@ -55,20 +55,20 @@ Exit criteria (pour path; parallel with module schematic):
 
 **Schematic v1:** ERC-clean (`hardware/kicad/scripts/check.sh`). HX711 is on the controller, not this board. Stall current already supports TB6612.
 
-**Layout:** in progress (silkscreen / placement). **Fab prerequisite:** DRC + schematic safe-off (Test 10.4). I2C hardware bring-up is Test 10 on first article.
+**Status (2026-11-10):** 3 PCBs received (OSH Park). **Two boards assembled**; 3rd bare (short on stuffing parts). I2C bring-up is Test 10 on first article.
 
 Design and fabricate one 4-pump module PCB.
 
 1. Create schematic.
    - Verify: ERC passes and safe default pump-off behavior is reviewed. _(v1 ERC 0 — 2026-08-16.)_
 2. Create layout.
-   - Verify: DRC passes and motor current paths are sized appropriately. _(Silkscreen/placement in progress.)_
+   - Verify: DRC passes and motor current paths are sized appropriately. _(Done — fab ordered 2026-10-25.)_
 3. Confirm connectors.
    - Verify: connector pinouts match wiring harness plan.
 4. Confirm mounting.
    - Verify: board holes align with a printed/measured cartridge mockup.
 5. Assemble one board.
-   - Verify: no shorts; logic power and 12 V rails test correctly.
+   - Verify: no shorts; logic power and 12 V rails test correctly. _(Two boards assembled 2026-11-10; rail checks / Test 10 still open.)_
 6. Test with one pump.
    - Verify: forward/reverse/stop works.
 7. Test with four pumps.

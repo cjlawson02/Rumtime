@@ -27,7 +27,7 @@ Design the electronics and enclosure with space for four pump modules (16 pumps 
 ```text
 Module A: pumps 1-4, installed in v1
 Module B: pumps 5-8, installed in v1
-Module C: pumps 9-12, third board (parts on hand) or later upgrade
+Module C: pumps 9-12, later — bare PCB on hand, not stuffing yet (short on parts)
 Module D: pumps 13-16, empty slot
 ```
 

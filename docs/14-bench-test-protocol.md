@@ -178,6 +178,8 @@ flow_detect_timeout_ms: _____
 
 ## Test 10 — I2C path (first assembled module)
 
+**Status (2026-11-10):** Two module boards **assembled**; 3rd bare (short on stuffing parts). Electrical bring-up / 10.1–10.3 still open.
+
 Phase 0 uses direct GPIO → TB6612. Production uses **MCP23017 → TB6612** on the module PCB (PWM strapped high). **No MCP23017 breakout** — operator 2026-08-20: first I2C bring-up is the fabricated board (accept a spin if ENABLE/RESET/addressing is wrong). **10.4** (schematic safe-off) still happens before Gerbers.
 
 | Step | Action                                                                      | Pass                            |
