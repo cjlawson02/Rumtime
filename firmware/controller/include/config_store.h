@@ -30,6 +30,8 @@ struct NvsOps {
 struct PumpConfig {
   bool bound = false;
   char ingredient_id[kIngredientIdMax] = {0};
+  // IN1/IN2 swap for this pump's as-built lead polarity (v3; was struct padding in v2).
+  bool invert_polarity = kDefaultInvertMotorPolarity;
   float ml_per_s = kDefaultMlPerSecond;
   uint32_t anti_drip_ms = static_cast<uint32_t>(kDefaultAntiDripMs);
 };
@@ -65,6 +67,8 @@ class ConfigStore {
   float mlPerSecond(uint8_t channel) const;
   uint32_t antiDripMs(uint8_t channel) const;
 
+  bool invertPolarity(uint8_t channel) const;  // seed default when out of range
+
   bool bound(uint8_t channel) const;
   const char* ingredient(uint8_t channel) const;              // "" when unbound / out of range
   int channelForIngredient(const char* ingredient_id) const;  // -1 when none
@@ -74,6 +78,7 @@ class ConfigStore {
   bool setCalibration(uint8_t channel, float ml_per_s, uint32_t anti_drip_ms);
   bool setBinding(uint8_t channel, const char* ingredient_id);
   bool clearBinding(uint8_t channel);
+  bool setInvertPolarity(uint8_t channel, bool invert);
 
   bool dirty() const {
     return dirty_;

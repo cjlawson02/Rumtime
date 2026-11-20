@@ -16,8 +16,14 @@ class ScalePlatform {
  public:
   static constexpr uint8_t kMaxFilterReads = 8;
 
-  // May block briefly for HX711 init (wait_ready) — call from setup() only.
+  // May block briefly for HX711 init (wait_ready + kScaleProbeReads raw
+  // conversions) — call from setup() only. ready() stays false when the probe
+  // finds no HX711 or implausible data (see rawPlausible()).
   void begin(const ScaleOps& ops);
+
+  // False when every sample is identical (no real ADC noise) or any sample sits
+  // on an HX711 rail (open / disconnected load cell).
+  static bool rawPlausible(const long* raws, uint8_t count);
 
   // One conversion attempt when the backend is ready; advances the FSM. Never
   // blocks. now_ms is the ControlTask clock (millis()) for flow-timeout timing.

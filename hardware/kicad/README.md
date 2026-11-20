@@ -57,9 +57,9 @@ open -a KiCad hardware/kicad/main-controller/main-controller.kicad_pro
 | 0–1   | None                       | TB6612 breakout on breadboard; HX711 + load cell    |
 | 2     | 4-pump module              | 3 boards received 2026-11-10; **2 assembled**; 3rd bare (short on parts); Test 10 open |
 | 4     | Second 4-pump module       | Second board from same fab lot assembled 2026-11-10 |
-| 5     | Main controller            | PCB ordered 2026-10-29. DevKit socketed. |
+| 5     | Main controller            | Built + probed 2026-11-19 (not powered). DevKit WLAN overhangs HX711 — rev-2 fix. |
 
-Fill schematic sheets per [`4-pump-module-spec.md`](4-pump-module-spec.md) / [`main-controller-spec.md`](main-controller-spec.md). **4-pump** PCBs received 2026-11-10 (OSH Park, 3). **Main-controller** PCB ordered 2026-10-29. Commit `.kicad_pro` / `.kicad_sch` / `.kicad_pcb` — not `out/` or `*-backups/`.
+Fill schematic sheets per [`4-pump-module-spec.md`](4-pump-module-spec.md) / [`main-controller-spec.md`](main-controller-spec.md). **4-pump** PCBs received 2026-11-10 (OSH Park, 3). **Main-controller** built 2026-11-19. Commit `.kicad_pro` / `.kicad_sch` / `.kicad_pcb` — not `out/` or `*-backups/`.
 
 ## Gate before fabrication
 

@@ -57,6 +57,28 @@ const QueueOps kFakeQueueOps = {
     fakeCreate, fakeDestroy, fakeSend, fakeReceive, fakeReset, fakePending,
 };
 
+void test_pour_sequence_flat_builder_limits() {
+  PourSequenceCommand seq;
+  PourSequenceStep step;
+  step.ml = 1.0f;
+  TEST_ASSERT_FALSE(seq.addStep(step));  // no phase yet
+  TEST_ASSERT_TRUE(seq.addPhase());
+  for (uint8_t i = 0; i < kMaxConcurrentPumps; ++i) {
+    TEST_ASSERT_TRUE(seq.addStep(step));
+  }
+  TEST_ASSERT_FALSE(seq.addStep(step));  // phase full
+  while (seq.step_count < kMaxPourSequenceSteps) {
+    TEST_ASSERT_TRUE(seq.addPhase());
+    TEST_ASSERT_TRUE(seq.addStep(step));
+  }
+  TEST_ASSERT_TRUE(seq.phase_count < kMaxPourPhases);
+  TEST_ASSERT_TRUE(seq.addPhase());
+  TEST_ASSERT_FALSE(seq.addStep(step));  // total full
+  // Phase 1 starts right after phase 0's six steps.
+  TEST_ASSERT_EQUAL_PTR(&seq.steps[kMaxConcurrentPumps], seq.phaseSteps(1));
+  TEST_ASSERT_TRUE(sizeof(PourSequenceCommand) < 600);
+}
+
 }  // namespace
 
 void test_enqueue_dispense_then_drain() {
@@ -178,10 +200,11 @@ void test_dispense_then_cancel_preserves_pour() {
   TEST_ASSERT_TRUE(queue.begin(kFakeQueueOps));
 
   PourSequenceCommand seq;
-  strncpy(seq.phases[0].steps[0].ingredient_id, "bourbon", kIngredientIdMax);
-  seq.phases[0].steps[0].ml = 30.0f;
-  seq.phases[0].step_count = 1;
-  seq.phase_count = 1;
+  PourSequenceStep step;
+  strncpy(step.ingredient_id, "bourbon", kIngredientIdMax - 1);
+  step.ml = 30.0f;
+  seq.addPhase();
+  seq.addStep(step);
   TEST_ASSERT_TRUE(queue.enqueuePourSequence(seq));
   queue.markCommandAfterCancel();
   queue.enqueueCancel();
@@ -192,7 +215,7 @@ void test_dispense_then_cancel_preserves_pour() {
   Command out;
   TEST_ASSERT_TRUE(queue.drainCommand(out));
   TEST_ASSERT_EQUAL(static_cast<int>(CommandType::kPourSequence), static_cast<int>(out.type));
-  TEST_ASSERT_EQUAL_FLOAT(30.0f, out.pour_sequence.phases[0].steps[0].ml);
+  TEST_ASSERT_EQUAL_FLOAT(30.0f, out.pour_sequence.phaseSteps(0)[0].ml);
 }
 
 int main(int, char**) {
@@ -206,5 +229,6 @@ int main(int, char**) {
   RUN_TEST(test_prime_stop_does_not_block_command_slot);
   RUN_TEST(test_cancel_clears_pending_prime_stop);
   RUN_TEST(test_cancel_without_dispense);
+  RUN_TEST(test_pour_sequence_flat_builder_limits);
   return UNITY_END();
 }

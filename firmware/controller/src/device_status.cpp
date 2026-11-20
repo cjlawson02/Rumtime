@@ -188,6 +188,9 @@ std::string buildDeviceStatusJson(const DeviceStatusInputs& in) {
   appendKeyString(out, "firmwareVersion", in.firmware_version);
   appendKeyString(out, "hostname", in.hostname);
   appendKeyBool(out, "glassPresent", s.glass_present);
+  if (s.scale_bypass) {
+    appendKeyBool(out, "scaleBypass", true);  // bench-only; absent in normal running
+  }
 
   out.append("\"link\":{");
   appendKeyString(out, "ssid", in.wifi_ssid != nullptr ? in.wifi_ssid : "");
@@ -195,7 +198,11 @@ std::string buildDeviceStatusJson(const DeviceStatusInputs& in) {
   appendKeyInt(out, "rssi", in.wifi_rssi);
   appendKeyInt(out, "lastDisconnectReason", static_cast<int>(in.wifi_last_disconnect_reason));
   appendKeyInt(out, "uptimeSeconds", static_cast<int>(in.uptime_ms / 1000UL));
-  appendKeyInt(out, "freeHeap", static_cast<int>(in.free_heap), false);
+  appendKeyInt(out, "freeHeap", static_cast<int>(in.free_heap));
+  out.append("\"stackFree\":{");
+  appendKeyInt(out, "control", static_cast<int>(s.control_stack_free));
+  appendKeyInt(out, "network", static_cast<int>(s.network_stack_free), false);
+  out.push_back('}');
   out.append("},");
 
   out.append("\"bindings\":{");

@@ -290,7 +290,7 @@ Implementation lives in [`firmware/controller/`](../firmware/controller/README.m
 4. ~~**Sequence runner**~~ — done: sequential multi-ingredient pours (`pour` serial + `POST /pour`); parallel groups still deferred.
 5. ~~**Wi-Fi HTTP**~~ — done: STA + mDNS + kiosk HTTP API + `InventoryStore` + cross-task config queue; Arduino `WebServer` + ArduinoJson v7 on Core 0.
 6. **Cleaning sequences** — compose existing step types.
-7. **I2C pump modules** — replace GPIO bench driver with `PumpModule` HAL.
+7. ~~**I2C pump modules**~~ — done in product firmware (`PumpModule` + `PumpBus`, MCP23017 0x20–0x23; STBY = `PUMP_BUS_ENABLE`).
 
 ## Assumptions baked into this doc
 

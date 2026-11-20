@@ -5,85 +5,20 @@
 #include <limits>
 #include <vector>
 
+#include "../support/fake_pump_io.h"
 #include "command_queue.h"
 #include "config.h"
 #include "config_store.h"
 #include "coordinator.h"
 #include "gpio_ops.h"
+#include "i2c_ops.h"
 #include "pump_bus.h"
+#include "pump_module.h"
 #include "scale_ops.h"
 #include "scale_platform.h"
 #include "status_snapshot.h"
 
 namespace {
-
-// --- Fake GPIO (records TB6612 writes so tests can read pump direction/PWM) ---
-
-enum class OpType { kPinMode, kDigitalWrite, kAnalogWrite };
-
-struct WriteOp {
-  OpType type;
-  int pin;
-  int value;
-};
-
-class FakeGpio {
- public:
-  void reset() {
-    writes.clear();
-  }
-  void pinMode(int pin, uint8_t mode) {
-    writes.push_back({OpType::kPinMode, pin, mode});
-  }
-  void digitalWrite(int pin, uint8_t level) {
-    writes.push_back({OpType::kDigitalWrite, pin, level});
-  }
-  void analogWrite(int pin, int duty) {
-    writes.push_back({OpType::kAnalogWrite, pin, duty});
-  }
-  int count(OpType type, int pin, int value) const {
-    int total = 0;
-    for (const WriteOp& op : writes) {
-      if (op.type == type && op.pin == pin && op.value == value) {
-        ++total;
-      }
-    }
-    return total;
-  }
-  int lastAnalogDuty(int pin) const {
-    for (std::size_t i = writes.size(); i > 0; --i) {
-      const WriteOp& op = writes[i - 1];
-      if (op.type == OpType::kAnalogWrite && op.pin == pin) {
-        return op.value;
-      }
-    }
-    return -1;
-  }
-  int lastDigitalLevel(int pin) const {
-    for (std::size_t i = writes.size(); i > 0; --i) {
-      const WriteOp& op = writes[i - 1];
-      if (op.type == OpType::kDigitalWrite && op.pin == pin) {
-        return op.value;
-      }
-    }
-    return -1;
-  }
-  std::vector<WriteOp> writes;
-};
-
-FakeGpio* g_gpio = nullptr;
-void gpioPinMode(int pin, uint8_t mode) {
-  g_gpio->pinMode(pin, mode);
-}
-void gpioDigitalWrite(int pin, uint8_t level) {
-  g_gpio->digitalWrite(pin, level);
-}
-void gpioAnalogWrite(int pin, int duty) {
-  g_gpio->analogWrite(pin, duty);
-}
-GpioOps makeGpioOps() {
-  return GpioOps{gpioPinMode, gpioDigitalWrite, gpioAnalogWrite};
-}
 
 // --- Fake scale (feeds scripted grams; toggles ready) ---
 
@@ -117,7 +52,8 @@ float scaleGetUnits() {
   return g_scale->nextGrams();
 }
 long scaleReadRaw() {
-  return 0;
+  static long noise = 0;
+  return 1000 + (noise++ % 7);  // live ADC noise (passes the boot probe)
 }
 void scaleSetScale(float) {
 }
@@ -148,26 +84,32 @@ NvsOps makeNvsOps() {
 
 struct Harness {
   FakeGpio gpio;
+  FakeI2c i2c;
   FakeScale scale_fake;
   PumpBus pumps;
   ScalePlatform scale;
   ConfigStore config;
   Coordinator coordinator;
   GpioOps gpio_ops;
+  I2cOps i2c_ops;
   ScaleOps scale_ops;
   NvsOps nvs_ops;
 
   void begin() {
     g_gpio = &gpio;
+    g_i2c = &i2c;
     g_scale = &scale_fake;
-    gpio_ops = makeGpioOps();
+    gpio_ops = kFakeGpioOps;
+    i2c_ops = kFakeI2cOps;
     scale_ops = makeScaleOps();
     nvs_ops = makeNvsOps();
-    pumps.begin(gpio_ops);
+    pumps.begin(gpio_ops, i2c_ops);
     scale.begin(scale_ops);
     config.begin(nvs_ops);
     coordinator.begin(pumps, scale, config);
     gpio.reset();  // drop safe-boot writes; keep only job-driven writes
+    i2c.reset();
+    i2c.present[0] = true;
   }
 
   // One ControlTask control period: pump safety -> scale FSM -> coordinator FSM.
@@ -185,30 +127,26 @@ DispenseCommand dispenseCmd(uint8_t channel, float ml, bool flow_gate) {
   return cmd;
 }
 
-// Pump 1 (channel 0) direction predicates via recorded GPIO writes.
-// Matches PumpChannel + kInvertMotorPolarity (as-built module JST polarity).
-bool pumpForward(const FakeGpio& g) {
-  const int fwd_in1 = kInvertMotorPolarity ? kGpioLevelLow : kGpioLevelHigh;
-  const int fwd_in2 = kInvertMotorPolarity ? kGpioLevelHigh : kGpioLevelLow;
-  return g.lastDigitalLevel(pins::kPump1In1) == fwd_in1 &&
-         g.lastDigitalLevel(pins::kPump1In2) == fwd_in2 && g.lastAnalogDuty(pins::kPump1Pwm) > 0;
+// Pump 1 (channel 0) via MCP23017 OLAT bits (forwardBits/reverseBits: seed polarity).
+bool pumpForward(const FakeI2c& i2c) {
+  return i2c.channelBits(0) == forwardBits() &&
+         g_gpio->lastDigitalLevel(pins::kStandby) == kGpioLevelHigh;
 }
-bool pumpReverse(const FakeGpio& g) {
-  const int fwd_in1 = kInvertMotorPolarity ? kGpioLevelLow : kGpioLevelHigh;
-  const int fwd_in2 = kInvertMotorPolarity ? kGpioLevelHigh : kGpioLevelLow;
-  return g.lastDigitalLevel(pins::kPump1In1) == fwd_in2 &&
-         g.lastDigitalLevel(pins::kPump1In2) == fwd_in1 &&
-         g.lastAnalogDuty(pins::kPump1Pwm) > 0;  // reverse must actually purge
+bool pumpReverse(const FakeI2c& i2c) {
+  return i2c.channelBits(0) == reverseBits() &&
+         g_gpio->lastDigitalLevel(pins::kStandby) == kGpioLevelHigh;
 }
-bool pumpStopped(const FakeGpio& g) {
-  return g.lastDigitalLevel(pins::kPump1In1) == kGpioLevelLow &&
-         g.lastDigitalLevel(pins::kPump1In2) == kGpioLevelLow &&
-         g.lastAnalogDuty(pins::kPump1Pwm) == 0;
+bool pumpStopped(const FakeI2c& i2c) {
+  return i2c.channelBits(0) == 0;
 }
-
-// Pin that goes high only in reverse under the current polarity mapping.
-int pump1ReverseHighPin() {
-  return kInvertMotorPolarity ? pins::kPump1In1 : pins::kPump1In2;
+bool historyHadReverse(const FakeI2c& i2c) {
+  const uint8_t rev = reverseBits();
+  for (uint8_t value : i2c.olat_history) {
+    if (((value >> (FakeI2c::pairOf(0) * 2)) & 0x3) == rev) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // ml == kDefaultMlPerSecond -> pour lasts exactly 1000 ms.
@@ -222,22 +160,22 @@ void test_timed_dispense_runs_then_anti_drip_then_ok() {
   TEST_ASSERT_TRUE(h.coordinator.busy());
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPour),
                     static_cast<int>(h.coordinator.phase()));
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+  TEST_ASSERT_TRUE(pumpForward(h.i2c));
 
   h.step(500);  // mid-pour
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPour),
                     static_cast<int>(h.coordinator.phase()));
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+  TEST_ASSERT_TRUE(pumpForward(h.i2c));
 
   h.step(1000);  // pour deadline -> anti-drip reverse
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kAntiDrip),
                     static_cast<int>(h.coordinator.phase()));
-  TEST_ASSERT_TRUE(pumpReverse(h.gpio));
+  TEST_ASSERT_TRUE(pumpReverse(h.i2c));
 
   h.step(1000 + kDefaultAntiDripMs);  // anti-drip deadline -> done
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_TRUE(h.coordinator.ok());
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
+  TEST_ASSERT_TRUE(pumpStopped(h.i2c));
 }
 
 void test_flow_gate_detect_then_pour_from_flow_onset() {
@@ -249,7 +187,7 @@ void test_flow_gate_detect_then_pour_from_flow_onset() {
   TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, true), 0));
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kFlowWait),
                     static_cast<int>(h.coordinator.phase()));
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+  TEST_ASSERT_TRUE(pumpForward(h.i2c));
 
   h.step(1);  // baseline conversion
   h.step(2);  // delta 1
@@ -269,7 +207,7 @@ void test_flow_gate_detect_then_pour_from_flow_onset() {
                     static_cast<int>(h.coordinator.phase()));
   h.step(4 + 1000 + kDefaultAntiDripMs);
   TEST_ASSERT_TRUE(h.coordinator.ok());
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
+  TEST_ASSERT_TRUE(pumpStopped(h.i2c));
 }
 
 void test_flow_gate_timeout_aborts() {
@@ -293,7 +231,7 @@ void test_flow_gate_timeout_aborts() {
   TEST_ASSERT_TRUE(h.coordinator.error());
   TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kFlowTimeout),
                     static_cast<int>(h.coordinator.lastReject()));
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
+  TEST_ASSERT_TRUE(pumpStopped(h.i2c));
 }
 
 void test_flow_gate_scale_not_ready_rejects() {
@@ -320,7 +258,7 @@ void test_dispense_open_works_without_scale() {
   TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, false), 0));
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPour),
                     static_cast<int>(h.coordinator.phase()));
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+  TEST_ASSERT_TRUE(pumpForward(h.i2c));
 }
 
 void test_scale_not_ready_during_flow_wait_aborts() {
@@ -341,7 +279,7 @@ void test_scale_not_ready_during_flow_wait_aborts() {
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_TRUE(h.coordinator.error());
   TEST_ASSERT_FALSE(h.scale.flowTimedOut());  // aborted on not-ready, not timeout
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
+  TEST_ASSERT_TRUE(pumpStopped(h.i2c));
 }
 
 void test_cancel_aborts_immediately_without_anti_drip() {
@@ -350,16 +288,16 @@ void test_cancel_aborts_immediately_without_anti_drip() {
 
   TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, false), 0));
   h.step(500);
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+  TEST_ASSERT_TRUE(pumpForward(h.i2c));
 
   h.coordinator.cancel();
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_FALSE(h.coordinator.ok());
   TEST_ASSERT_FALSE(h.coordinator.error());
   TEST_ASSERT_TRUE(h.coordinator.cancelled());
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
+  TEST_ASSERT_TRUE(pumpStopped(h.i2c));
   // Cancel skips anti-drip: pump 1 was never driven in reverse.
-  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pump1ReverseHighPin(), kGpioLevelHigh));
+  TEST_ASSERT_FALSE(historyHadReverse(h.i2c));
 }
 
 void test_reject_when_busy() {
@@ -466,7 +404,7 @@ void test_timed_dispense_survives_millis_rollover() {
   // Start just before the millis() wrap so the pour deadline straddles it.
   const unsigned long start = std::numeric_limits<unsigned long>::max() - 500UL;
   TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, false), start));
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+  TEST_ASSERT_TRUE(pumpForward(h.i2c));
 
   h.step(start + 999UL);  // wraps around 0; elapsed = 999 ms, still pouring
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPour),
@@ -476,7 +414,7 @@ void test_timed_dispense_survives_millis_rollover() {
                     static_cast<int>(h.coordinator.phase()));
   h.step(start + 1000UL + kDefaultAntiDripMs);
   TEST_ASSERT_TRUE(h.coordinator.ok());
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
+  TEST_ASSERT_TRUE(pumpStopped(h.i2c));
 }
 
 void test_cancel_when_idle_is_noop() {
@@ -546,13 +484,13 @@ void test_prime_runs_forward_continuously() {
   TEST_ASSERT_TRUE(h.coordinator.busy());
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPrime),
                     static_cast<int>(h.coordinator.phase()));
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+  TEST_ASSERT_TRUE(pumpForward(h.i2c));
 
   h.step(5000);
   TEST_ASSERT_TRUE(h.coordinator.busy());
   TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPrime),
                     static_cast<int>(h.coordinator.phase()));
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+  TEST_ASSERT_TRUE(pumpForward(h.i2c));
 }
 
 void test_prime_stop_completes_ok_without_anti_drip() {
@@ -561,13 +499,13 @@ void test_prime_stop_completes_ok_without_anti_drip() {
 
   TEST_ASSERT_TRUE(h.coordinator.startPrime(0, 0));
   h.step(3000);
-  TEST_ASSERT_TRUE(pumpForward(h.gpio));
+  TEST_ASSERT_TRUE(pumpForward(h.i2c));
 
   h.coordinator.stopPrime();
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_TRUE(h.coordinator.ok());
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
-  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pump1ReverseHighPin(), kGpioLevelHigh));
+  TEST_ASSERT_TRUE(pumpStopped(h.i2c));
+  TEST_ASSERT_FALSE(historyHadReverse(h.i2c));
 }
 
 void test_prime_timeout_errors_without_anti_drip() {
@@ -580,8 +518,8 @@ void test_prime_timeout_errors_without_anti_drip() {
   TEST_ASSERT_TRUE(h.coordinator.error());
   TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kPrimeTimeout),
                     static_cast<int>(h.coordinator.lastReject()));
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
-  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pump1ReverseHighPin(), kGpioLevelHigh));
+  TEST_ASSERT_TRUE(pumpStopped(h.i2c));
+  TEST_ASSERT_FALSE(historyHadReverse(h.i2c));
 }
 
 void test_cancel_during_prime_aborts_without_anti_drip() {
@@ -593,8 +531,8 @@ void test_cancel_during_prime_aborts_without_anti_drip() {
   h.coordinator.cancel();
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_TRUE(h.coordinator.cancelled());
-  TEST_ASSERT_TRUE(pumpStopped(h.gpio));
-  TEST_ASSERT_EQUAL(0, h.gpio.count(OpType::kDigitalWrite, pump1ReverseHighPin(), kGpioLevelHigh));
+  TEST_ASSERT_TRUE(pumpStopped(h.i2c));
+  TEST_ASSERT_FALSE(historyHadReverse(h.i2c));
 }
 
 void test_reject_prime_when_busy() {
@@ -615,6 +553,36 @@ void test_stop_prime_when_idle_is_noop() {
   h.coordinator.stopPrime();
   TEST_ASSERT_FALSE(h.coordinator.busy());
   TEST_ASSERT_FALSE(h.coordinator.ok());
+}
+
+void test_dispense_on_missing_module_rejected_before_motion() {
+  Harness h;
+  h.begin();  // only module 0x20 present
+
+  TEST_ASSERT_FALSE(h.coordinator.startDispense(dispenseCmd(4, kOneSecondMl, false), 0));
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kBadChannel),
+                    static_cast<int>(h.coordinator.lastReject()));
+  TEST_ASSERT_FALSE(h.coordinator.startPrime(9, 0));
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kBadChannel),
+                    static_cast<int>(h.coordinator.lastReject()));
+  TEST_ASSERT_FALSE(h.pumps.anyRunning());
+}
+
+void test_pour_fails_when_bus_stopped_underneath() {
+  Harness h;
+  h.begin();
+
+  TEST_ASSERT_TRUE(h.coordinator.startDispense(dispenseCmd(0, kOneSecondMl, false), 0));
+  h.step(100);
+  TEST_ASSERT_TRUE(h.coordinator.busy());
+
+  // A failed expander write elsewhere stops the whole bus.
+  h.pumps.stopAll();
+  h.step(105);
+  TEST_ASSERT_FALSE(h.coordinator.busy());
+  TEST_ASSERT_TRUE(h.coordinator.error());
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kPumpRefused),
+                    static_cast<int>(h.coordinator.lastReject()));
 }
 
 }  // namespace
@@ -654,5 +622,7 @@ int main() {
   RUN_TEST(test_cancel_during_prime_aborts_without_anti_drip);
   RUN_TEST(test_reject_prime_when_busy);
   RUN_TEST(test_stop_prime_when_idle_is_noop);
+  RUN_TEST(test_dispense_on_missing_module_rejected_before_motion);
+  RUN_TEST(test_pour_fails_when_bus_stopped_underneath);
   return UNITY_END();
 }

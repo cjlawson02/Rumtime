@@ -5,77 +5,23 @@
 #include <cstring>
 #include <vector>
 
+#include "../support/fake_pump_io.h"
 #include "command_queue.h"
 #include "config.h"
 #include "config_store.h"
 #include "coordinator.h"
 #include "gpio_ops.h"
+#include "i2c_ops.h"
 #include "inventory_store.h"
 #include "job_status.h"
 #include "pump_bus.h"
+#include "pump_module.h"
 #include "scale_ops.h"
 #include "scale_platform.h"
 #include "sequence_runner.h"
 #include "status_snapshot.h"
 
 namespace {
-
-enum class OpType { kPinMode, kDigitalWrite, kAnalogWrite };
-
-struct WriteOp {
-  OpType type;
-  int pin;
-  int value;
-};
-
-class FakeGpio {
- public:
-  void reset() {
-    writes.clear();
-  }
-  void pinMode(int pin, uint8_t mode) {
-    writes.push_back({OpType::kPinMode, pin, mode});
-  }
-  void digitalWrite(int pin, uint8_t level) {
-    writes.push_back({OpType::kDigitalWrite, pin, level});
-  }
-  void analogWrite(int pin, int duty) {
-    writes.push_back({OpType::kAnalogWrite, pin, duty});
-  }
-  int lastAnalogDuty(int pin) const {
-    for (std::size_t i = writes.size(); i > 0; --i) {
-      const WriteOp& op = writes[i - 1];
-      if (op.type == OpType::kAnalogWrite && op.pin == pin) {
-        return op.value;
-      }
-    }
-    return -1;
-  }
-  int lastDigitalLevel(int pin) const {
-    for (std::size_t i = writes.size(); i > 0; --i) {
-      const WriteOp& op = writes[i - 1];
-      if (op.type == OpType::kDigitalWrite && op.pin == pin) {
-        return op.value;
-      }
-    }
-    return -1;
-  }
-  std::vector<WriteOp> writes;
-};
-
-FakeGpio* g_gpio = nullptr;
-void gpioPinMode(int pin, uint8_t mode) {
-  g_gpio->pinMode(pin, mode);
-}
-void gpioDigitalWrite(int pin, uint8_t level) {
-  g_gpio->digitalWrite(pin, level);
-}
-void gpioAnalogWrite(int pin, int duty) {
-  g_gpio->analogWrite(pin, duty);
-}
-GpioOps makeGpioOps() {
-  return GpioOps{gpioPinMode, gpioDigitalWrite, gpioAnalogWrite};
-}
 
 class FakeScale {
  public:
@@ -107,7 +53,8 @@ float scaleGetUnits() {
   return g_scale->nextGrams();
 }
 long scaleReadRaw() {
-  return 0;
+  static long noise = 0;
+  return 1000 + (noise++ % 7);  // live ADC noise (passes the boot probe)
 }
 void scaleSetScale(float) {
 }
@@ -133,6 +80,7 @@ NvsOps makeNvsOps() {
 
 struct Harness {
   FakeGpio gpio;
+  FakeI2c i2c;
   FakeScale scale_fake;
   PumpBus pumps;
   ScalePlatform scale;
@@ -141,22 +89,27 @@ struct Harness {
   Coordinator coordinator;
   SequenceRunner sequence;
   GpioOps gpio_ops;
+  I2cOps i2c_ops;
   ScaleOps scale_ops;
   NvsOps nvs_ops;
 
   void begin() {
     g_gpio = &gpio;
+    g_i2c = &i2c;
     g_scale = &scale_fake;
-    gpio_ops = makeGpioOps();
+    gpio_ops = kFakeGpioOps;
+    i2c_ops = kFakeI2cOps;
     scale_ops = makeScaleOps();
     nvs_ops = makeNvsOps();
-    pumps.begin(gpio_ops);
+    pumps.begin(gpio_ops, i2c_ops);
     scale.begin(scale_ops);
     config.begin(nvs_ops);
     inventory.begin(nvs_ops);
     coordinator.begin(pumps, scale, config);
     sequence.begin(coordinator, config, inventory, pumps, scale);
     gpio.reset();
+    i2c.reset();
+    i2c.present[0] = true;
     // Default: glass on platform (filtered grams above kGlassPresentMinGrams).
     armGlass(100.0f);
   }
@@ -194,14 +147,13 @@ PourSequenceStep makeStep(const char* ingredient, float ml) {
   return step;
 }
 
-bool pumpForwardCh(const FakeGpio& g, int in1, int in2, int pwm) {
-  return g.lastDigitalLevel(in1) == kGpioLevelHigh && g.lastDigitalLevel(in2) == kGpioLevelLow &&
-         g.lastAnalogDuty(pwm) > 0;
+bool pumpForwardCh(const FakeI2c& i2c, uint8_t channel) {
+  return i2c.channelBits(channel) == forwardBits() &&
+         g_gpio->lastDigitalLevel(pins::kStandby) == kGpioLevelHigh;
 }
 
-bool pumpStoppedCh(const FakeGpio& g, int in1, int in2, int pwm) {
-  return g.lastDigitalLevel(in1) == kGpioLevelLow && g.lastDigitalLevel(in2) == kGpioLevelLow &&
-         g.lastAnalogDuty(pwm) == 0;
+bool pumpStoppedCh(const FakeI2c& i2c, uint8_t channel) {
+  return i2c.channelBits(channel) == 0;
 }
 
 void runUntilStepIndex(Harness& h, uint8_t target_index, unsigned long& now,
@@ -301,7 +253,7 @@ void test_cancel_mid_sequence() {
 
   TEST_ASSERT_FALSE(h.sequence.busy());
   TEST_ASSERT_TRUE(h.sequence.cancelled());
-  TEST_ASSERT_TRUE(pumpStoppedCh(h.gpio, pins::kPump1In1, pins::kPump1In2, pins::kPump1Pwm));
+  TEST_ASSERT_TRUE(pumpStoppedCh(h.i2c, 0));
 }
 
 void test_busy_when_coordinator_active() {
@@ -349,7 +301,7 @@ void test_ingredient_resolves_to_bound_pump() {
 
   PourSequenceStep steps[1] = {makeStep("simple", kOneSecondMl)};
   TEST_ASSERT_TRUE(h.sequence.start(steps, 1, 0));
-  TEST_ASSERT_TRUE(pumpForwardCh(h.gpio, pins::kPump2In1, pins::kPump2In2, pins::kPump2Pwm));
+  TEST_ASSERT_TRUE(pumpForwardCh(h.i2c, 1));
 }
 
 void test_job_status_coordinator_not_shadowed_while_busy() {
@@ -427,7 +379,7 @@ void test_unbind_mid_sequence_does_not_change_resolved_step() {
 
   h.step(now + 5);
   TEST_ASSERT_TRUE(h.coordinator.busy());
-  TEST_ASSERT_TRUE(pumpForwardCh(h.gpio, pins::kPump2In1, pins::kPump2In2, pins::kPump2Pwm));
+  TEST_ASSERT_TRUE(pumpForwardCh(h.i2c, 1));
 }
 
 void test_clear_terminal_result_before_coordinator_job() {
@@ -530,15 +482,14 @@ void test_parallel_phase_runs_both_pumps() {
   h.seedPrimed("simple", 200.0f);
 
   PourSequenceCommand cmd = {};
-  cmd.phase_count = 1;
-  cmd.phases[0].step_count = 2;
-  cmd.phases[0].steps[0] = makeStep("bourbon", kOneSecondMl);
-  cmd.phases[0].steps[1] = makeStep("simple", kOneSecondMl);
+  cmd.addPhase();
+  cmd.addStep(makeStep("bourbon", kOneSecondMl));
+  cmd.addStep(makeStep("simple", kOneSecondMl));
 
   TEST_ASSERT_TRUE(h.sequence.start(cmd, 0));
   TEST_ASSERT_TRUE(h.sequence.busy());
-  TEST_ASSERT_TRUE(pumpForwardCh(h.gpio, pins::kPump1In1, pins::kPump1In2, pins::kPump1Pwm));
-  TEST_ASSERT_TRUE(pumpForwardCh(h.gpio, pins::kPump2In1, pins::kPump2In2, pins::kPump2Pwm));
+  TEST_ASSERT_TRUE(pumpForwardCh(h.i2c, 0));
+  TEST_ASSERT_TRUE(pumpForwardCh(h.i2c, 1));
   TEST_ASSERT_EQUAL_UINT(2, h.pumps.runningCount());
 
   unsigned long now = 0;
@@ -546,8 +497,8 @@ void test_parallel_phase_runs_both_pumps() {
   TEST_ASSERT_TRUE(h.sequence.ok());
   TEST_ASSERT_EQUAL_FLOAT(200.0f - kOneSecondMl, h.inventory.find("bourbon")->remaining_ml);
   TEST_ASSERT_EQUAL_FLOAT(200.0f - kOneSecondMl, h.inventory.find("simple")->remaining_ml);
-  TEST_ASSERT_TRUE(pumpStoppedCh(h.gpio, pins::kPump1In1, pins::kPump1In2, pins::kPump1Pwm));
-  TEST_ASSERT_TRUE(pumpStoppedCh(h.gpio, pins::kPump2In1, pins::kPump2In2, pins::kPump2Pwm));
+  TEST_ASSERT_TRUE(pumpStoppedCh(h.i2c, 0));
+  TEST_ASSERT_TRUE(pumpStoppedCh(h.i2c, 1));
 }
 
 void test_start_rejects_without_glass() {
@@ -574,15 +525,89 @@ void test_parallel_phase_rejects_over_cap() {
   h.pumps.setMaxConcurrent(1);
 
   PourSequenceCommand cmd = {};
-  cmd.phase_count = 1;
-  cmd.phases[0].step_count = 2;
-  cmd.phases[0].steps[0] = makeStep("bourbon", kOneSecondMl);
-  cmd.phases[0].steps[1] = makeStep("simple", kOneSecondMl);
+  cmd.addPhase();
+  cmd.addStep(makeStep("bourbon", kOneSecondMl));
+  cmd.addStep(makeStep("simple", kOneSecondMl));
 
   TEST_ASSERT_FALSE(h.sequence.start(cmd, 0));
   TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kPumpRefused),
                     static_cast<int>(h.sequence.lastReject()));
   TEST_ASSERT_FALSE(h.pumps.anyRunning());
+}
+
+void test_missing_module_rejected_before_first_phase() {
+  Harness h;
+  h.begin();  // only module 0x20 present
+  TEST_ASSERT_TRUE(h.config.setBinding(0, "rum"));
+  TEST_ASSERT_TRUE(h.config.setBinding(1, "simple"));
+  TEST_ASSERT_TRUE(h.config.setBinding(8, "lime"));  // module 0x22, not detected
+  h.seedPrimed("rum", 200.0f);
+  h.seedPrimed("simple", 200.0f);
+  h.seedPrimed("lime", 200.0f);
+
+  PourSequenceStep steps[3] = {makeStep("rum", kOneSecondMl), makeStep("simple", kOneSecondMl),
+                               makeStep("lime", kOneSecondMl)};
+  TEST_ASSERT_FALSE(h.sequence.start(steps, 3, 0));
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kBadChannel),
+                    static_cast<int>(h.sequence.lastReject()));
+  TEST_ASSERT_FALSE(h.pumps.anyRunning());
+  TEST_ASSERT_EQUAL_FLOAT(200.0f, h.inventory.find("rum")->remaining_ml);
+}
+
+void test_parallel_stop_failure_aborts_sequence() {
+  Harness h;
+  h.i2c.present[1] = true;
+  h.begin();
+  h.i2c.present[1] = true;
+  TEST_ASSERT_TRUE(h.config.setBinding(0, "bourbon"));
+  TEST_ASSERT_TRUE(h.config.setBinding(4, "simple"));  // second module keeps STBY wanted
+  TEST_ASSERT_TRUE(h.config.setCalibration(0, kDefaultMlPerSecond, 0));
+  TEST_ASSERT_TRUE(h.config.setCalibration(4, kDefaultMlPerSecond, 0));
+  h.seedPrimed("bourbon", 200.0f);
+  h.seedPrimed("simple", 200.0f);
+
+  PourSequenceCommand cmd = {};
+  cmd.addPhase();
+  cmd.addStep(makeStep("bourbon", kOneSecondMl * 0.5f));
+  cmd.addStep(makeStep("simple", kOneSecondMl * 2.0f));
+  TEST_ASSERT_TRUE(h.sequence.start(cmd, 0));
+
+  // Bourbon's stop write (and its retry) NACK on 0x20.
+  h.i2c.fail_remaining = PumpModule::kWriteAttempts;
+  h.i2c.fail_addr = PumpBus::kBaseAddr;
+  unsigned long now = 0;
+  runUntilSequenceDone(h, now, 5000);
+
+  TEST_ASSERT_TRUE(h.sequence.error());
+  TEST_ASSERT_EQUAL(static_cast<int>(JobReject::kPumpRefused),
+                    static_cast<int>(h.sequence.lastReject()));
+  TEST_ASSERT_LESS_THAN_UINT32(1000, now);  // aborted at bourbon's stop, not at simple's end
+  TEST_ASSERT_FALSE(h.pumps.anyRunning());
+  TEST_ASSERT_EQUAL(kGpioLevelLow, h.gpio.lastDigitalLevel(pins::kStandby));
+  // Phase never completed: no inventory charged for volume that may not have poured.
+  TEST_ASSERT_EQUAL_FLOAT(200.0f, h.inventory.find("simple")->remaining_ml);
+}
+
+void test_scale_bypass_runs_timed_without_glass() {
+  Harness h;
+  h.begin();
+  TEST_ASSERT_TRUE(h.config.setBinding(0, "bourbon"));
+  h.seedPrimed("bourbon", 200.0f);
+  h.armGlass(0.0f);
+  h.scale_fake.is_ready_result = false;
+
+  PourSequenceStep steps[1] = {makeStep("bourbon", kOneSecondMl)};
+  TEST_ASSERT_FALSE(h.sequence.start(steps, 1, 0));
+
+  h.sequence.setScaleBypass(true);
+  TEST_ASSERT_TRUE(h.sequence.start(steps, 1, 0));
+  // Timed from motor-on (no flow wait): pouring immediately.
+  TEST_ASSERT_EQUAL(static_cast<int>(Coordinator::Phase::kPour),
+                    static_cast<int>(h.coordinator.phase()));
+  unsigned long now = 0;
+  runUntilSequenceDone(h, now, 5000);
+  TEST_ASSERT_TRUE(h.sequence.ok());
+  TEST_ASSERT_EQUAL_FLOAT(200.0f - kOneSecondMl, h.inventory.find("bourbon")->remaining_ml);
 }
 
 }  // namespace
@@ -612,5 +637,8 @@ int main() {
   RUN_TEST(test_parallel_phase_runs_both_pumps);
   RUN_TEST(test_parallel_phase_rejects_over_cap);
   RUN_TEST(test_start_rejects_without_glass);
+  RUN_TEST(test_missing_module_rejected_before_first_phase);
+  RUN_TEST(test_parallel_stop_failure_aborts_sequence);
+  RUN_TEST(test_scale_bypass_runs_timed_without_glass);
   return UNITY_END();
 }

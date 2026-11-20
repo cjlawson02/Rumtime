@@ -21,6 +21,13 @@ bool bindingValid(const PumpConfig& pump) {
 }
 
 void sanitizePumpConfig(PumpConfig& pump, bool& changed) {
+  // bool is stored as a raw byte; anything but 0/1 is corrupt.
+  uint8_t invert_raw = 0;
+  std::memcpy(&invert_raw, &pump.invert_polarity, 1);
+  if (invert_raw > 1) {
+    pump.invert_polarity = kDefaultInvertMotorPolarity;
+    changed = true;
+  }
   if (!calibrationValid(pump.ml_per_s, pump.anti_drip_ms)) {
     pump.ml_per_s = kDefaultMlPerSecond;
     pump.anti_drip_ms = static_cast<uint32_t>(kDefaultAntiDripMs);
@@ -76,7 +83,9 @@ void ConfigStore::begin(const NvsOps& ops) {
     return;
   }
   // Guard against a stale / foreign / resized record (docs/16: reset on breaking change).
-  if (record_.magic != kConfigMagic || record_.version != kConfigSchemaVersion ||
+  // v2 has the same size; invert_polarity sat in struct padding there (migrated below).
+  const bool v2_record = record_.version == kConfigSchemaVersionV2;
+  if (record_.magic != kConfigMagic || (record_.version != kConfigSchemaVersion && !v2_record) ||
       record_.num_pumps != kMaxPumps) {
     loadDefaults();
     return;
@@ -86,6 +95,13 @@ void ConfigStore::begin(const NvsOps& ops) {
     return;
   }
   bool sanitized = false;
+  if (v2_record) {
+    for (uint8_t ch = 0; ch < kMaxPumps; ++ch) {
+      record_.pumps[ch].invert_polarity = kDefaultInvertMotorPolarity;
+    }
+    record_.version = kConfigSchemaVersion;
+    sanitized = true;  // persist the migrated record at the next idle commit
+  }
   for (uint8_t ch = 0; ch < kMaxPumps; ++ch) {
     sanitizePumpConfig(record_.pumps[ch], sanitized);
   }
@@ -104,6 +120,13 @@ uint32_t ConfigStore::antiDripMs(uint8_t channel) const {
     return static_cast<uint32_t>(kDefaultAntiDripMs);
   }
   return clampAntiDripMs(record_.pumps[channel].anti_drip_ms);
+}
+
+bool ConfigStore::invertPolarity(uint8_t channel) const {
+  if (!valid(channel)) {
+    return kDefaultInvertMotorPolarity;
+  }
+  return record_.pumps[channel].invert_polarity;
 }
 
 bool ConfigStore::bound(uint8_t channel) const {
@@ -171,6 +194,15 @@ bool ConfigStore::clearBinding(uint8_t channel) {
   PumpConfig& pump = record_.pumps[channel];
   pump.bound = false;
   std::memset(pump.ingredient_id, 0, kIngredientIdMax);
+  dirty_ = true;
+  return true;
+}
+
+bool ConfigStore::setInvertPolarity(uint8_t channel, bool invert) {
+  if (!valid(channel)) {
+    return false;
+  }
+  record_.pumps[channel].invert_polarity = invert;
   dirty_ = true;
   return true;
 }

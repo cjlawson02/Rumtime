@@ -176,6 +176,10 @@ See `hardware/kicad/README.md` for repo layout, `kicad-cli` hooks, and schematic
 | 2026-10-28 | Motherboard **LED_STATUS → GPIO 38** (was planned 10). |
 | 2026-10-28 | Motherboard **PUMP_BUS_ENABLE → GPIO 18** (bench STBY was 17). |
 | 2026-11-08 | If a **main-controller rev 2** is ever spun: add a **dedicated GPIO** (and onboard MOSFET or switched 12 V header) for the hood **12 V COB ring light** (ALLCOBLED angel-eye above the glass). Do **not** reuse `LED_STATUS` / GPIO 38 for that load — v1 can drive the ring from a free DevKit pin + external MOSFET. |
+| 2026-11-19 | Main-controller PCB **built and continuity-probed**; **not powered yet**. |
+| 2026-11-19 | **Rev-2 layout:** DevKit **WLAN / antenna can overhang into the HX711 socket footprint**. v1 can still work (seat HX711 carefully / accept interference). Next spin: move HX711 (or DevKit) so the Wi-Fi shield/antenna keepout clears the HX711 body. |
+| 2026-11-19 | First module bring-up: plug into motherboard **J7 (BUS1)**; address jumpers **open** → MCP23017 **0x20** (Module A, pumps 1–4). |
+| 2026-11-19 | Product firmware **I2C pump path**: `PumpModule` + `PumpBus` drive MCP23017 over Wire (GPIO 5/4); STBY = GPIO 18; probes 0x20–0x23. Legacy direct-GPIO pump pins unused on motherboard. |
 | 2026-11-08 | Oct 29 AliExpress remainder **received** (USB-C 6P, SS14, LEDs, 300 Ω, Micro-Fit 43025 + F–F leads, module 1×8). |
 | 2026-11-10 | 4-pump module PCBs **received** (OSH Park, 3). **Two boards assembled**; 3rd stays bare (short on stuffing parts). Test 10 still open. |
 | 2026-11-10 | Female **1×8** inventory: documented Oct 29 buy is **10 pcs** ($1.86); operator also has a **100 pcs** pack. Need **4/module × 3 = 12**. Keep the 100; do not return either pack. |

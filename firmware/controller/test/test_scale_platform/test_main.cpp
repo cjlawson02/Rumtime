@@ -24,6 +24,7 @@ class FakeScale {
   long offset = 0;
   bool offset_set = false;
   int begin_calls = 0;
+  unsigned noise = 0;
 
   float nextGrams() {
     if (grams.empty()) {
@@ -36,7 +37,7 @@ class FakeScale {
 
   long nextRaw() {
     if (raws.empty()) {
-      return 0;
+      return 1000 + static_cast<long>(noise++ % 7);  // live ADC noise
     }
     const std::size_t i = raws_idx < raws.size() ? raws_idx : raws.size() - 1;
     ++raws_idx;
@@ -150,10 +151,10 @@ void test_flow_timeout_elapsed_without_blocking() {
 void test_tare_completes_over_multiple_ticks() {
   FakeScale fake;
   g_fake = &fake;
-  fake.raws = {300, 300, 300};
   ScalePlatform scale;
   ScaleOps ops = makeOps();
   scale.begin(ops);
+  fake.raws = {300, 300, 300};  // after begin(): the boot probe consumes raws
 
   scale.tare();
   TEST_ASSERT_TRUE(scale.taring());
@@ -345,6 +346,38 @@ void test_null_ops_member_leaves_not_ready() {
   TEST_ASSERT_FALSE(scale.ready());
 }
 
+void test_begin_rejects_frozen_raw_data() {
+  FakeScale fake;
+  g_fake = &fake;
+  fake.raws = {0};  // floating DOUT: every conversion clocks out zeros
+  ScalePlatform scale;
+  ScaleOps ops = makeOps();
+  scale.begin(ops);
+  scale.tick(0);
+  TEST_ASSERT_FALSE(scale.ready());
+  TEST_ASSERT_FALSE(scale.glassPresent());
+}
+
+void test_begin_rejects_saturated_raw_data() {
+  FakeScale fake;
+  g_fake = &fake;
+  fake.raws = {kHx711RawMax, kHx711RawMax - 3, kHx711RawMax};  // open load cell
+  ScalePlatform scale;
+  ScaleOps ops = makeOps();
+  scale.begin(ops);
+  TEST_ASSERT_FALSE(scale.ready());
+}
+
+void test_raw_plausible() {
+  const long noisy[] = {8123, 8130, 8119, 8125};
+  const long frozen[] = {-1, -1, -1, -1};
+  const long railed[] = {8123, kHx711RawMin, 8119, 8125};
+  TEST_ASSERT_TRUE(ScalePlatform::rawPlausible(noisy, 4));
+  TEST_ASSERT_FALSE(ScalePlatform::rawPlausible(frozen, 4));
+  TEST_ASSERT_FALSE(ScalePlatform::rawPlausible(railed, 4));
+  TEST_ASSERT_FALSE(ScalePlatform::rawPlausible(noisy, 1));
+}
+
 }  // namespace
 
 void setUp() {
@@ -389,5 +422,8 @@ int main() {
   RUN_TEST(test_set_calibration_factor_forwards_to_backend);
   RUN_TEST(test_set_calibration_before_begin_does_not_crash);
   RUN_TEST(test_null_ops_member_leaves_not_ready);
+  RUN_TEST(test_begin_rejects_frozen_raw_data);
+  RUN_TEST(test_begin_rejects_saturated_raw_data);
+  RUN_TEST(test_raw_plausible);
   return UNITY_END();
 }

@@ -288,6 +288,44 @@ void test_preflight_calibration_zero_rejects() {
   TEST_ASSERT_EQUAL(422, static_cast<int>(httpStatusForConfigReject(reject)));
 }
 
+void test_preflight_config_op_missing_pump() {
+  StatusSnapshot status;
+  status.pumps_missing_mask = 0x0002;  // pump 2 not detected
+  ConfigOp op = {};
+  op.channel = 1;
+  op.type = ConfigOpType::kSetBinding;
+  std::strncpy(op.ingredient_id, "lime", kIngredientIdMax - 1);
+  TEST_ASSERT_EQUAL(static_cast<int>(ConfigOpReject::kBadPump),
+                    static_cast<int>(preflightConfigOpEnqueue(op, status, kNumPumps)));
+  op.type = ConfigOpType::kSetPolarity;
+  TEST_ASSERT_EQUAL(static_cast<int>(ConfigOpReject::kBadPump),
+                    static_cast<int>(preflightConfigOpEnqueue(op, status, kNumPumps)));
+  // Unbind stays allowed so a binding on a removed module can be cleaned up.
+  op.type = ConfigOpType::kClearBinding;
+  TEST_ASSERT_EQUAL(static_cast<int>(ConfigOpReject::kNone),
+                    static_cast<int>(preflightConfigOpEnqueue(op, status, kNumPumps)));
+}
+
+void test_apply_set_polarity() {
+  ConfigOp op = {};
+  op.type = ConfigOpType::kSetPolarity;
+  op.channel = 0;
+  op.invert_polarity = !kDefaultInvertMotorPolarity;
+  TEST_ASSERT_EQUAL(static_cast<int>(ConfigOpReject::kNone),
+                    static_cast<int>(applyConfigOp(op, g_config, g_inventory)));
+  TEST_ASSERT_EQUAL(!kDefaultInvertMotorPolarity, g_config.invertPolarity(0));
+}
+
+void test_device_status_stack_free() {
+  StatusSnapshot snap;
+  snap.control_stack_free = 6000;
+  snap.network_stack_free = 9000;
+  DeviceStatusInputs in;
+  in.snapshot = &snap;
+  const std::string json = buildDeviceStatusJson(in);
+  TEST_ASSERT_TRUE(jsonContains(json, "\"stackFree\":{\"control\":6000,\"network\":9000}"));
+}
+
 void test_http_status_codes() {
   TEST_ASSERT_EQUAL(409, static_cast<int>(httpStatusForReject(CommandReject::kBusy)));
   TEST_ASSERT_EQUAL(422, static_cast<int>(httpStatusForReject(CommandReject::kNotPrimed)));
@@ -320,5 +358,8 @@ int main() {
   RUN_TEST(test_apply_binding_seeds_inventory);
   RUN_TEST(test_preflight_calibration_zero_rejects);
   RUN_TEST(test_http_status_codes);
+  RUN_TEST(test_preflight_config_op_missing_pump);
+  RUN_TEST(test_apply_set_polarity);
+  RUN_TEST(test_device_status_stack_free);
   return UNITY_END();
 }

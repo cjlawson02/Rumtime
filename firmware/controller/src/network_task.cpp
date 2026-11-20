@@ -14,6 +14,8 @@ namespace {
 
 WiFiManager g_wifi;
 RuntimeContext* g_ctx = nullptr;
+StatusSnapshot g_wifi_lost_status;  // network task only; keeps ~1.4 KB off its stack
+TaskHandle_t g_network_task = nullptr;
 
 void networkTaskEntry(void* arg) {
   (void)arg;
@@ -27,7 +29,8 @@ void networkTaskEntry(void* arg) {
     g_wifi.tick();
     // STA drop mid-job: kiosk cannot reach /cancel — abort via cancel side-channel.
     if (was_connected && !g_wifi.connected()) {
-      cancelOnWifiLost(g_ctx->queue, true, false, g_ctx->status.read());
+      g_ctx->status.read(g_wifi_lost_status);
+      cancelOnWifiLost(g_ctx->queue, true, false, g_wifi_lost_status);
     }
     handleHttpClients();
     esp_task_wdt_reset();
@@ -39,8 +42,16 @@ void networkTaskEntry(void* arg) {
 
 void startNetworkTask(RuntimeContext& ctx) {
   g_ctx = &ctx;
-  xTaskCreatePinnedToCore(networkTaskEntry, "network", kNetworkTaskStackBytes, nullptr,
-                          kNetworkTaskPriority, nullptr, kNetworkTaskCore);
+  if (xTaskCreatePinnedToCore(networkTaskEntry, "network", kNetworkTaskStackBytes, nullptr,
+                              kNetworkTaskPriority, &g_network_task, kNetworkTaskCore) != pdPASS) {
+    Serial.println("NetworkTask: create failed (out of memory)");
+  }
+}
+
+uint32_t networkTaskStackFree() {
+  return g_network_task == nullptr
+             ? 0
+             : static_cast<uint32_t>(uxTaskGetStackHighWaterMark(g_network_task));
 }
 
 WiFiManager& networkWiFiManager() {

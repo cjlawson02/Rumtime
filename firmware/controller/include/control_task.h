@@ -19,6 +19,7 @@ class ControlTask {
   void run();
   void tick();
   void drainConfigOps();
+  void applyPumpPolarity();
   void publishConfigAndInventory(StatusSnapshot& snapshot);
   void updatePumpJobSnapshot(StatusSnapshot& snapshot, unsigned long now);
   void updateJobTerminalLatch(StatusSnapshot& snapshot, unsigned long now);
@@ -38,6 +39,15 @@ class ControlTask {
   bool prev_sequence_busy_ = false;
   bool store_persist_error_ = false;
   unsigned long last_config_commit_attempt_ms_ = 0;
+  unsigned long last_pump_rescan_ms_ = 0;
+  bool status_led_on_ = false;
+  void sampleStacks(unsigned long now);
+  unsigned long last_stack_sample_ms_ = 0;
+  uint32_t control_stack_free_ = 0;
+  uint32_t network_stack_free_ = 0;
+  bool stack_low_reported_ = false;
+  // tick()'s working snapshot (~1.4 KB): a member, not a stack local.
+  StatusSnapshot snapshot_;
 
   char active_recipe_id_[kRecipeIdMax] = {0};
   uint8_t pump_job_pump_id_ = 0;

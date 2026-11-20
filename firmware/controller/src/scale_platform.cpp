@@ -69,12 +69,37 @@ void ScalePlatform::begin(const ScaleOps& ops) {
   ops_->begin(pins::kScaleDout, pins::kScaleSck);
   ops_->setScale(calibrationFactor_);
   // begin()/setup() is the only place a bounded HX711 wait is allowed (docs/16).
-  initialized_ = ops_->waitReady(kScaleBeginTimeoutMs);
+  long probe[kScaleProbeReads] = {};
+  bool probed = true;
+  for (uint8_t i = 0; i < kScaleProbeReads && probed; ++i) {
+    // Bound every conversion: readRaw() itself waits for DOUT without a timeout.
+    probed = ops_->waitReady(kScaleBeginTimeoutMs);
+    if (probed) {
+      probe[i] = ops_->readRaw();
+    }
+  }
+  initialized_ = probed && rawPlausible(probe, kScaleProbeReads);
 #if defined(ARDUINO)
   if (initialized_) {
     last_conv_ms_ = millis();
   }
 #endif
+}
+
+bool ScalePlatform::rawPlausible(const long* raws, uint8_t count) {
+  if (raws == nullptr || count < 2) {
+    return false;
+  }
+  bool varies = false;
+  for (uint8_t i = 0; i < count; ++i) {
+    if (raws[i] >= kHx711RawMax || raws[i] <= kHx711RawMin) {
+      return false;
+    }
+    if (raws[i] != raws[0]) {
+      varies = true;
+    }
+  }
+  return varies;
 }
 
 void ScalePlatform::setCalibrationFactor(float factor) {

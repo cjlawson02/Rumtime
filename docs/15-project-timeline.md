@@ -4,7 +4,7 @@ Living Gantt and procurement log for Rumtime v1. Update after bench sessions, or
 
 Reference: [`09-build-plan-and-verification.md`](09-build-plan-and-verification.md), [`14-bench-test-protocol.md`](14-bench-test-protocol.md).
 
-**Last updated:** 2026-11-10 (3× 4-pump module PCBs received; **2 assembled**; 3rd bare — short on stuffing parts).
+**Last updated:** 2026-11-19 (main controller powered; product firmware I2C pump modules implemented).
 
 ## Gantt chart
 
@@ -61,7 +61,9 @@ gantt
     First 4-pump module assembled  :done, p2asm1, 2026-11-10, 1d
     Second 4-pump module assembled :done, p2asm2, after p2asm1, 1d
     Test 10 I2C on first module    :active, t10, after p2asm1, 7d
-    Main-controller fab            :active, mbfab, after mbpo, 21d
+    Main-controller fab received   :done, mbfab, after mbpo, 21d
+    Main-controller assembled      :done, mbasm, 2026-11-19, 1d
+    Main-controller first power    :active, mbpwr, after mbasm, 3d
     Cartridge and nozzle prototype  :p3, after t10, 21d
     8-pump v1 assembly              :p4, after p3, 30d
 ```
@@ -101,6 +103,8 @@ gantt
 | 2026-11-01 | Enclosure layout draft accepted (four-slot rear tower, open back, Fire HD 8 pivot mount) | [`08-mechanical-design.md`](08-mechanical-design.md) layout + slot contract; `hardware/cad/src/enclosure_rear_bay_concept.py` |
 | 2026-11-10 | 4-pump module PCBs **received** (OSH Park, 3 boards) | Operator |
 | 2026-11-10 | Two 4-pump modules **assembled**; 3rd bare (not stuffing — short on parts) | Operator |
+| 2026-11-19 | Main-controller PCB **built + continuity-probed**; **not powered yet** | Operator |
+| 2026-11-19 | Known: DevKit **WLAN overhangs HX711 footprint** — usable now; fix on rev 2 | Operator |
 | TBD        | Test 10 (I2C on first module)                  | First-article bring-up — 2 boards assembled 2026-11-10 |
 | TBD        | Test 11 (enclosure draft checks) → cut wood    | Gates "Cartridge and nozzle prototype" |
 | TBD        | First drink from 8-pump v1                     | Phase 4 exit |
@@ -139,8 +143,9 @@ Fill **ordered** and **received** as you go. Sourced from [`13-phase-0-mini-bom.
 | 4-pump module parts | 1 set | **2026-11-01** | **OK (parts)** | **On hand:** MCP23017-E/SO; Micro-Fit RA 2×3 (`43045-0600` class); F1 1812-2A; **both** JST-XH 2-pin 5-sets; 0805 **10 kΩ**; 0805 **100 nF**; female **1×8** sockets (**10 pcs** + **100 pcs** — see note). **Harness:** female JST-XH pigtails wired on **all 8** motors (2026-11-01). |
 | Motherboard power / bus / sockets | see notes | **2026-11-01** | **OK** | Mini560 **5 V** ×2; Micro-Fit vertical 6-pin; KF301-5.0-2P ×10; 0805 **2.2 kΩ**; plain female **1×22** / **1×6** / **1×4** (DevKit + HX711). |
 | Motherboard remainder + harness | see notes | **2026-11-08** | **OK** | USB-C **6P**; **SS14**; 3 mm LED kit; **300 Ω** 0805; Micro-Fit **43025** housings + **pre-crimped F–F leads**. |
+| Main-controller PCB | 3 | **2026-11-19** | **OK (built)** | OSH Park. **1 assembled + continuity-probed**; **not powered**. Known: DevKit **WLAN overhangs HX711** — usable; fix on rev 2. |
 
-**Order dates:** Bulk mini-BOM **2026-06-18** (delivered **2026-06-27**). Load cell bar + HX711 **2026-06-23** — soldered and calibrated **2026-08-20** (`scalecal 374.76`). Module + motherboard AliExpress **2026-10-25** and **2026-10-29** — Oct 25 **complete 2026-11-01**; Oct 29 remainder **complete 2026-11-08**; module PCBs **2026-11-10**. Main-controller PCB still out.
+**Order dates:** Bulk mini-BOM **2026-06-18** (delivered **2026-06-27**). Load cell bar + HX711 **2026-06-23** — soldered and calibrated **2026-08-20** (`scalecal 374.76`). Module + motherboard AliExpress **2026-10-25** and **2026-10-29** — Oct 25 **complete 2026-11-01**; Oct 29 remainder **complete 2026-11-08**; module PCBs **2026-11-10**. Main-controller **built + probed 2026-11-19** (power-on still open).
 
 **Note (1×8 sockets):** Need **4 per module** (J7–J10) → **12** for three boards. Documented buy is the Oct 29 **10 pcs** pack ($1.86). Operator also has a **100 pcs** 1×8 pack on hand (not separately priced in the line table). Keep the 100; the 10 alone is short for three boards. No return.
 
@@ -220,7 +225,7 @@ Related earlier AliExpress line (Jun 18): SW1 round rocker 5 pcs **$2.97** — s
 | 4-pump module parts (+ F1, 1×8) | 2 | 2026-10-25 / 29 (AliExpress) | **2026-11-01** (all stuffing parts on hand) |
 | Mini560 + Micro-Fit vertical + KF301 + sockets | 5 (motherboard) | 2026-10-25 (AliExpress) | **2026-11-01** |
 | USB-C, SS14, LEDs, 300 Ω, Micro-Fit harness | 5 (motherboard) | 2026-10-29 (AliExpress) | **2026-11-08** |
-| Main-controller PCB | 5 | 2026-10-29 | — |
+| Main-controller PCB | 5 | 2026-10-29 | **2026-11-19** (built + probed; not powered; WLAN↔HX711 clearance → rev 2) |
 | GST120A12-R7B (8-pump PSU) | 4 | — | — |
 | Barbed 1/8" PP unions | plumbing | **deferred** | — |
 | Second 4-pump module set (beyond 3 PCBs) | 4 | — | — |

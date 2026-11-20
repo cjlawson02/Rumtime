@@ -46,6 +46,7 @@ enum class ConfigOpType : uint8_t {
   kInventoryBottleSize,
   kInventoryLevel,
   kInventoryPrimed,
+  kSetPolarity,
 };
 
 struct ConfigOp {
@@ -55,8 +56,9 @@ struct ConfigOp {
   uint32_t anti_drip_ms = 0;
   bool has_anti_drip = false;  // false -> keep the pump's existing anti-drip
   char ingredient_id[kIngredientIdMax] = {0};
-  float inventory_ml = 0.0f;    // level / bottle-size ops
-  bool inventory_bool = false;  // primed flag
+  float inventory_ml = 0.0f;     // level / bottle-size ops
+  bool inventory_bool = false;   // primed flag
+  bool invert_polarity = false;  // kSetPolarity
 };
 
 struct CommandParseResult {
@@ -123,6 +125,7 @@ CommandReject validatePourSequenceInventory(const PourSequenceStep* steps, uint8
 
 // Snapshot helpers for HTTP preflight (reads published rows only — no cross-core store access).
 float snapshotMlPerSecond(const StatusSnapshot& status, uint8_t channel);
+bool snapshotPumpMissing(const StatusSnapshot& status, uint8_t channel);
 int snapshotChannelForIngredient(const StatusSnapshot& status, const char* ingredient_id);
 
 // Mutates line with strtok (caller owns buffer). Rejects trailing tokens.

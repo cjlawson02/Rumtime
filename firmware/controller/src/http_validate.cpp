@@ -123,10 +123,16 @@ ConfigOpReject preflightConfigOpEnqueue(const ConfigOp& op, const StatusSnapshot
     return ConfigOpReject::kBusy;
   }
   if (op.type == ConfigOpType::kSetCalibration || op.type == ConfigOpType::kSetBinding ||
-      op.type == ConfigOpType::kClearBinding) {
+      op.type == ConfigOpType::kClearBinding || op.type == ConfigOpType::kSetPolarity) {
     if (op.channel >= num_pumps) {
       return ConfigOpReject::kBadPump;
     }
+  }
+  // Unbind stays allowed so a binding on a removed module can be cleaned up.
+  if ((op.type == ConfigOpType::kSetCalibration || op.type == ConfigOpType::kSetBinding ||
+       op.type == ConfigOpType::kSetPolarity) &&
+      snapshotPumpMissing(status, op.channel)) {
+    return ConfigOpReject::kBadPump;
   }
   if (op.type == ConfigOpType::kSetBinding) {
     const std::size_t len = std::strlen(op.ingredient_id);
@@ -201,6 +207,11 @@ ConfigOpReject applyConfigOp(const ConfigOp& op, ConfigStore& config, InventoryS
       config.clearBinding(op.channel);
       return ConfigOpReject::kNone;
     }
+    case ConfigOpType::kSetPolarity:
+      if (!config.setInvertPolarity(op.channel, op.invert_polarity)) {
+        return ConfigOpReject::kBadPump;
+      }
+      return ConfigOpReject::kNone;
     case ConfigOpType::kInventoryRefill:
       if (!inventory.refill(op.ingredient_id)) {
         return ConfigOpReject::kBadIngredient;

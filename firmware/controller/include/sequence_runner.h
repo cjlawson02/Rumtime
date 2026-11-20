@@ -29,6 +29,14 @@ class SequenceRunner {
   // Convenience: each flat step becomes its own sequential phase (legacy tests).
   bool start(const PourSequenceStep* steps, uint8_t step_count, unsigned long now_ms);
 
+  // Bench-only: skip scale-ready / glass checks and run single-pump phases timed
+  // (no flow gate). Ignored while a sequence runs.
+  void setScaleBypass(bool bypass) {
+    if (state_ != State::kRunning) {
+      scale_bypass_ = bypass;
+    }
+  }
+
   // Abort the sequence immediately (coordinator cancel + stopAll). Safe when idle.
   void cancel();
 
@@ -126,4 +134,5 @@ class SequenceRunner {
   uint8_t parallel_lane_count_ = 0;
 
   char current_ingredient_[kIngredientIdMax] = {};
+  bool scale_bypass_ = false;
 };

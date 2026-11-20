@@ -47,24 +47,31 @@ bool SequenceRunner::resolvePhases(const PourSequenceCommand& command) {
 
   uint8_t total_steps = 0;
   for (uint8_t p = 0; p < command.phase_count; ++p) {
-    const PourSequencePhase& in_phase = command.phases[p];
-    if (in_phase.step_count == 0 || in_phase.step_count > kMaxConcurrentPumps) {
+    const uint8_t in_size = command.phaseSize(p);
+    const PourSequenceStep* in_steps = command.phaseSteps(p);
+    if (in_size == 0 || in_size > kMaxConcurrentPumps) {
       last_reject_ = JobReject::kPumpRefused;
       return false;
     }
-    total_steps = static_cast<uint8_t>(total_steps + in_phase.step_count);
+    total_steps = static_cast<uint8_t>(total_steps + in_size);
     if (total_steps > kMaxPourSequenceSteps) {
       last_reject_ = JobReject::kBadMl;
       return false;
     }
 
     ResolvedPhase& out_phase = phases_[p];
-    out_phase.step_count = in_phase.step_count;
-    for (uint8_t s = 0; s < in_phase.step_count; ++s) {
-      const PourSequenceStep& in = in_phase.steps[s];
+    out_phase.step_count = in_size;
+    for (uint8_t s = 0; s < in_size; ++s) {
+      const PourSequenceStep& in = in_steps[s];
       const int channel = config_->channelForIngredient(in.ingredient_id);
       if (channel < 0) {
         last_reject_ = JobReject::kUnboundIngredient;
+        return false;
+      }
+      // Resolve every phase up front: a pump on an undetected module must fail
+      // before phase 1 pours, not halfway through the drink.
+      if (!pumps_->channelPresent(static_cast<uint8_t>(channel))) {
+        last_reject_ = JobReject::kBadChannel;
         return false;
       }
       for (uint8_t prior = 0; prior < s; ++prior) {
@@ -108,10 +115,9 @@ bool SequenceRunner::start(const PourSequenceStep* steps, uint8_t step_count,
     return false;
   }
   for (uint8_t i = 0; i < step_count; ++i) {
-    command.phases[i].steps[0] = steps[i];
-    command.phases[i].step_count = 1;
+    command.addPhase();
+    command.addStep(steps[i]);
   }
-  command.phase_count = step_count;
   return start(command, now_ms);
 }
 
@@ -135,12 +141,12 @@ bool SequenceRunner::start(const PourSequenceCommand& command, unsigned long now
     result_ = Coordinator::JobResult::kError;
     return false;
   }
-  if (!scale_->ready()) {
+  if (!scale_bypass_ && !scale_->ready()) {
     last_reject_ = JobReject::kScaleNotReady;
     result_ = Coordinator::JobResult::kError;
     return false;
   }
-  if (!scale_->glassPresent()) {
+  if (!scale_bypass_ && !scale_->glassPresent()) {
     last_reject_ = JobReject::kNoGlass;
     result_ = Coordinator::JobResult::kError;
     return false;
@@ -175,7 +181,7 @@ bool SequenceRunner::startCurrentPhase(unsigned long now_ms) {
     DispenseCommand cmd;
     cmd.channel = step.channel;
     cmd.ml = step.ml;
-    cmd.flow_gate = true;
+    cmd.flow_gate = !scale_bypass_;
     cmd.ml_per_s = step.ml_per_s;
     cmd.anti_drip_ms = step.anti_drip_ms;
 
@@ -226,6 +232,16 @@ void SequenceRunner::tickParallel(unsigned long now_ms) {
   const ResolvedPhase& phase = phases_[phase_index_];
   bool any_active = false;
 
+  // PumpBus stops everything after a failed expander write; fail the job rather
+  // than let lanes time out and report a pour that never happened.
+  for (uint8_t i = 0; i < parallel_lane_count_; ++i) {
+    if (parallel_lanes_[i].state != ParallelLaneState::kDone && !pumps_->anyRunning()) {
+      last_reject_ = JobReject::kPumpRefused;
+      finish(Coordinator::JobResult::kError, last_reject_);
+      return;
+    }
+  }
+
   for (uint8_t i = 0; i < parallel_lane_count_; ++i) {
     ParallelLane& lane = parallel_lanes_[i];
     if (lane.state == ParallelLaneState::kDone) {
@@ -239,7 +255,11 @@ void SequenceRunner::tickParallel(unsigned long now_ms) {
         continue;
       }
       if (step.anti_drip_ms == 0) {
-        pumps_->stop(step.channel);
+        if (!pumps_->stop(step.channel)) {
+          last_reject_ = JobReject::kPumpRefused;
+          finish(Coordinator::JobResult::kError, last_reject_);
+          return;
+        }
         lane.state = ParallelLaneState::kDone;
         continue;
       }
@@ -255,7 +275,11 @@ void SequenceRunner::tickParallel(unsigned long now_ms) {
 
     if (lane.state == ParallelLaneState::kAntiDrip) {
       if ((now_ms - lane.segment_start_ms) >= step.anti_drip_ms) {
-        pumps_->stop(step.channel);
+        if (!pumps_->stop(step.channel)) {
+          last_reject_ = JobReject::kPumpRefused;
+          finish(Coordinator::JobResult::kError, last_reject_);
+          return;
+        }
         lane.state = ParallelLaneState::kDone;
       }
     }

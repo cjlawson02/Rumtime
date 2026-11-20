@@ -11,18 +11,23 @@ void StatusPublisher::publish(const StatusSnapshot& snapshot) {
   seq_.fetch_add(1, std::memory_order_release);
 }
 
-StatusSnapshot StatusPublisher::read() const {
+void StatusPublisher::read(StatusSnapshot& out) const {
   for (int attempt = 0; attempt < 64; ++attempt) {
     const uint32_t before = seq_.load(std::memory_order_acquire);
     if (before & 1U) {
       continue;
     }
-    StatusSnapshot copy = latest_;
+    out = latest_;
     const uint32_t after = seq_.load(std::memory_order_acquire);
     if (before == after) {
-      return copy;
+      return;
     }
   }
-  StatusSnapshot empty{};
-  return empty;
+  out = StatusSnapshot{};
+}
+
+StatusSnapshot StatusPublisher::read() const {
+  StatusSnapshot out;
+  read(out);
+  return out;
 }

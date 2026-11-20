@@ -20,6 +20,10 @@ struct RuntimeContext {
   // GET /status (and other HTTP) refreshes last_http_activity_ms.
   std::atomic<unsigned long> last_http_activity_ms{0};
   std::atomic<bool> kiosk_job_watchdog_armed{false};
+
+  // Bench-only scale bypass (serial `scale-bypass on|off`; RAM only, cleared on
+  // reboot). Pours skip scale-ready / glass checks and single-pump phases run timed.
+  std::atomic<bool> bench_scale_bypass{false};
 };
 
 RuntimeContext& runtimeContext();

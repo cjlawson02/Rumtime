@@ -49,8 +49,13 @@ Rumtime controller serial commands (see firmware/controller/README.md):
   cal <pump> <ml_per_s> [anti_drip_ms]
   bind <pump> <ingredient>
   unbind <pump>
+  pol <pump> normal|invert       per-pump motor polarity (NVS)
 
   wifi status | ssid <s> | pass <p> | save | clear
+
+  led on|off                     LED_STATUS (GPIO 38)
+  scale-bypass on|off            bench: pour without scale/glass (RAM only)
+  stby on|off                    PUMP_BUS_ENABLE / STBY (GPIO 18; busy while pumping)
 
 Async lines: // job:ok | // job:error | // job:cancelled | // config:error persist failed
 Local: help, quit

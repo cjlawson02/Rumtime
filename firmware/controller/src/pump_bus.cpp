@@ -2,24 +2,11 @@
 
 #include "config.h"
 
-namespace {
-
-int clampDuty(int duty) {
-  if (duty < 0) {
-    return 0;
-  }
-  if (duty > 255) {
-    return 255;
-  }
-  return duty;
-}
-
-}  // namespace
-
-void PumpBus::begin(const GpioOps& gpio) {
+void PumpBus::begin(const GpioOps& gpio, const I2cOps& i2c) {
   initialized_ = false;
   driver_enabled_ = false;
   gpio_ = &gpio;
+  i2c_ = &i2c;
   max_concurrent_ = kMaxConcurrentPumps;
   if (max_concurrent_ > kNumChannels) {
     max_concurrent_ = kNumChannels;
@@ -28,14 +15,28 @@ void PumpBus::begin(const GpioOps& gpio) {
     max_concurrent_ = 1;
   }
 
-  // Safe boot ordering: STBY low first so channel writes cannot drive motors,
-  // then park each channel with IN1/IN2 low and PWM off.
+  // Safe boot: STBY low before any expander can drive IN1/IN2.
   gpio_->pinMode(pins::kStandby, kGpioModeOutput);
   gpio_->digitalWrite(pins::kStandby, kGpioLevelLow);
 
-  channels_[0].begin(pins::kPump1In1, pins::kPump1In2, pins::kPump1Pwm, gpio);
-  channels_[1].begin(pins::kPump2In1, pins::kPump2In2, pins::kPump2Pwm, gpio);
+  if (i2c.beginBus != nullptr) {
+    i2c.beginBus(pins::kI2cSda, pins::kI2cScl);
+  }
+
+  for (uint8_t i = 0; i < kModulesMax; ++i) {
+    modules_[i].begin(static_cast<uint8_t>(kBaseAddr + i), i2c);
+  }
+
   initialized_ = true;
+}
+
+void PumpBus::rescan() {
+  if (!initialized_ || driver_enabled_ || anyRunning()) {
+    return;
+  }
+  for (uint8_t i = 0; i < kModulesMax; ++i) {
+    modules_[i].begin(static_cast<uint8_t>(kBaseAddr + i), *i2c_);
+  }
 }
 
 void PumpBus::setMaxConcurrent(uint8_t max_concurrent) {
@@ -48,42 +49,105 @@ void PumpBus::setMaxConcurrent(uint8_t max_concurrent) {
   }
 }
 
-bool PumpBus::run(uint8_t channel, PumpDirection direction, int duty) {
+PumpModule* PumpBus::moduleForChannel(uint8_t channel) {
+  if (channel >= kNumChannels) {
+    return nullptr;
+  }
+  return &modules_[channel / PumpModule::kPumpsPerModule];
+}
+
+const PumpModule* PumpBus::moduleForChannel(uint8_t channel) const {
+  if (channel >= kNumChannels) {
+    return nullptr;
+  }
+  return &modules_[channel / PumpModule::kPumpsPerModule];
+}
+
+bool PumpBus::modulePresent(uint8_t module_index) const {
+  if (module_index >= kModulesMax) {
+    return false;
+  }
+  return modules_[module_index].present();
+}
+
+bool PumpBus::channelPresent(uint8_t channel) const {
+  const PumpModule* module = moduleForChannel(channel);
+  return module != nullptr && module->present();
+}
+
+uint16_t PumpBus::missingChannelMask() const {
+  uint16_t mask = 0;
+  for (uint8_t ch = 0; ch < kNumChannels; ++ch) {
+    if (!channelPresent(ch)) {
+      mask = static_cast<uint16_t>(mask | (1u << ch));
+    }
+  }
+  return mask;
+}
+
+bool PumpBus::faulted() const {
+  for (uint8_t i = 0; i < kModulesMax; ++i) {
+    if (modules_[i].faulted()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool PumpBus::run(uint8_t channel, PumpDirection direction) {
   if (channel >= kNumChannels) {
     return false;
   }
   if (!initialized_) {
     return false;
   }
-  if (direction == PumpDirection::kStop) {
-    stop(channel);
-    return true;
+  PumpModule* module = moduleForChannel(channel);
+  if (module == nullptr || !module->present()) {
+    return false;
   }
-  const bool already_running = channels_[channel].direction() != PumpDirection::kStop;
+  if (direction == PumpDirection::kStop) {
+    return stop(channel);
+  }
+  if (faulted()) {
+    return false;
+  }
+  const uint8_t local = localChannel(channel);
+  const bool already_running = module->direction(local) != PumpDirection::kStop;
   if (!already_running && runningCount() >= max_concurrent_) {
     return false;
   }
-  channels_[channel].run(direction, clampDuty(duty));
-  enableDriver();
+  if (!module->run(local, direction) || !enableDriver()) {
+    stopAll();
+    return false;
+  }
   return true;
 }
 
-void PumpBus::stop(uint8_t channel) {
+bool PumpBus::stop(uint8_t channel) {
   if (!initialized_ || channel >= kNumChannels) {
-    return;
+    return false;
   }
-  channels_[channel].stop();
+  PumpModule* module = moduleForChannel(channel);
+  if (module == nullptr || !module->present()) {
+    return true;
+  }
+  if (!module->stop(localChannel(channel))) {
+    // Latch may still drive this pump; STBY low is the only stop left.
+    stopAll();
+    return false;
+  }
   if (!anyRunning()) {
     disableDriver();
   }
+  return true;
 }
 
 void PumpBus::stopAll() {
   if (!initialized_) {
     return;
   }
-  for (uint8_t i = 0; i < kNumChannels; ++i) {
-    channels_[i].stop();
+  for (uint8_t i = 0; i < kModulesMax; ++i) {
+    modules_[i].stopAll();
   }
   disableDriver();
 }
@@ -94,20 +158,44 @@ bool PumpBus::anyRunning() const {
 
 uint8_t PumpBus::runningCount() const {
   uint8_t count = 0;
-  for (uint8_t i = 0; i < kNumChannels; ++i) {
-    if (channels_[i].direction() != PumpDirection::kStop) {
+  for (uint8_t ch = 0; ch < kNumChannels; ++ch) {
+    const PumpModule* module = moduleForChannel(ch);
+    if (module == nullptr || !module->present()) {
+      continue;
+    }
+    if (module->direction(localChannel(ch)) != PumpDirection::kStop) {
       ++count;
     }
   }
   return count;
 }
 
-void PumpBus::enableDriver() {
-  if (!initialized_ || gpio_ == nullptr || driver_enabled_) {
-    return;
+bool PumpBus::setInvertPolarity(uint8_t channel, bool invert) {
+  PumpModule* module = moduleForChannel(channel);
+  if (module == nullptr) {
+    return false;
+  }
+  return module->setInvertPolarity(localChannel(channel), invert);
+}
+
+bool PumpBus::setDriverEnabled(bool enabled) {
+  if (enabled) {
+    return enableDriver();
+  }
+  disableDriver();
+  return true;
+}
+
+bool PumpBus::enableDriver() {
+  if (!initialized_ || gpio_ == nullptr || faulted()) {
+    return false;
+  }
+  if (driver_enabled_) {
+    return true;
   }
   gpio_->digitalWrite(pins::kStandby, kGpioLevelHigh);
   driver_enabled_ = true;
+  return true;
 }
 
 void PumpBus::disableDriver() {

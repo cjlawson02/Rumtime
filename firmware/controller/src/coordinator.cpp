@@ -44,7 +44,7 @@ bool Coordinator::startDispense(const DispenseCommand& command, unsigned long no
     result_ = JobResult::kNone;
     return false;
   }
-  if (command.channel >= PumpBus::kNumChannels) {
+  if (command.channel >= PumpBus::kNumChannels || !pumps_->channelPresent(command.channel)) {
     last_reject_ = JobReject::kBadChannel;
     result_ = JobResult::kError;
     return false;
@@ -112,7 +112,7 @@ bool Coordinator::startPrime(uint8_t channel, unsigned long now_ms) {
     result_ = JobResult::kNone;
     return false;
   }
-  if (channel >= PumpBus::kNumChannels) {
+  if (channel >= PumpBus::kNumChannels || !pumps_->channelPresent(channel)) {
     last_reject_ = JobReject::kBadChannel;
     result_ = JobResult::kError;
     return false;
@@ -160,6 +160,14 @@ void Coordinator::tick(unsigned long now_ms) {
   }
   if (pumps_ == nullptr || scale_ == nullptr) {
     last_reject_ = JobReject::kScaleFault;
+    finish(JobResult::kError);
+    return;
+  }
+
+  // PumpBus stops everything after a failed expander write; never keep timing a
+  // pour (and later report ok) for a pump that is no longer driven.
+  if (!pumps_->anyRunning()) {
+    last_reject_ = JobReject::kPumpRefused;
     finish(JobResult::kError);
     return;
   }

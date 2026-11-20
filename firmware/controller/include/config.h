@@ -8,15 +8,6 @@
 
 namespace pins {
 
-// Legacy direct-GPIO pump pins (bench). Unused on the motherboard (I2C modules).
-constexpr int kPump1In1 = 11;  // was 4; freed for I2C SDA
-constexpr int kPump1In2 = 12;  // was 5; freed for I2C SCL
-constexpr int kPump1Pwm = 14;  // was 6; freed for HX711 DT
-
-constexpr int kPump2In1 = 16;  // was 7; freed for HX711 SCK
-constexpr int kPump2In2 = 8;   // was 15; freed earlier
-constexpr int kPump2Pwm = 15;  // was 16; shuffled off HX711/I2C cluster
-
 constexpr int kStandby = 18;  // PUMP_BUS_ENABLE; bench was 17
 
 constexpr int kLedStatus = 38;  // right header; active high
@@ -36,13 +27,27 @@ constexpr int kScaleSck = 7;
 
 }  // namespace pins
 
-// PWM duty for full-speed runs (0–255).
-constexpr int kPumpPwmFull = 255;
-
 // As-built 4-pump module JST-XH (2026-11-10): red pump lead lands on schematic
 // M− / pin 2, not M+ / pin 1. Invert IN1/IN2 so kForward = pour toward nozzle.
+// SEED value only: each pump's polarity lives in NVS (ConfigStore, `pol` command)
+// so a re-wired module or replacement pump can be corrected per channel.
 // Bench-rig Pololu wiring is separate and stays non-inverted.
-constexpr bool kInvertMotorPolarity = true;
+constexpr bool kDefaultInvertMotorPolarity = true;
+
+// As-built 4-pump module pump order (2026-11-19 bench): firmware pump 1 ran the
+// physical pump 3 position, 2→4, 3→1, 4→2. Maps logical slot (pump N within a
+// module) to the MCP23017 GPA IN1/IN2 pair that drives it (pair p = GPA2p/GPA2p+1).
+// Identity {0, 1, 2, 3} matches hardware/kicad/4-pump-module-spec.md.
+constexpr uint8_t kModulePumpPair[4] = {2, 3, 0, 1};
+
+// Pump-module I2C (MCP23017). Wire transfers run inside the 5 ms ControlTask loop,
+// so keep the per-transfer timeout short; a timed-out transfer triggers a bus clear.
+constexpr uint16_t kI2cTimeoutMs = 3;
+// LED_STATUS blink (on/off each half period) while the pump drivers are enabled.
+constexpr unsigned long kStatusLedBlinkHalfPeriodMs = 250;
+
+// Idle re-probe of pump modules (hot-plug / expander reset / fault recovery).
+constexpr unsigned long kPumpModuleRescanMs = 1000;
 
 // Dispense defaults — copied from firmware/bench-rig/include/config.h (bench-validated
 // 2026-06-27). Open-loop ml/s calibration model and anti-drip reverse; re-cal per line.
@@ -68,8 +73,9 @@ constexpr uint8_t kMaxPourPhases = 16;
 
 // Blob is guarded by magic + schema version; a mismatch resets to seed defaults
 // (docs/16: "Version the schema; migrate or reset on breaking changes.").
-constexpr uint32_t kConfigMagic = 0x524D4331;  // 'RMC1'
-constexpr uint16_t kConfigSchemaVersion = 2;
+constexpr uint32_t kConfigMagic = 0x524D4331;   // 'RMC1'
+constexpr uint16_t kConfigSchemaVersion = 3;    // v3: per-pump invert_polarity
+constexpr uint16_t kConfigSchemaVersionV2 = 2;  // migrated in place (same size)
 constexpr const char* kNvsNamespace = "rumtime";
 constexpr const char* kConfigBlobKey = "cfg";
 
@@ -102,8 +108,9 @@ constexpr unsigned long kControlTaskPeriodMs = 5;
 constexpr int kControlTaskCore = 1;
 constexpr unsigned int kControlTaskPriority = 10;
 // ESP-IDF xTaskCreatePinnedToCore expects stack depth in bytes.
-// StatusSnapshot is ~1376 B; tick() must not hold multiple copies on stack (see control_task.cpp).
-constexpr unsigned int kControlTaskStackBytes = 8192;
+// StatusSnapshot is ~1376 B; tick()/serial must avoid stacking many copies.
+// 16 KiB leaves margin for parse + one snapshot + HX711 bring-up.
+constexpr unsigned int kControlTaskStackBytes = 16384;
 constexpr unsigned int kControlTaskWdtTimeoutMs = 2000;
 
 // Idle NVS commit retry interval when a prior commit failed (avoid hammering flash).
@@ -130,6 +137,13 @@ static_assert(kScaleFilterReads > 0, "kScaleFilterReads must be > 0");
 // Bounded HX711 init wait in begin() only (setup(), never in tick()).
 constexpr unsigned long kScaleBeginTimeoutMs = 2000;
 
+// Boot plausibility probe: this many raw conversions must not be frozen (all
+// identical, e.g. a floating DOUT clocking out zeros) or saturated (HX711 rails,
+// e.g. load cell disconnected) or the scale never reports ready.
+constexpr uint8_t kScaleProbeReads = 4;
+constexpr long kHx711RawMax = 0x7FFFFF;
+constexpr long kHx711RawMin = -0x800000;
+
 // No successful conversion within this window marks the scale stale (not ready).
 constexpr unsigned long kScaleStaleTimeoutMs = 1000;
 
@@ -142,7 +156,19 @@ constexpr const char* kMdnsHostFqdn = "rumtime.local";
 constexpr uint16_t kHttpPort = 80;
 constexpr int kNetworkTaskCore = 0;
 constexpr unsigned int kNetworkTaskPriority = 4;
-constexpr unsigned int kNetworkTaskStackBytes = 8192;
+// 16 KiB: handlePour() holds a PourSequenceCommand + StatusSnapshot (~4.4 KB frame)
+// under the ArduinoJson parse; 8 KiB overflowed (stack canary panic on POST /pour, 2026-11-19).
+constexpr unsigned int kNetworkTaskStackBytes = 16384;
+// ArduinoJson recurses per nesting level; cap it for every HTTP body. The deepest
+// legit body is POST /pour {phases:[{steps:[{…}]}]} (object/array/object/array/object).
+constexpr uint8_t kHttpJsonNestingLimit = 5;
+
+// Stack guard rails. Runtime: ControlTask samples both tasks' high-water marks
+// every kStackSampleMs (published as GET /status link.stackFree); dropping below
+// kStackLowWaterBytes free prints a `// stack:low` serial line. Compile time: platformio.ini
+// fails the build on any src/ frame over -Wstack-usage (see README "Stack budget").
+constexpr uint32_t kStackLowWaterBytes = 2048;
+constexpr unsigned long kStackSampleMs = 1000;
 
 // Wi-Fi reconnect timing (STA-only; event-driven disconnect + backoff).
 constexpr unsigned long kWifiReconnectCooldownMs = 500;

@@ -331,6 +331,42 @@ void test_commit_failure_keeps_dirty() {
   TEST_ASSERT_EQUAL_FLOAT(2.0f, store.mlPerSecond(0));
 }
 
+void test_v2_record_migrates_with_seed_polarity() {
+  resetBacking();
+  ConfigRecord v2 = makeValidRecord();
+  v2.version = kConfigSchemaVersionV2;
+  v2.pumps[3].ml_per_s = 2.5f;
+  // v2 stored struct padding here; any byte value must migrate to the seed.
+  std::memset(&v2.pumps[3].invert_polarity, 0xA5, 1);
+  v2.crc32 = testRecordCrc(v2);
+  g_backing.storeRecord(v2);
+
+  ConfigStore store;
+  NvsOps ops = makeNvsOps();
+  store.begin(ops);
+  TEST_ASSERT_EQUAL_FLOAT(2.5f, store.mlPerSecond(3));  // calibration kept
+  TEST_ASSERT_EQUAL(kDefaultInvertMotorPolarity, store.invertPolarity(3));
+  TEST_ASSERT_TRUE(store.dirty());  // migrated record queued for re-persist
+}
+
+void test_invert_polarity_roundtrip_via_commit() {
+  resetBacking();
+  {
+    ConfigStore store;
+    NvsOps ops = makeNvsOps();
+    store.begin(ops);
+    TEST_ASSERT_EQUAL(kDefaultInvertMotorPolarity, store.invertPolarity(5));
+    TEST_ASSERT_TRUE(store.setInvertPolarity(5, !kDefaultInvertMotorPolarity));
+    TEST_ASSERT_FALSE(store.setInvertPolarity(kMaxPumps, true));
+    TEST_ASSERT_TRUE(store.commit());
+  }
+  ConfigStore reloaded;
+  NvsOps ops = makeNvsOps();
+  reloaded.begin(ops);
+  TEST_ASSERT_EQUAL(!kDefaultInvertMotorPolarity, reloaded.invertPolarity(5));
+  TEST_ASSERT_EQUAL(kDefaultInvertMotorPolarity, reloaded.invertPolarity(4));
+}
+
 }  // namespace
 
 void setUp() {
@@ -359,5 +395,7 @@ int main() {
   RUN_TEST(test_load_sanitizes_huge_anti_drip);
   RUN_TEST(test_duplicate_binding_rejected);
   RUN_TEST(test_commit_failure_keeps_dirty);
+  RUN_TEST(test_v2_record_migrates_with_seed_polarity);
+  RUN_TEST(test_invert_polarity_roundtrip_via_commit);
   return UNITY_END();
 }

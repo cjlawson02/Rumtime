@@ -91,13 +91,22 @@ bool runtimeReady() {
   return g_ctx != nullptr && g_wifi != nullptr;
 }
 
+// All handlers run on the network task, one request at a time: share one
+// snapshot in .bss instead of a ~1.4 KB copy on every handler frame.
+StatusSnapshot g_http_status;
+
+const StatusSnapshot& readStatus() {
+  g_ctx->status.read(g_http_status);
+  return g_http_status;
+}
+
 void handleStatus() {
   if (!runtimeReady()) {
     sendError(HttpStatus::kServiceUnavailable, "unsafe", "Runtime not ready");
     return;
   }
   noteHttpActivity();
-  const StatusSnapshot snapshot = g_ctx->status.read();
+  const StatusSnapshot& snapshot = readStatus();
   const WiFiStatus wifi = g_wifi->status();
   DeviceStatusInputs in;
   in.wifi_connected = wifi.connected;
@@ -123,7 +132,8 @@ void handlePour() {
     return;
   }
   JsonDocument doc;
-  if (deserializeJson(doc, g_server.arg("plain"))) {
+  if (deserializeJson(doc, g_server.arg("plain"),
+                      DeserializationOption::NestingLimit(kHttpJsonNestingLimit))) {
     sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
     return;
   }
@@ -148,7 +158,7 @@ void handlePour() {
       return;
     }
     for (JsonObject phase_obj : phases_json) {
-      if (seq.phase_count >= kMaxPourPhases) {
+      if (!seq.addPhase()) {
         sendError(HttpStatus::kUnprocessable, "too_many_steps", "Too many phases");
         return;
       }
@@ -161,7 +171,6 @@ void handlePour() {
         sendError(HttpStatus::kUnprocessable, "too_many_steps", "Too many steps in phase");
         return;
       }
-      PourSequencePhase& phase = seq.phases[seq.phase_count];
       for (JsonObject step : phase_steps) {
         const char* ingredient = step["ingredientId"] | "";
         const float ml = step["ml"] | 0.0f;
@@ -174,11 +183,14 @@ void handlePour() {
           sendError(HttpStatus::kUnprocessable, "bad_ingredient", "ingredientId too long");
           return;
         }
-        std::memcpy(phase.steps[phase.step_count].ingredient_id, ingredient, len);
-        phase.steps[phase.step_count].ml = ml;
-        ++phase.step_count;
+        PourSequenceStep parsed;
+        std::memcpy(parsed.ingredient_id, ingredient, len);
+        parsed.ml = ml;
+        if (!seq.addStep(parsed)) {
+          sendError(HttpStatus::kUnprocessable, "too_many_steps", "Too many steps");
+          return;
+        }
       }
-      ++seq.phase_count;
     }
   } else if (!steps_json.isNull() && steps_json.size() > 0) {
     if (steps_json.size() > kMaxPourPhases) {
@@ -197,18 +209,20 @@ void handlePour() {
         sendError(HttpStatus::kUnprocessable, "bad_ingredient", "ingredientId too long");
         return;
       }
-      PourSequencePhase& phase = seq.phases[seq.phase_count];
-      std::memcpy(phase.steps[0].ingredient_id, ingredient, len);
-      phase.steps[0].ml = ml;
-      phase.step_count = 1;
-      ++seq.phase_count;
+      PourSequenceStep parsed;
+      std::memcpy(parsed.ingredient_id, ingredient, len);
+      parsed.ml = ml;
+      if (!seq.addPhase() || !seq.addStep(parsed)) {
+        sendError(HttpStatus::kUnprocessable, "too_many_steps", "Too many steps");
+        return;
+      }
     }
   } else {
     sendError(HttpStatus::kUnprocessable, "bad_request", "phases or steps required");
     return;
   }
 
-  const StatusSnapshot status = g_ctx->status.read();
+  const StatusSnapshot& status = readStatus();
   const CommandReject reject = preflightPourSequenceEnqueue(seq, status, PumpBus::kNumChannels);
   if (reject != CommandReject::kNone) {
     sendError(httpStatusForReject(reject), httpErrorCode(reject), httpMessageForReject(reject));
@@ -248,7 +262,8 @@ void handlePumpDispense() {
     return;
   }
   JsonDocument doc;
-  if (deserializeJson(doc, g_server.arg("plain"))) {
+  if (deserializeJson(doc, g_server.arg("plain"),
+                      DeserializationOption::NestingLimit(kHttpJsonNestingLimit))) {
     sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
     return;
   }
@@ -259,7 +274,7 @@ void handlePumpDispense() {
     return;
   }
   const uint8_t channel = static_cast<uint8_t>(pump_id - 1);
-  const StatusSnapshot status = g_ctx->status.read();
+  const StatusSnapshot& status = readStatus();
 
   if (std::strcmp(purpose, "flush") == 0 || std::strcmp(purpose, "sanitize") == 0 ||
       std::strcmp(purpose, "drain") == 0) {
@@ -343,7 +358,7 @@ void handlePumpDispenseCancel() {
     return;
   }
   noteHttpActivity();
-  const StatusSnapshot status = g_ctx->status.read();
+  const StatusSnapshot& status = readStatus();
   if (status.job_busy && status.job_phase == static_cast<uint8_t>(Coordinator::Phase::kPrime)) {
     g_ctx->queue.enqueuePrimeStop();
   } else {
@@ -361,7 +376,7 @@ void enqueueConfigOp(const ConfigOp& op) {
     sendError(HttpStatus::kConflict, "busy", "Device busy");
     return;
   }
-  const StatusSnapshot status = g_ctx->status.read();
+  const StatusSnapshot& status = readStatus();
   const ConfigOpReject reject = preflightConfigOpEnqueue(op, status, PumpBus::kNumChannels);
   if (reject != ConfigOpReject::kNone) {
     sendError(httpStatusForConfigReject(reject), httpErrorCodeConfig(reject),
@@ -379,7 +394,8 @@ bool parseInventoryBody(JsonDocument& doc) {
   if (rejectOversizedBody()) {
     return false;
   }
-  if (deserializeJson(doc, g_server.arg("plain"))) {
+  if (deserializeJson(doc, g_server.arg("plain"),
+                      DeserializationOption::NestingLimit(kHttpJsonNestingLimit))) {
     sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
     return false;
   }
@@ -443,7 +459,8 @@ void handlePumpBinding() {
     return;
   }
   JsonDocument doc;
-  if (deserializeJson(doc, g_server.arg("plain"))) {
+  if (deserializeJson(doc, g_server.arg("plain"),
+                      DeserializationOption::NestingLimit(kHttpJsonNestingLimit))) {
     sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
     return;
   }
@@ -474,7 +491,8 @@ void handlePumpCalibration() {
     return;
   }
   JsonDocument doc;
-  if (deserializeJson(doc, g_server.arg("plain"))) {
+  if (deserializeJson(doc, g_server.arg("plain"),
+                      DeserializationOption::NestingLimit(kHttpJsonNestingLimit))) {
     sendError(HttpStatus::kBadRequest, "bad_request", "Malformed JSON");
     return;
   }

@@ -433,8 +433,8 @@ void test_pour_two_step_ok() {
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
   TEST_ASSERT_EQUAL(static_cast<int>(CommandType::kPourSequence), static_cast<int>(r.command.type));
   TEST_ASSERT_EQUAL_UINT8(2, r.command.pour_sequence.phase_count);
-  TEST_ASSERT_EQUAL_FLOAT(30.0f, r.command.pour_sequence.phases[0].steps[0].ml);
-  TEST_ASSERT_EQUAL_FLOAT(15.0f, r.command.pour_sequence.phases[1].steps[0].ml);
+  TEST_ASSERT_EQUAL_FLOAT(30.0f, r.command.pour_sequence.phaseSteps(0)[0].ml);
+  TEST_ASSERT_EQUAL_FLOAT(15.0f, r.command.pour_sequence.phaseSteps(1)[0].ml);
 }
 
 void test_pour_unbound_ingredient() {
@@ -513,13 +513,14 @@ void test_pour_reject_duplicate_ingredient_aggregate_inventory() {
   TEST_ASSERT_TRUE(g_config.setBinding(0, "bourbon"));
   seedPrimedInventory("bourbon", 100.0f);
   PourSequenceCommand seq = {};
-  seq.phase_count = 2;
-  seq.phases[0].step_count = 1;
-  std::strncpy(seq.phases[0].steps[0].ingredient_id, "bourbon", kIngredientIdMax - 1);
-  seq.phases[0].steps[0].ml = 60.0f;
-  seq.phases[1].step_count = 1;
-  std::strncpy(seq.phases[1].steps[0].ingredient_id, "bourbon", kIngredientIdMax - 1);
-  seq.phases[1].steps[0].ml = 55.0f;
+  PourSequenceStep step;
+  std::strncpy(step.ingredient_id, "bourbon", kIngredientIdMax - 1);
+  step.ml = 60.0f;
+  seq.addPhase();
+  seq.addStep(step);
+  step.ml = 55.0f;
+  seq.addPhase();
+  seq.addStep(step);
   const CommandReject reject =
       preflightPourSequenceEnqueue(seq, idleStatus(), kNumPumps, g_config, g_inventory);
   TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kLowInventory), static_cast<int>(reject));
@@ -528,6 +529,61 @@ void test_pour_reject_duplicate_ingredient_aggregate_inventory() {
 void test_job_reject_unbound_and_calibration_text() {
   TEST_ASSERT_EQUAL_STRING("unbound-ingredient", jobRejectText(JobReject::kUnboundIngredient));
   TEST_ASSERT_EQUAL_STRING("bad-calibration", jobRejectText(JobReject::kBadCalibration));
+}
+
+StatusSnapshot moduleMissingStatus() {
+  StatusSnapshot s = idleStatus();
+  s.pumps_missing_mask = 0xFFFE;  // only pump 1 detected (suite uses kNumPumps = 2)
+  return s;
+}
+
+void test_missing_module_rejects_dispense_and_prime() {
+  resetConfig();
+  CommandParseResult r = parseCopy("dispense 2 10", moduleMissingStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadPump), static_cast<int>(r.reject));
+  r = parseCopy("prime 2", moduleMissingStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadPump), static_cast<int>(r.reject));
+  r = parseCopy("dispense 1 10", moduleMissingStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
+}
+
+void test_missing_module_rejects_pour_up_front() {
+  resetConfig();
+  TEST_ASSERT_TRUE(g_config.setBinding(0, "rum"));
+  TEST_ASSERT_TRUE(g_config.setBinding(1, "lime"));
+  seedPrimedInventory("rum");
+  seedPrimedInventory("lime");
+  const CommandParseResult r = parseCopy("pour rum 10 lime 10", moduleMissingStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadPump), static_cast<int>(r.reject));
+}
+
+void test_pol_parse() {
+  CommandParseResult r = parseCopy("pol 2 normal", idleStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
+  TEST_ASSERT_EQUAL(static_cast<int>(ConfigOpType::kSetPolarity),
+                    static_cast<int>(r.config_op.type));
+  TEST_ASSERT_EQUAL_UINT8(1, r.config_op.channel);
+  TEST_ASSERT_FALSE(r.config_op.invert_polarity);
+
+  r = parseCopy("pol 2 invert", idleStatus());
+  TEST_ASSERT_TRUE(r.config_op.invert_polarity);
+
+  r = parseCopy("pol 2 sideways", idleStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kBadArgs), static_cast<int>(r.reject));
+  r = parseCopy("pol 2", idleStatus());
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kUsage), static_cast<int>(r.reject));
+}
+
+void test_scale_bypass_allows_pour_without_scale() {
+  resetConfig();
+  TEST_ASSERT_TRUE(g_config.setBinding(0, "rum"));
+  seedPrimedInventory("rum");
+  StatusSnapshot s;  // scale not ready, no glass
+  CommandParseResult r = parseCopy("pour rum 10", s);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kScaleNotReady), static_cast<int>(r.reject));
+  s.scale_bypass = true;
+  r = parseCopy("pour rum 10", s);
+  TEST_ASSERT_EQUAL(static_cast<int>(CommandReject::kNone), static_cast<int>(r.reject));
 }
 
 }  // namespace
@@ -607,5 +663,9 @@ int main() {
   RUN_TEST(test_pour_reject_duplicate_ingredient_aggregate_inventory);
   RUN_TEST(test_validate_pour_preflight_matches_runner);
   RUN_TEST(test_job_reject_unbound_and_calibration_text);
+  RUN_TEST(test_missing_module_rejects_dispense_and_prime);
+  RUN_TEST(test_missing_module_rejects_pour_up_front);
+  RUN_TEST(test_pol_parse);
+  RUN_TEST(test_scale_bypass_allows_pour_without_scale);
   return UNITY_END();
 }

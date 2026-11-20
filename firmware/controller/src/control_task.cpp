@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <HX711.h>
 #include <Preferences.h>
+#include <Wire.h>
 
 #include <cstring>
 
@@ -13,7 +14,9 @@
 #include "esp_task_wdt.h"
 #include "gpio_ops.h"
 #include "http_validate.h"
+#include "i2c_ops.h"
 #include "job_status.h"
+#include "network_task.h"
 #include "queue_ops.h"
 #include "runtime_context.h"
 #include "scale_ops.h"
@@ -37,20 +40,64 @@ void arduinoDigitalWrite(int pin, uint8_t level) {
   digitalWrite(pin, level == kGpioLevelHigh ? HIGH : LOW);
 }
 
-void arduinoAnalogWrite(int pin, int duty) {
-  analogWrite(pin, duty);
-}
-
 const GpioOps kArduinoGpioOps = {
     arduinoPinMode,
     arduinoDigitalWrite,
-    arduinoAnalogWrite,
+};
+
+void arduinoI2cBeginBus(int sda, int scl) {
+  Wire.begin(sda, scl);
+  Wire.setTimeOut(kI2cTimeoutMs);
+}
+
+// Free a slave holding SDA low (e.g. module unplugged mid-transfer or an ESP reset
+// mid-byte): clock SCL until SDA releases, then issue a STOP and restart Wire.
+// Bounded to ~100 us of busy-wait so it is safe inside the ControlTask period.
+void i2cBusClear() {
+  Wire.end();
+  pinMode(pins::kI2cSda, INPUT_PULLUP);
+  pinMode(pins::kI2cScl, OUTPUT_OPEN_DRAIN);
+  digitalWrite(pins::kI2cScl, HIGH);
+  for (int i = 0; i < 9 && digitalRead(pins::kI2cSda) == LOW; ++i) {
+    digitalWrite(pins::kI2cScl, LOW);
+    delayMicroseconds(5);
+    digitalWrite(pins::kI2cScl, HIGH);
+    delayMicroseconds(5);
+  }
+  pinMode(pins::kI2cSda, OUTPUT_OPEN_DRAIN);
+  digitalWrite(pins::kI2cSda, LOW);
+  delayMicroseconds(5);
+  digitalWrite(pins::kI2cSda, HIGH);  // STOP: SDA rises while SCL high
+  delayMicroseconds(5);
+  arduinoI2cBeginBus(pins::kI2cSda, pins::kI2cScl);
+}
+
+bool arduinoI2cWriteReg(uint8_t addr7, uint8_t reg, uint8_t value) {
+  Wire.beginTransmission(addr7);
+  Wire.write(reg);
+  Wire.write(value);
+  const uint8_t err = Wire.endTransmission();
+  // 2/3 = address/data NACK (no module, or noise): bus is fine. 4/5 = bus error or
+  // timeout: the bus may be stuck, so clear it before the caller retries.
+  if (err == 4 || err == 5) {
+    i2cBusClear();
+  }
+  return err == 0;
+}
+
+const I2cOps kArduinoI2cOps = {
+    arduinoI2cBeginBus,
+    arduinoI2cWriteReg,
 };
 
 HX711 g_hx711;
 
 void hx711Begin(int dout, int sck) {
   g_hx711.begin(dout, sck);
+  // bogde/HX711 leaves DOUT as plain INPUT on ARCH_ESPRESSIF (an ESP8266
+  // workaround). On the S3 a missing module then floats low and reads as
+  // "ready" with all-zero data. A real HX711 drives DOUT push-pull.
+  pinMode(dout, INPUT_PULLUP);
 }
 bool hx711WaitReady(unsigned long timeout_ms) {
   return g_hx711.wait_ready_timeout(timeout_ms);
@@ -140,12 +187,13 @@ RuntimeContext& ctx() {
 }  // namespace
 
 void ControlTask::begin() {
-  pumps_.begin(kArduinoGpioOps);
+  pumps_.begin(kArduinoGpioOps, kArduinoI2cOps);
   pinMode(pins::kRingLight, OUTPUT);
   digitalWrite(pins::kRingLight, LOW);
   scale_.begin(kHx711Ops);
   ctx().config.begin(kPrefsOps);
   ctx().inventory.begin(kPrefsOps);
+  applyPumpPolarity();
   if (!ctx().queue.begin(kFreeRtosQueueOps)) {
     fatalRestart("command queue alloc failed; restarting");
   }
@@ -155,7 +203,9 @@ void ControlTask::begin() {
   coordinator_.begin(pumps_, scale_, ctx().config);
   sequence_.begin(coordinator_, ctx().config, ctx().inventory, pumps_, scale_);
   ctx().status.begin();
-  serial_.begin(ctx().queue, ctx().status, ctx().config, ctx().inventory, ctx().config_queue);
+  pinMode(pins::kLedStatus, OUTPUT);
+  digitalWrite(pins::kLedStatus, LOW);
+  serial_.begin(ctx().queue, ctx().config, ctx().inventory, ctx().config_queue, pumps_);
 }
 
 void ControlTask::start() {
@@ -206,7 +256,31 @@ void ControlTask::drainConfigOps() {
     } else {
       config_op_apply_failed_ = false;
     }
+    applyPumpPolarity();
   }
+}
+
+// Idle only (config ops drain when idle); PumpBus refuses a change on a running channel.
+void ControlTask::applyPumpPolarity() {
+  for (uint8_t ch = 0; ch < PumpBus::kNumChannels; ++ch) {
+    pumps_.setInvertPolarity(ch, ctx().config.invertPolarity(ch));
+  }
+}
+
+// High-water marks only shrink; sampled at 1 Hz (each call scans the unused stack).
+void ControlTask::sampleStacks(unsigned long now) {
+  if (last_stack_sample_ms_ != 0 && (now - last_stack_sample_ms_) < kStackSampleMs) {
+    return;
+  }
+  last_stack_sample_ms_ = now == 0 ? 1 : now;
+  control_stack_free_ = static_cast<uint32_t>(uxTaskGetStackHighWaterMark(nullptr));
+  network_stack_free_ = networkTaskStackFree();
+  const bool low = control_stack_free_ < kStackLowWaterBytes ||
+                   (network_stack_free_ != 0 && network_stack_free_ < kStackLowWaterBytes);
+  if (low && !stack_low_reported_) {
+    serial_.emitStackLow(control_stack_free_, network_stack_free_);
+  }
+  stack_low_reported_ = low;
 }
 
 void ControlTask::clearPumpJobContext() {
@@ -283,9 +357,15 @@ void ControlTask::updateJobTerminalLatch(StatusSnapshot& snapshot, unsigned long
 }
 
 void ControlTask::publishConfigAndInventory(StatusSnapshot& snapshot) {
-  snapshot.published_pump_count = PumpBus::kNumChannels;
+  // Only detected pumps are published, so the kiosk never offers a pump whose
+  // module is missing and HTTP preflight cannot resolve an ingredient to one.
+  snapshot.pumps_missing_mask = pumps_.missingChannelMask();
+  uint8_t pump_count = 0;
   for (uint8_t ch = 0; ch < PumpBus::kNumChannels; ++ch) {
-    SnapshotPump& row = snapshot.published_pumps[ch];
+    if (!pumps_.channelPresent(ch)) {
+      continue;
+    }
+    SnapshotPump& row = snapshot.published_pumps[pump_count++];
     row.pump_id = static_cast<uint8_t>(ch + 1);
     row.bound = ctx().config.bound(ch);
     row.ml_per_second = ctx().config.mlPerSecond(ch);
@@ -295,10 +375,11 @@ void ControlTask::publishConfigAndInventory(StatusSnapshot& snapshot) {
       std::strncpy(row.ingredient_id, ctx().config.ingredient(ch), kIngredientIdMax - 1);
     }
   }
+  snapshot.published_pump_count = pump_count;
 
   uint8_t count = 0;
   for (uint8_t ch = 0; ch < PumpBus::kNumChannels && count < kMaxInventoryEntries; ++ch) {
-    if (!ctx().config.bound(ch)) {
+    if (!ctx().config.bound(ch) || !pumps_.channelPresent(ch)) {
       continue;
     }
     const char* ingredient = ctx().config.ingredient(ch);
@@ -335,11 +416,13 @@ void ControlTask::tick() {
 
   const bool motion_busy = sequence_.busy() || coordinator_.busy();
 
-  {
-    StatusSnapshot preflight_status = ctx().status.read();
-    preflight_status.config_op_pending = ctx().config_queue.hasPending();
-    serial_.poll(&preflight_status);
-  }
+  // One StatusSnapshot for the whole tick: last published status for serial
+  // preflight, then reset so nothing stale is carried into this tick's publish.
+  StatusSnapshot& snapshot = snapshot_;
+  ctx().status.read(snapshot);
+  snapshot.config_op_pending = ctx().config_queue.hasPending();
+  serial_.poll(snapshot);
+  snapshot = StatusSnapshot{};
 
   // HTTP-started jobs: miss GET /status (and other HTTP) for too long → cancel.
   // Enqueue before drainCancel so the abort applies this tick. Keep the watchdog
@@ -365,9 +448,15 @@ void ControlTask::tick() {
 
   if (!coordinator_.busy() && !sequence_.busy()) {
     drainConfigOps();
+    if ((now - last_pump_rescan_ms_) >= kPumpModuleRescanMs) {
+      last_pump_rescan_ms_ = now;
+      pumps_.rescan();
+      applyPumpPolarity();
+    }
   }
 
   if (!coordinator_.busy() && !sequence_.busy()) {
+    sequence_.setScaleBypass(ctx().bench_scale_bypass.load(std::memory_order_relaxed));
     Command command;
     if (ctx().queue.drainCommand(command)) {
       switch (command.type) {
@@ -413,15 +502,27 @@ void ControlTask::tick() {
 
   const bool top_job_busy = sequence_.busy() || coordinator_.busy();
 
-  StatusSnapshot snapshot;
+  sampleStacks(now);
+  snapshot.control_stack_free = control_stack_free_;
+  snapshot.network_stack_free = network_stack_free_;
   snapshot.pumps_running = pumps_.anyRunning();
   snapshot.scale_ready = scale_.ready();
+  snapshot.scale_bypass = ctx().bench_scale_bypass.load(std::memory_order_relaxed);
   snapshot.glass_present = scale_.glassPresent();
   snapshot.grams = scale_.readFilteredGrams();
   snapshot.flow_detected = scale_.flowDetected();
   snapshot.flow_timed_out = scale_.flowTimedOut();
   snapshot.last_delta_g = scale_.lastDeltaG();
   digitalWrite(pins::kRingLight, snapshot.glass_present ? HIGH : LOW);
+  // LED_STATUS blinks while PUMP_BUS_ENABLE (STBY) is high, off otherwise. Only
+  // written on changes so `led on|off` still holds while the drivers are off.
+  {
+    const bool led_on = pumps_.driverEnabled() && ((now / kStatusLedBlinkHalfPeriodMs) % 2 == 0);
+    if (led_on != status_led_on_) {
+      status_led_on_ = led_on;
+      digitalWrite(pins::kLedStatus, led_on ? HIGH : LOW);
+    }
+  }
   snapshot.job_busy = top_job_busy;
   snapshot.command_pending = ctx().queue.hasPending();
   snapshot.config_op_pending = ctx().config_queue.hasPending();

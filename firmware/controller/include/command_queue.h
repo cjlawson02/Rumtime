@@ -42,18 +42,48 @@ struct PourSequenceStep {
   float ml = 0.0f;
 };
 
-// One pour phase: steps in the phase run concurrently (≤ kMaxConcurrentPumps).
-struct PourSequencePhase {
-  PourSequenceStep steps[kMaxConcurrentPumps] = {};
-  uint8_t step_count = 0;
-};
-
-// Multi-phase pour sequence. Phases run in order; steps within a phase are
-// concurrent. Legacy flat `steps` callers wrap each step as its own phase.
+// Multi-phase pour sequence. Phases run in order; steps within a phase run
+// concurrently (≤ kMaxConcurrentPumps). Stored flat — phase 0's steps, then
+// phase 1's, … — so the struct is sized for kMaxPourSequenceSteps total steps
+// (~0.5 KB) rather than every phase at full width (it rides in every Command,
+// queue slot and stack frame that handles one). Build with addPhase()/addStep().
 struct PourSequenceCommand {
   char recipe_id[kRecipeIdMax] = {0};
-  PourSequencePhase phases[kMaxPourPhases] = {};
+  PourSequenceStep steps[kMaxPourSequenceSteps] = {};
+  uint8_t phase_sizes[kMaxPourPhases] = {};
   uint8_t phase_count = 0;
+  uint8_t step_count = 0;  // total across phases
+
+  // Open a new (empty) phase. False when kMaxPourPhases are already open.
+  bool addPhase() {
+    if (phase_count >= kMaxPourPhases) {
+      return false;
+    }
+    phase_sizes[phase_count++] = 0;
+    return true;
+  }
+  // Append to the last phase. False with no open phase, a full phase
+  // (kMaxConcurrentPumps), or kMaxPourSequenceSteps total.
+  bool addStep(const PourSequenceStep& step) {
+    if (phase_count == 0 || step_count >= kMaxPourSequenceSteps ||
+        phase_sizes[phase_count - 1] >= kMaxConcurrentPumps) {
+      return false;
+    }
+    steps[step_count++] = step;
+    ++phase_sizes[phase_count - 1];
+    return true;
+  }
+  uint8_t phaseSize(uint8_t phase) const {
+    return phase < phase_count ? phase_sizes[phase] : 0;
+  }
+  // First step of a phase (steps of one phase are contiguous).
+  const PourSequenceStep* phaseSteps(uint8_t phase) const {
+    uint8_t offset = 0;
+    for (uint8_t p = 0; p < phase && p < phase_count; ++p) {
+      offset = static_cast<uint8_t>(offset + phase_sizes[p]);
+    }
+    return &steps[offset];
+  }
 };
 
 struct Command {

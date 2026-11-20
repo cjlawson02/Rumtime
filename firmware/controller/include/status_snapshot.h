@@ -47,6 +47,7 @@ struct SnapshotPump {
 struct StatusSnapshot {
   bool pumps_running = false;
   bool scale_ready = false;
+  bool scale_bypass = false;  // bench-only; see RuntimeContext::bench_scale_bypass
   bool glass_present = false;
   float grams = 0.0f;  // filtered
   bool flow_detected = false;
@@ -85,14 +86,25 @@ struct StatusSnapshot {
 
   SnapshotBinding published_bindings[kMaxInventoryEntries] = {};
   uint8_t published_binding_count = 0;
+  // Rows only for pumps whose module was detected (sparse by pump_id).
   SnapshotPump published_pumps[kMaxPumps] = {};
   uint8_t published_pump_count = 0;
+  // Bit ch set → module for channel ch not detected; motion and config edits refused.
+  uint16_t pumps_missing_mask = 0;
+
+  // Minimum free stack ever seen (bytes, FreeRTOS high-water mark); 0 = not sampled.
+  uint32_t control_stack_free = 0;
+  uint32_t network_stack_free = 0;
 };
 
 class StatusPublisher {
  public:
   void begin();
   void publish(const StatusSnapshot& snapshot);
+  // Copies straight into out (no ~1.4 KB temporary). On a torn read after the
+  // retry budget, out is reset to defaults. Prefer this over the by-value form
+  // on task stacks; callers on one task can keep a single static snapshot.
+  void read(StatusSnapshot& out) const;
   StatusSnapshot read() const;
 
  private:

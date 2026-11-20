@@ -2,7 +2,9 @@
 
 Pre-layout specification for the **main controller** PCB. Implement as hierarchical sheets in KiCad (`main-controller/main-controller.kicad_sch`).
 
-**Status (2026-10-29):** Schematic **v2** — four Micro-Fit 2×3 pump-bus OUTs (no daisy), Mini560 5 V ×2, fused screw-terminal inlet, HX711 1×6+1×4, DevKit **25.4 mm**. PCB **ordered** for fab. Same toolchain as the 4-pump module ([`README.md`](README.md)). Load cell / HX711 lives **here**, not on the pump modules.
+**Status (2026-11-19):** One board **built and continuity-probed**; **not powered yet**. Schematic **v2** — four Micro-Fit 2×3 pump-bus OUTs (no daisy), Mini560 5 V ×2, fused screw-terminal inlet, HX711 1×6+1×4, DevKit **25.4 mm**. Same toolchain as the 4-pump module ([`README.md`](README.md)). Load cell / HX711 lives **here**, not on the pump modules.
+
+**Known as-built (v1):** DevKit **WLAN / antenna overhangs into the HX711 socket footprint**. Usable for now — seat the HX711 carefully. **Rev 2:** move HX711 (or DevKit) so Wi-Fi keepout clears the HX711 body.
 
 Architecture: [`docs/05-electronics-and-pcb.md`](../../docs/05-electronics-and-pcb.md), [`docs/02-system-architecture.md`](../../docs/02-system-architecture.md). Pump-bus pinout must stay pin-for-pin with [`4-pump-module-spec.md`](4-pump-module-spec.md) J1.
 
@@ -226,6 +228,8 @@ MCP23017 **/RESET** stays on each module (local pull-up). It is **not** on this 
 I2C: **R_SDA, R_SCL = 2.2 kΩ** to 3.3 V (one pair on this board, for all four jacks). 4.7 kΩ only if a single short module misbehaves at 2.2 kΩ.
 
 ## HX711 (1×6 + 1×4) and load-cell JST
+
+**Clearance (2026-11-19):** With the DevKit seated, the WLAN chip / antenna region **covers into the HX711 footprint**. Do not treat the silk outline as free air. v1 workaround: plug HX711 fully and accept the overlap, or leave a slight tilt only if pins still seat. Fix placement on the next PCB rev.
 
 The kit module is **~34 × 20 mm**, analog pads on one edge, digital on the other — not a DIP. Motherboard sockets are **female PinSocket**, so the module pins plug in.
 
